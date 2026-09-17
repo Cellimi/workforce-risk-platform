@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wri-engine"
+version = "0.1.0"
+description = "Workforce Risk Intelligence - Phase 1: fully loaded cost of discipline"
+readme = "README.md"
+# Target is Python 3.12; 3.11 is supported so the project runs on older toolchains.
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.6",
+    "pandas>=2.2",
+    "duckdb>=1.0",
+    "pyyaml>=6.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.32", "plotly>=5.18"]
+dev = ["pytest>=8", "pytest-cov>=5", "hypothesis>=6.100", "ruff>=0.4"]
+
+[project.scripts]
+wri-generate = "wri_engine.generator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = ["error::DeprecationWarning:wri_engine.*"]
+
+[tool.coverage.run]
+source = ["wri_engine.costing", "wri_engine.aggregation"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "app"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]

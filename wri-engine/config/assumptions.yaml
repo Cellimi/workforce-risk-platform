@@ -1,0 +1,2345 @@
+# Assumptions registry -- WRI Phase 1 discipline cost baseline.
+#
+# EVERY cost coefficient the engine uses lives here. Python never hardcodes one. The loader
+# (src/wri_engine/costing/assumptions.py) fails hard if the engine asks for an id that is
+# not in this file.
+#
+# Fields
+#   id             stable key the engine references
+#   value          the base-case value
+#   low / high     sensitivity bounds; low <= value <= high is enforced at load
+#   unit           what the number means
+#   applies_to     selector describing when this assumption is used
+#   source         where the number came from. A sourced figure MUST carry its citation.
+#   confidence     high | medium | low
+#   owner          who signs off
+#   status         confirmed | researched | TBD-MIKE
+#   last_reviewed  ISO date
+#   notes          anything a reader needs, including what to replace it with
+#
+# status = TBD-MIKE means the value is an owner placeholder and MUST be confirmed before the
+# demo is shown externally. Section 13 of the implementation plan lists the open items.
+#
+# Generated 2026-09-17; hand-edited from here on.
+
+assumptions:
+- id: benefits_multiplier_civilian
+  value: 1.627
+  low: 1.5
+  high: 1.75
+  unit: ratio
+  applies_to:
+    benefits_group: civilian
+  source: 'BLS Employer Costs for Employee Compensation, March 2026 (USDL-26-0827, released 2026-06-12),
+    Table 1 ''By ownership'': state and local government total compensation $66.41/hr worked, wages and
+    salaries $40.82/hr worked. 66.41 / 40.82 = 1.627.'
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: ECEC is per hour WORKED and counts paid leave as a benefit; our base rate is per hour PAID (salary
+    / 2080), so paid-leave hours are mildly double-counted. That biases loaded cost UP by roughly the
+    paid-leave share. Documented in docs/cost_methodology.md; refine with ECEC's paid-leave line when
+    available.
+- id: benefits_multiplier_sworn
+  value: 1.75
+  low: 1.627
+  high: 2.05
+  unit: ratio
+  applies_to:
+    benefits_group: sworn_public_safety
+  source: Owner professional estimate, pending BLS ECEC Table 3 (state and local government by occupational
+    group -> 'protective service'). Public-safety pension normal cost and OPEB typically exceed the all-occupations
+    state/local average.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'CONFIRM FROM PUBLIC DATA: pull ECEC Table 3 protective-service total compensation and wages
+    per hour worked, take the ratio, and replace this value. bls.gov was not reachable from the build
+    environment. Until then this is an owner estimate, and the low bound deliberately equals the all-occupations
+    figure.'
+- id: c1_reference_annual_hours
+  value: 2080
+  low: 2080
+  high: 2080
+  unit: hours
+  applies_to:
+    scope: role_average_rates
+  source: Standard 2,080-hour civilian work year (40 hrs x 52 weeks).
+  confidence: high
+  owner: Mike Celli
+  status: confirmed
+  last_reviewed: '2026-09-17'
+  notes: Used only to convert reference ANNUAL salaries into hourly rates for staff whose individual record
+    is not in the dataset (HR/labor relations, deciding officials).
+- id: c1_hours_counseling_supervisor
+  value: 2
+  low: 1
+  high: 4
+  unit: hours
+  applies_to:
+    action_type: documented_counseling
+    actor: supervisor
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the first-line supervisor spends on one counseling action, end to end.
+- id: c1_hours_counseling_hr
+  value: 0.5
+  low: 0.25
+  high: 1.5
+  unit: hours
+  applies_to:
+    action_type: documented_counseling
+    actor: hr
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the HR / labor relations spends on one counseling action, end to end.
+- id: c1_hours_counseling_deciding
+  value: 0
+  low: 0
+  high: 1
+  unit: hours
+  applies_to:
+    action_type: documented_counseling
+    actor: deciding
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the deciding official spends on one counseling action, end to end.
+- id: c1_hours_reprimand_supervisor
+  value: 4
+  low: 2
+  high: 8
+  unit: hours
+  applies_to:
+    action_type: written_reprimand
+    actor: supervisor
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the first-line supervisor spends on one reprimand action, end to end.
+- id: c1_hours_reprimand_hr
+  value: 2
+  low: 1
+  high: 5
+  unit: hours
+  applies_to:
+    action_type: written_reprimand
+    actor: hr
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the HR / labor relations spends on one reprimand action, end to end.
+- id: c1_hours_reprimand_deciding
+  value: 1
+  low: 0.5
+  high: 3
+  unit: hours
+  applies_to:
+    action_type: written_reprimand
+    actor: deciding
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the deciding official spends on one reprimand action, end to end.
+- id: c1_hours_suspension_supervisor
+  value: 12
+  low: 8
+  high: 20
+  unit: hours
+  applies_to:
+    action_type: suspension_1_3|suspension_4_14|suspension_15_plus
+    actor: supervisor
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the first-line supervisor spends on one suspension action, end to end.
+- id: c1_hours_suspension_hr
+  value: 10
+  low: 6
+  high: 18
+  unit: hours
+  applies_to:
+    action_type: suspension_1_3|suspension_4_14|suspension_15_plus
+    actor: hr
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the HR / labor relations spends on one suspension action, end to end.
+- id: c1_hours_suspension_deciding
+  value: 4
+  low: 2
+  high: 8
+  unit: hours
+  applies_to:
+    action_type: suspension_1_3|suspension_4_14|suspension_15_plus
+    actor: deciding
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the deciding official spends on one suspension action, end to end.
+- id: c1_hours_demotion_supervisor
+  value: 20
+  low: 12
+  high: 32
+  unit: hours
+  applies_to:
+    action_type: demotion
+    actor: supervisor
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the first-line supervisor spends on one demotion action, end to end.
+- id: c1_hours_demotion_hr
+  value: 15
+  low: 9
+  high: 26
+  unit: hours
+  applies_to:
+    action_type: demotion
+    actor: hr
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the HR / labor relations spends on one demotion action, end to end.
+- id: c1_hours_demotion_deciding
+  value: 6
+  low: 3
+  high: 12
+  unit: hours
+  applies_to:
+    action_type: demotion
+    actor: deciding
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the deciding official spends on one demotion action, end to end.
+- id: c1_hours_removal_supervisor
+  value: 30
+  low: 20
+  high: 45
+  unit: hours
+  applies_to:
+    action_type: removal
+    actor: supervisor
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the first-line supervisor spends on one removal action, end to end.
+- id: c1_hours_removal_hr
+  value: 20
+  low: 12
+  high: 35
+  unit: hours
+  applies_to:
+    action_type: removal
+    actor: hr
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the HR / labor relations spends on one removal action, end to end.
+- id: c1_hours_removal_deciding
+  value: 8
+  low: 4
+  high: 16
+  unit: hours
+  applies_to:
+    action_type: removal
+    actor: deciding
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours the deciding official spends on one removal action, end to end.
+- id: c1_investigation_hours_supervisory
+  value: 6
+  low: 3
+  high: 12
+  unit: hours
+  applies_to:
+    investigation_type: supervisory
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator hours added when was_investigated is true and the type is supervisory.
+- id: c1_investigation_hours_hr
+  value: 16
+  low: 10
+  high: 28
+  unit: hours
+  applies_to:
+    investigation_type: hr
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator hours added when was_investigated is true and the type is hr.
+- id: c1_investigation_hours_internal_affairs
+  value: 40
+  low: 24
+  high: 80
+  unit: hours
+  applies_to:
+    investigation_type: internal_affairs
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator hours added when was_investigated is true and the type is internal_affairs.
+- id: c1_hr_reference_annual_salary
+  value: 78000
+  low: 65000
+  high: 95000
+  unit: usd_per_year
+  applies_to:
+    actor: hr
+  source: Owner professional estimate, anchored on the county Analyst pay grade.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: HR/labor-relations staff are not individually present in the HR extract, so their hours are costed
+    at this reference salary x the civilian benefits multiplier.
+- id: c1_deciding_annual_salary_supervisor
+  value: 85000
+  low: 70000
+  high: 105000
+  unit: usd_per_year
+  applies_to:
+    deciding_official_level: supervisor
+  source: Owner professional estimate, anchored on the county pay plan.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Fallback salary for a supervisor whose own employee record is not identified on the action.
+- id: c1_deciding_annual_salary_division_head
+  value: 105000
+  low: 90000
+  high: 130000
+  unit: usd_per_year
+  applies_to:
+    deciding_official_level: division_head
+  source: Owner professional estimate, anchored on the county pay plan.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Fallback salary for a division head whose own employee record is not identified on the action.
+- id: c1_deciding_annual_salary_department_head
+  value: 135000
+  low: 110000
+  high: 170000
+  unit: usd_per_year
+  applies_to:
+    deciding_official_level: department_head
+  source: Owner professional estimate, anchored on the county pay plan.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Fallback salary for a department head whose own employee record is not identified on the action.
+- id: c1_deciding_annual_salary_county_administrator
+  value: 175000
+  low: 145000
+  high: 225000
+  unit: usd_per_year
+  applies_to:
+    deciding_official_level: county_administrator
+  source: Owner professional estimate, anchored on the county pay plan.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Fallback salary for a county administrator whose own employee record is not identified on the
+    action.
+- id: c3_ot_premium_multiplier
+  value: 1.5
+  low: 1.5
+  high: 1.5
+  unit: ratio
+  applies_to:
+    scope: overtime
+  source: 'FLSA, 29 U.S.C. 207(a)(1): overtime at not less than one and one-half times the regular rate.'
+  confidence: high
+  owner: Mike Celli
+  status: confirmed
+  last_reviewed: '2026-09-17'
+  notes: Statutory. Local agreements can exceed it; none assumed here.
+- id: c3_ot_burden_multiplier
+  value: 1.0765
+  low: 1.0765
+  high: 1.35
+  unit: ratio
+  applies_to:
+    scope: overtime
+  source: 'Employer FICA on overtime wages: 6.2% OASDI + 1.45% HI = 7.65% (26 U.S.C. 3111). Pensionability
+    of overtime is jurisdiction-specific and NOT included in the base value.'
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 3. If overtime is pensionable in the customer's plan, raise this by the employer normal-cost
+    rate (the 1.35 high bound assumes a ~27% public-safety employer contribution applies to OT). Health
+    and OPEB do not scale with OT and are excluded by design - this is why C3 does NOT use the full benefits
+    multiplier.
+- id: c4_hr_hours_grievance_step
+  value: 10
+  low: 5
+  high: 20
+  unit: hours
+  applies_to:
+    forum: grievance_step
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Internal HR/labor-relations hours to carry one case through grievance step.
+- id: c4_hr_hours_arbitration
+  value: 40
+  low: 25
+  high: 70
+  unit: hours
+  applies_to:
+    forum: arbitration
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Internal HR/labor-relations hours to carry one case through arbitration.
+- id: c4_hr_hours_civil_service_board
+  value: 30
+  low: 18
+  high: 50
+  unit: hours
+  applies_to:
+    forum: civil_service_board
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Internal HR/labor-relations hours to carry one case through civil service board.
+- id: c4_hr_hours_court
+  value: 60
+  low: 35
+  high: 120
+  unit: hours
+  applies_to:
+    forum: court
+  source: Owner professional estimate (Section 5.2 starting defaults).
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Internal HR/labor-relations hours to carry one case through court.
+- id: c4_filing_window_days_grievance_step
+  value: 14
+  low: 7
+  high: 30
+  unit: days
+  applies_to:
+    forum: grievance_step
+  source: Owner professional estimate; in practice set by the collective bargaining agreement or civil
+    service rule.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Days after the decision date during which a grievance step filing is still possible. Actions
+    inside an open window are flagged cost_incomplete.
+- id: c4_filing_window_days_arbitration
+  value: 30
+  low: 14
+  high: 60
+  unit: days
+  applies_to:
+    forum: arbitration
+  source: Owner professional estimate; in practice set by the collective bargaining agreement or civil
+    service rule.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Days after the decision date during which a arbitration filing is still possible. Actions inside
+    an open window are flagged cost_incomplete.
+- id: c4_filing_window_days_civil_service_board
+  value: 20
+  low: 10
+  high: 45
+  unit: days
+  applies_to:
+    forum: civil_service_board
+  source: Owner professional estimate; in practice set by the collective bargaining agreement or civil
+    service rule.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Days after the decision date during which a civil service board filing is still possible. Actions
+    inside an open window are flagged cost_incomplete.
+- id: c4_filing_window_days_court
+  value: 180
+  low: 90
+  high: 365
+  unit: days
+  applies_to:
+    forum: court
+  source: Owner professional estimate; in practice set by the collective bargaining agreement or civil
+    service rule.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Days after the decision date during which a court filing is still possible. Actions inside an
+    open window are flagged cost_incomplete.
+- id: c4_outside_counsel_hourly_rate
+  value: 325
+  low: 225
+  high: 550
+  unit: usd_per_hour
+  applies_to:
+    scope: appeals
+  source: Owner professional estimate. OPEN ITEM 2 - replace with the customer's outside counsel rate
+    schedule.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: ''
+- id: c4_arbitration_flat_cost
+  value: 7500
+  low: 4000
+  high: 14000
+  unit: usd_per_case
+  applies_to:
+    forum: arbitration
+  source: Owner professional estimate. OPEN ITEM 2 - the employer's share of arbitrator per-diem and study
+    time, plus transcript and hearing room.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Applied once per arbitration record, whatever the outcome.
+- id: c4_back_pay_interest_annual_rate
+  value: 0.05
+  low: 0.0
+  high: 0.09
+  unit: rate_per_year
+  applies_to:
+    scope: appeals
+  source: Owner professional estimate; the statutory post-award rate varies by state.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Simple interest, accrued from filed_date to resolution_date on the back pay awarded.
+- id: c5_advertising_cost_sworn_deputy
+  value: 2500
+  low: 1200
+  high: 5000
+  unit: usd_per_posting
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Job board, trade publication and recruiting event cost attributed to one posting. (sworn deputy)
+- id: c5_advertising_cost_corrections
+  value: 2000
+  low: 900
+  high: 4000
+  unit: usd_per_posting
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Job board, trade publication and recruiting event cost attributed to one posting. (corrections
+    officer)
+- id: c5_advertising_cost_dispatch
+  value: 1500
+  low: 700
+  high: 3000
+  unit: usd_per_posting
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Job board, trade publication and recruiting event cost attributed to one posting. (telecommunicator)
+- id: c5_advertising_cost_fire_ems
+  value: 2200
+  low: 1000
+  high: 4500
+  unit: usd_per_posting
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Job board, trade publication and recruiting event cost attributed to one posting. (firefighter/EMT)
+- id: c5_advertising_cost_civilian_skilled
+  value: 900
+  low: 300
+  high: 2000
+  unit: usd_per_posting
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Job board, trade publication and recruiting event cost attributed to one posting. (skilled civilian)
+- id: c5_advertising_cost_civilian_standard
+  value: 600
+  low: 200
+  high: 1500
+  unit: usd_per_posting
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Job board, trade publication and recruiting event cost attributed to one posting. (standard civilian)
+- id: c5_hr_recruiter_hours_sworn_deputy
+  value: 40
+  low: 24
+  high: 70
+  unit: hours
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'HR recruiter/analyst hours per completed hire: posting, applicant tracking, scheduling, offer.
+    (sworn deputy)'
+- id: c5_hr_recruiter_hours_corrections
+  value: 30
+  low: 18
+  high: 55
+  unit: hours
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'HR recruiter/analyst hours per completed hire: posting, applicant tracking, scheduling, offer.
+    (corrections officer)'
+- id: c5_hr_recruiter_hours_dispatch
+  value: 25
+  low: 15
+  high: 45
+  unit: hours
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'HR recruiter/analyst hours per completed hire: posting, applicant tracking, scheduling, offer.
+    (telecommunicator)'
+- id: c5_hr_recruiter_hours_fire_ems
+  value: 35
+  low: 20
+  high: 60
+  unit: hours
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'HR recruiter/analyst hours per completed hire: posting, applicant tracking, scheduling, offer.
+    (firefighter/EMT)'
+- id: c5_hr_recruiter_hours_civilian_skilled
+  value: 18
+  low: 10
+  high: 32
+  unit: hours
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'HR recruiter/analyst hours per completed hire: posting, applicant tracking, scheduling, offer.
+    (skilled civilian)'
+- id: c5_hr_recruiter_hours_civilian_standard
+  value: 12
+  low: 6
+  high: 24
+  unit: hours
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'HR recruiter/analyst hours per completed hire: posting, applicant tracking, scheduling, offer.
+    (standard civilian)'
+- id: c5_testing_cost_sworn_deputy
+  value: 350
+  low: 150
+  high: 700
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Written examination and physical ability testing, per hire (includes the candidates tested but
+    not hired). (sworn deputy)
+- id: c5_testing_cost_corrections
+  value: 250
+  low: 100
+  high: 500
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Written examination and physical ability testing, per hire (includes the candidates tested but
+    not hired). (corrections officer)
+- id: c5_testing_cost_dispatch
+  value: 200
+  low: 80
+  high: 400
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Written examination and physical ability testing, per hire (includes the candidates tested but
+    not hired). (telecommunicator)
+- id: c5_testing_cost_fire_ems
+  value: 400
+  low: 180
+  high: 800
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Written examination and physical ability testing, per hire (includes the candidates tested but
+    not hired). (firefighter/EMT)
+- id: c5_testing_cost_civilian_skilled
+  value: 0
+  low: 0
+  high: 150
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Written examination and physical ability testing, per hire (includes the candidates tested but
+    not hired). (skilled civilian)
+- id: c5_testing_cost_civilian_standard
+  value: 0
+  low: 0
+  high: 100
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Written examination and physical ability testing, per hire (includes the candidates tested but
+    not hired). (standard civilian)
+- id: c5_panel_size_sworn_deputy
+  value: 3
+  low: 2
+  high: 5
+  unit: people
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Number of county staff on the interview panel. (sworn deputy)
+- id: c5_panel_size_corrections
+  value: 3
+  low: 2
+  high: 4
+  unit: people
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Number of county staff on the interview panel. (corrections officer)
+- id: c5_panel_size_dispatch
+  value: 3
+  low: 2
+  high: 4
+  unit: people
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Number of county staff on the interview panel. (telecommunicator)
+- id: c5_panel_size_fire_ems
+  value: 3
+  low: 2
+  high: 5
+  unit: people
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Number of county staff on the interview panel. (firefighter/EMT)
+- id: c5_panel_size_civilian_skilled
+  value: 3
+  low: 2
+  high: 4
+  unit: people
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Number of county staff on the interview panel. (skilled civilian)
+- id: c5_panel_size_civilian_standard
+  value: 2
+  low: 2
+  high: 3
+  unit: people
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Number of county staff on the interview panel. (standard civilian)
+- id: c5_panel_hours_sworn_deputy
+  value: 2
+  low: 1
+  high: 4
+  unit: hours
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours each panel member spends per hire, including preparation and scoring. (sworn deputy)
+- id: c5_panel_hours_corrections
+  value: 1.5
+  low: 1
+  high: 3
+  unit: hours
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours each panel member spends per hire, including preparation and scoring. (corrections officer)
+- id: c5_panel_hours_dispatch
+  value: 1.5
+  low: 1
+  high: 3
+  unit: hours
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours each panel member spends per hire, including preparation and scoring. (telecommunicator)
+- id: c5_panel_hours_fire_ems
+  value: 2
+  low: 1
+  high: 4
+  unit: hours
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours each panel member spends per hire, including preparation and scoring. (firefighter/EMT)
+- id: c5_panel_hours_civilian_skilled
+  value: 1.5
+  low: 1
+  high: 3
+  unit: hours
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours each panel member spends per hire, including preparation and scoring. (skilled civilian)
+- id: c5_panel_hours_civilian_standard
+  value: 1
+  low: 0.5
+  high: 2
+  unit: hours
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Hours each panel member spends per hire, including preparation and scoring. (standard civilian)
+- id: c5_background_investigation_cost_sworn_deputy
+  value: 3500
+  low: 1800
+  high: 6500
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
+    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator time plus records and travel, per completed hire. (sworn deputy)
+- id: c5_background_investigation_cost_corrections
+  value: 2200
+  low: 1100
+  high: 4200
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
+    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator time plus records and travel, per completed hire. (corrections officer)
+- id: c5_background_investigation_cost_dispatch
+  value: 1200
+  low: 600
+  high: 2400
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
+    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator time plus records and travel, per completed hire. (telecommunicator)
+- id: c5_background_investigation_cost_fire_ems
+  value: 1800
+  low: 900
+  high: 3500
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
+    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator time plus records and travel, per completed hire. (firefighter/EMT)
+- id: c5_background_investigation_cost_civilian_skilled
+  value: 300
+  low: 120
+  high: 600
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
+    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator time plus records and travel, per completed hire. (skilled civilian)
+- id: c5_background_investigation_cost_civilian_standard
+  value: 250
+  low: 100
+  high: 500
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
+    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Investigator time plus records and travel, per completed hire. (standard civilian)
+- id: c5_polygraph_cost_sworn_deputy
+  value: 375
+  low: 300
+  high: 450
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Commercial polygraph pricing surveys report roughly $300-$450 for a pre-employment examination.
+    Agencies that staff examiners in-house pay less.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment polygraph. Zero where the role does not require one. (sworn deputy)
+- id: c5_polygraph_cost_corrections
+  value: 375
+  low: 300
+  high: 450
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Commercial polygraph pricing surveys report roughly $300-$450 for a pre-employment examination.
+    Agencies that staff examiners in-house pay less.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment polygraph. Zero where the role does not require one. (corrections officer)
+- id: c5_polygraph_cost_dispatch
+  value: 375
+  low: 300
+  high: 450
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Commercial polygraph pricing surveys report roughly $300-$450 for a pre-employment examination.
+    Agencies that staff examiners in-house pay less.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment polygraph. Zero where the role does not require one. (telecommunicator)
+- id: c5_polygraph_cost_fire_ems
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Commercial polygraph pricing surveys report roughly $300-$450 for a pre-employment examination.
+    Agencies that staff examiners in-house pay less.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment polygraph. Zero where the role does not require one. (firefighter/EMT)
+- id: c5_polygraph_cost_civilian_skilled
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Commercial polygraph pricing surveys report roughly $300-$450 for a pre-employment examination.
+    Agencies that staff examiners in-house pay less.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment polygraph. Zero where the role does not require one. (skilled civilian)
+- id: c5_polygraph_cost_civilian_standard
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Commercial polygraph pricing surveys report roughly $300-$450 for a pre-employment examination.
+    Agencies that staff examiners in-house pay less.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment polygraph. Zero where the role does not require one. (standard civilian)
+- id: c5_psych_eval_cost_sworn_deputy
+  value: 550
+  low: 300
+  high: 900
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment psychological evaluation, where the role requires one. (sworn deputy)
+- id: c5_psych_eval_cost_corrections
+  value: 450
+  low: 250
+  high: 750
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment psychological evaluation, where the role requires one. (corrections officer)
+- id: c5_psych_eval_cost_dispatch
+  value: 400
+  low: 200
+  high: 700
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment psychological evaluation, where the role requires one. (telecommunicator)
+- id: c5_psych_eval_cost_fire_ems
+  value: 450
+  low: 250
+  high: 750
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment psychological evaluation, where the role requires one. (firefighter/EMT)
+- id: c5_psych_eval_cost_civilian_skilled
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment psychological evaluation, where the role requires one. (skilled civilian)
+- id: c5_psych_eval_cost_civilian_standard
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment psychological evaluation, where the role requires one. (standard civilian)
+- id: c5_medical_exam_cost_sworn_deputy
+  value: 350
+  low: 180
+  high: 600
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
+    medical standards. (sworn deputy)
+- id: c5_medical_exam_cost_corrections
+  value: 350
+  low: 180
+  high: 600
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
+    medical standards. (corrections officer)
+- id: c5_medical_exam_cost_dispatch
+  value: 200
+  low: 100
+  high: 400
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
+    medical standards. (telecommunicator)
+- id: c5_medical_exam_cost_fire_ems
+  value: 900
+  low: 500
+  high: 1600
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
+    medical standards. (firefighter/EMT)
+- id: c5_medical_exam_cost_civilian_skilled
+  value: 150
+  low: 0
+  high: 350
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
+    medical standards. (skilled civilian)
+- id: c5_medical_exam_cost_civilian_standard
+  value: 0
+  low: 0
+  high: 250
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
+    medical standards. (standard civilian)
+- id: c5_drug_screen_cost_sworn_deputy
+  value: 65
+  low: 35
+  high: 120
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment drug screen. (sworn deputy)
+- id: c5_drug_screen_cost_corrections
+  value: 65
+  low: 35
+  high: 120
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment drug screen. (corrections officer)
+- id: c5_drug_screen_cost_dispatch
+  value: 65
+  low: 35
+  high: 120
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment drug screen. (telecommunicator)
+- id: c5_drug_screen_cost_fire_ems
+  value: 65
+  low: 35
+  high: 120
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment drug screen. (firefighter/EMT)
+- id: c5_drug_screen_cost_civilian_skilled
+  value: 65
+  low: 35
+  high: 120
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment drug screen. (skilled civilian)
+- id: c5_drug_screen_cost_civilian_standard
+  value: 65
+  low: 35
+  high: 120
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pre-employment drug screen. (standard civilian)
+- id: c5_orientation_hours_sworn_deputy
+  value: 40
+  low: 16
+  high: 60
+  unit: hours
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: New-hire orientation hours, paid at the new hire's loaded rate. (sworn deputy)
+- id: c5_orientation_hours_corrections
+  value: 32
+  low: 16
+  high: 48
+  unit: hours
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: New-hire orientation hours, paid at the new hire's loaded rate. (corrections officer)
+- id: c5_orientation_hours_dispatch
+  value: 24
+  low: 12
+  high: 40
+  unit: hours
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: New-hire orientation hours, paid at the new hire's loaded rate. (telecommunicator)
+- id: c5_orientation_hours_fire_ems
+  value: 40
+  low: 16
+  high: 60
+  unit: hours
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: New-hire orientation hours, paid at the new hire's loaded rate. (firefighter/EMT)
+- id: c5_orientation_hours_civilian_skilled
+  value: 16
+  low: 8
+  high: 32
+  unit: hours
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: New-hire orientation hours, paid at the new hire's loaded rate. (skilled civilian)
+- id: c5_orientation_hours_civilian_standard
+  value: 12
+  low: 8
+  high: 24
+  unit: hours
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: New-hire orientation hours, paid at the new hire's loaded rate. (standard civilian)
+- id: c5_academy_weeks_sworn_deputy
+  value: 22
+  low: 12
+  high: 26
+  unit: weeks
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Published state POST / academy program lengths span roughly 12-26 weeks for basic law enforcement
+    (e.g. Colorado POST-approved academies 16-40 weeks; Idaho POST patrol academy 14 weeks; Florida basic
+    recruit 770 hours / ~22 weeks), with detention academies markedly shorter (e.g. Idaho detention academy
+    6 weeks). Value is a mid-range placeholder, not any one agency's program.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Academy length. The recruit's full loaded salary for this period is a cost of replacing the removed
+    employee; zero for roles with no academy. (sworn deputy)
+- id: c5_academy_weeks_corrections
+  value: 6
+  low: 4
+  high: 10
+  unit: weeks
+  applies_to:
+    turnover_profile: corrections
+  source: Published state POST / academy program lengths span roughly 12-26 weeks for basic law enforcement
+    (e.g. Colorado POST-approved academies 16-40 weeks; Idaho POST patrol academy 14 weeks; Florida basic
+    recruit 770 hours / ~22 weeks), with detention academies markedly shorter (e.g. Idaho detention academy
+    6 weeks). Value is a mid-range placeholder, not any one agency's program.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Academy length. The recruit's full loaded salary for this period is a cost of replacing the removed
+    employee; zero for roles with no academy. (corrections officer)
+- id: c5_academy_weeks_dispatch
+  value: 3
+  low: 2
+  high: 6
+  unit: weeks
+  applies_to:
+    turnover_profile: dispatch
+  source: Published state POST / academy program lengths span roughly 12-26 weeks for basic law enforcement
+    (e.g. Colorado POST-approved academies 16-40 weeks; Idaho POST patrol academy 14 weeks; Florida basic
+    recruit 770 hours / ~22 weeks), with detention academies markedly shorter (e.g. Idaho detention academy
+    6 weeks). Value is a mid-range placeholder, not any one agency's program.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Academy length. The recruit's full loaded salary for this period is a cost of replacing the removed
+    employee; zero for roles with no academy. (telecommunicator)
+- id: c5_academy_weeks_fire_ems
+  value: 16
+  low: 10
+  high: 24
+  unit: weeks
+  applies_to:
+    turnover_profile: fire_ems
+  source: Published state POST / academy program lengths span roughly 12-26 weeks for basic law enforcement
+    (e.g. Colorado POST-approved academies 16-40 weeks; Idaho POST patrol academy 14 weeks; Florida basic
+    recruit 770 hours / ~22 weeks), with detention academies markedly shorter (e.g. Idaho detention academy
+    6 weeks). Value is a mid-range placeholder, not any one agency's program.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Academy length. The recruit's full loaded salary for this period is a cost of replacing the removed
+    employee; zero for roles with no academy. (firefighter/EMT)
+- id: c5_academy_weeks_civilian_skilled
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Published state POST / academy program lengths span roughly 12-26 weeks for basic law enforcement
+    (e.g. Colorado POST-approved academies 16-40 weeks; Idaho POST patrol academy 14 weeks; Florida basic
+    recruit 770 hours / ~22 weeks), with detention academies markedly shorter (e.g. Idaho detention academy
+    6 weeks). Value is a mid-range placeholder, not any one agency's program.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Academy length. The recruit's full loaded salary for this period is a cost of replacing the removed
+    employee; zero for roles with no academy. (skilled civilian)
+- id: c5_academy_weeks_civilian_standard
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Published state POST / academy program lengths span roughly 12-26 weeks for basic law enforcement
+    (e.g. Colorado POST-approved academies 16-40 weeks; Idaho POST patrol academy 14 weeks; Florida basic
+    recruit 770 hours / ~22 weeks), with detention academies markedly shorter (e.g. Idaho detention academy
+    6 weeks). Value is a mid-range placeholder, not any one agency's program.
+  confidence: medium
+  owner: Mike Celli
+  status: researched
+  last_reviewed: '2026-09-17'
+  notes: Academy length. The recruit's full loaded salary for this period is a cost of replacing the removed
+    employee; zero for roles with no academy. (standard civilian)
+- id: c5_academy_tuition_sworn_deputy
+  value: 6500
+  low: 2500
+  high: 14400
+  unit: usd_per_recruit
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Reported per-recruit academy tuition ranges widely (commonly cited figures run from a few thousand
+    dollars to about $14,400 for a 620-hour basic course). Published analyses note tuition is a small
+    share of total training cost - recruit salary and benefits during training dominate, which is why
+    this engine costs academy salary separately.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Tuition or per-recruit cost billed by the academy, excluding the recruit's salary. (sworn deputy)
+- id: c5_academy_tuition_corrections
+  value: 2800
+  low: 1200
+  high: 6000
+  unit: usd_per_recruit
+  applies_to:
+    turnover_profile: corrections
+  source: Reported per-recruit academy tuition ranges widely (commonly cited figures run from a few thousand
+    dollars to about $14,400 for a 620-hour basic course). Published analyses note tuition is a small
+    share of total training cost - recruit salary and benefits during training dominate, which is why
+    this engine costs academy salary separately.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Tuition or per-recruit cost billed by the academy, excluding the recruit's salary. (corrections
+    officer)
+- id: c5_academy_tuition_dispatch
+  value: 1200
+  low: 500
+  high: 3000
+  unit: usd_per_recruit
+  applies_to:
+    turnover_profile: dispatch
+  source: Reported per-recruit academy tuition ranges widely (commonly cited figures run from a few thousand
+    dollars to about $14,400 for a 620-hour basic course). Published analyses note tuition is a small
+    share of total training cost - recruit salary and benefits during training dominate, which is why
+    this engine costs academy salary separately.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Tuition or per-recruit cost billed by the academy, excluding the recruit's salary. (telecommunicator)
+- id: c5_academy_tuition_fire_ems
+  value: 5200
+  low: 2000
+  high: 11000
+  unit: usd_per_recruit
+  applies_to:
+    turnover_profile: fire_ems
+  source: Reported per-recruit academy tuition ranges widely (commonly cited figures run from a few thousand
+    dollars to about $14,400 for a 620-hour basic course). Published analyses note tuition is a small
+    share of total training cost - recruit salary and benefits during training dominate, which is why
+    this engine costs academy salary separately.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Tuition or per-recruit cost billed by the academy, excluding the recruit's salary. (firefighter/EMT)
+- id: c5_academy_tuition_civilian_skilled
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_recruit
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Reported per-recruit academy tuition ranges widely (commonly cited figures run from a few thousand
+    dollars to about $14,400 for a 620-hour basic course). Published analyses note tuition is a small
+    share of total training cost - recruit salary and benefits during training dominate, which is why
+    this engine costs academy salary separately.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Tuition or per-recruit cost billed by the academy, excluding the recruit's salary. (skilled civilian)
+- id: c5_academy_tuition_civilian_standard
+  value: 0
+  low: 0
+  high: 0
+  unit: usd_per_recruit
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Reported per-recruit academy tuition ranges widely (commonly cited figures run from a few thousand
+    dollars to about $14,400 for a 620-hour basic course). Published analyses note tuition is a small
+    share of total training cost - recruit salary and benefits during training dominate, which is why
+    this engine costs academy salary separately.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Tuition or per-recruit cost billed by the academy, excluding the recruit's salary. (standard
+    civilian)
+- id: c5_field_training_weeks_sworn_deputy
+  value: 14
+  low: 8
+  high: 20
+  unit: weeks
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Structured field training after the academy: FTO for deputies, CTO for telecommunicators, company
+    officer for fire. The trainee is paid but not counted against minimum staffing. (sworn deputy)'
+- id: c5_field_training_weeks_corrections
+  value: 6
+  low: 4
+  high: 12
+  unit: weeks
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Structured field training after the academy: FTO for deputies, CTO for telecommunicators, company
+    officer for fire. The trainee is paid but not counted against minimum staffing. (corrections officer)'
+- id: c5_field_training_weeks_dispatch
+  value: 16
+  low: 10
+  high: 26
+  unit: weeks
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Structured field training after the academy: FTO for deputies, CTO for telecommunicators, company
+    officer for fire. The trainee is paid but not counted against minimum staffing. (telecommunicator)'
+- id: c5_field_training_weeks_fire_ems
+  value: 12
+  low: 8
+  high: 20
+  unit: weeks
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Structured field training after the academy: FTO for deputies, CTO for telecommunicators, company
+    officer for fire. The trainee is paid but not counted against minimum staffing. (firefighter/EMT)'
+- id: c5_field_training_weeks_civilian_skilled
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Structured field training after the academy: FTO for deputies, CTO for telecommunicators, company
+    officer for fire. The trainee is paid but not counted against minimum staffing. (skilled civilian)'
+- id: c5_field_training_weeks_civilian_standard
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Structured field training after the academy: FTO for deputies, CTO for telecommunicators, company
+    officer for fire. The trainee is paid but not counted against minimum staffing. (standard civilian)'
+- id: c5_trainer_differential_pct_sworn_deputy
+  value: 0.07
+  low: 0.03
+  high: 0.12
+  unit: ratio
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pay differential the trainer earns while assigned a trainee, as a fraction of the trainer's loaded
+    rate, applied across the field-training hours. (sworn deputy)
+- id: c5_trainer_differential_pct_corrections
+  value: 0.05
+  low: 0.02
+  high: 0.1
+  unit: ratio
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pay differential the trainer earns while assigned a trainee, as a fraction of the trainer's loaded
+    rate, applied across the field-training hours. (corrections officer)
+- id: c5_trainer_differential_pct_dispatch
+  value: 0.05
+  low: 0.02
+  high: 0.1
+  unit: ratio
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pay differential the trainer earns while assigned a trainee, as a fraction of the trainer's loaded
+    rate, applied across the field-training hours. (telecommunicator)
+- id: c5_trainer_differential_pct_fire_ems
+  value: 0.05
+  low: 0.02
+  high: 0.1
+  unit: ratio
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pay differential the trainer earns while assigned a trainee, as a fraction of the trainer's loaded
+    rate, applied across the field-training hours. (firefighter/EMT)
+- id: c5_trainer_differential_pct_civilian_skilled
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pay differential the trainer earns while assigned a trainee, as a fraction of the trainer's loaded
+    rate, applied across the field-training hours. (skilled civilian)
+- id: c5_trainer_differential_pct_civilian_standard
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Pay differential the trainer earns while assigned a trainee, as a fraction of the trainer's loaded
+    rate, applied across the field-training hours. (standard civilian)
+- id: c5_ramp_weeks_sworn_deputy
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Productivity ramp for civilian roles: weeks before the replacement reaches full output. Zero
+    for roles whose ramp is already captured by academy and field training. (sworn deputy)'
+- id: c5_ramp_weeks_corrections
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Productivity ramp for civilian roles: weeks before the replacement reaches full output. Zero
+    for roles whose ramp is already captured by academy and field training. (corrections officer)'
+- id: c5_ramp_weeks_dispatch
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Productivity ramp for civilian roles: weeks before the replacement reaches full output. Zero
+    for roles whose ramp is already captured by academy and field training. (telecommunicator)'
+- id: c5_ramp_weeks_fire_ems
+  value: 0
+  low: 0
+  high: 0
+  unit: weeks
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Productivity ramp for civilian roles: weeks before the replacement reaches full output. Zero
+    for roles whose ramp is already captured by academy and field training. (firefighter/EMT)'
+- id: c5_ramp_weeks_civilian_skilled
+  value: 12
+  low: 6
+  high: 20
+  unit: weeks
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Productivity ramp for civilian roles: weeks before the replacement reaches full output. Zero
+    for roles whose ramp is already captured by academy and field training. (skilled civilian)'
+- id: c5_ramp_weeks_civilian_standard
+  value: 6
+  low: 3
+  high: 12
+  unit: weeks
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Productivity ramp for civilian roles: weeks before the replacement reaches full output. Zero
+    for roles whose ramp is already captured by academy and field training. (standard civilian)'
+- id: c5_ramp_loss_factor_sworn_deputy
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Average share of full productivity NOT delivered during the ramp period. (sworn deputy)
+- id: c5_ramp_loss_factor_corrections
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Average share of full productivity NOT delivered during the ramp period. (corrections officer)
+- id: c5_ramp_loss_factor_dispatch
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Average share of full productivity NOT delivered during the ramp period. (telecommunicator)
+- id: c5_ramp_loss_factor_fire_ems
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Average share of full productivity NOT delivered during the ramp period. (firefighter/EMT)
+- id: c5_ramp_loss_factor_civilian_skilled
+  value: 0.35
+  low: 0.2
+  high: 0.5
+  unit: ratio
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Average share of full productivity NOT delivered during the ramp period. (skilled civilian)
+- id: c5_ramp_loss_factor_civilian_standard
+  value: 0.3
+  low: 0.15
+  high: 0.45
+  unit: ratio
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Average share of full productivity NOT delivered during the ramp period. (standard civilian)
+- id: c5_equipment_uniform_cost_sworn_deputy
+  value: 6500
+  low: 3500
+  high: 11000
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Uniform and equipment issue. Sworn duty gear (weapon, vest, radio, less-lethal) and fire turnout
+    gear dominate. (sworn deputy)
+- id: c5_equipment_uniform_cost_corrections
+  value: 2200
+  low: 1200
+  high: 4000
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Uniform and equipment issue. Sworn duty gear (weapon, vest, radio, less-lethal) and fire turnout
+    gear dominate. (corrections officer)
+- id: c5_equipment_uniform_cost_dispatch
+  value: 500
+  low: 200
+  high: 1200
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Uniform and equipment issue. Sworn duty gear (weapon, vest, radio, less-lethal) and fire turnout
+    gear dominate. (telecommunicator)
+- id: c5_equipment_uniform_cost_fire_ems
+  value: 9000
+  low: 5000
+  high: 15000
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Uniform and equipment issue. Sworn duty gear (weapon, vest, radio, less-lethal) and fire turnout
+    gear dominate. (firefighter/EMT)
+- id: c5_equipment_uniform_cost_civilian_skilled
+  value: 400
+  low: 150
+  high: 900
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Uniform and equipment issue. Sworn duty gear (weapon, vest, radio, less-lethal) and fire turnout
+    gear dominate. (skilled civilian)
+- id: c5_equipment_uniform_cost_civilian_standard
+  value: 300
+  low: 100
+  high: 700
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Uniform and equipment issue. Sworn duty gear (weapon, vest, radio, less-lethal) and fire turnout
+    gear dominate. (standard civilian)
+- id: c5_washout_rate_sworn_deputy
+  value: 0.25
+  low: 0.1
+  high: 0.4
+  unit: rate
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Share of recruits who do not complete training and reach solo duty. Recruiting and training cost
+    is divided by (1 - washout_rate), because more than one person must be hired to fill one seat. Must
+    stay below 1. (sworn deputy)
+- id: c5_washout_rate_corrections
+  value: 0.3
+  low: 0.15
+  high: 0.45
+  unit: rate
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Share of recruits who do not complete training and reach solo duty. Recruiting and training cost
+    is divided by (1 - washout_rate), because more than one person must be hired to fill one seat. Must
+    stay below 1. (corrections officer)
+- id: c5_washout_rate_dispatch
+  value: 0.4
+  low: 0.2
+  high: 0.6
+  unit: rate
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Share of recruits who do not complete training and reach solo duty. Recruiting and training cost
+    is divided by (1 - washout_rate), because more than one person must be hired to fill one seat. Must
+    stay below 1. (telecommunicator)
+- id: c5_washout_rate_fire_ems
+  value: 0.2
+  low: 0.08
+  high: 0.35
+  unit: rate
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Share of recruits who do not complete training and reach solo duty. Recruiting and training cost
+    is divided by (1 - washout_rate), because more than one person must be hired to fill one seat. Must
+    stay below 1. (firefighter/EMT)
+- id: c5_washout_rate_civilian_skilled
+  value: 0.1
+  low: 0.03
+  high: 0.2
+  unit: rate
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Share of recruits who do not complete training and reach solo duty. Recruiting and training cost
+    is divided by (1 - washout_rate), because more than one person must be hired to fill one seat. Must
+    stay below 1. (skilled civilian)
+- id: c5_washout_rate_civilian_standard
+  value: 0.12
+  low: 0.04
+  high: 0.22
+  unit: rate
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: Share of recruits who do not complete training and reach solo duty. Recruiting and training cost
+    is divided by (1 - washout_rate), because more than one person must be hired to fill one seat. Must
+    stay below 1. (standard civilian)
+- id: c5_vacancy_productivity_loss_factor_sworn_deputy
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
+    is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
+    roles, where the vacancy is covered by overtime instead. (sworn deputy)
+- id: c5_vacancy_productivity_loss_factor_corrections
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
+    is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
+    roles, where the vacancy is covered by overtime instead. (corrections officer)
+- id: c5_vacancy_productivity_loss_factor_dispatch
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
+    is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
+    roles, where the vacancy is covered by overtime instead. (telecommunicator)
+- id: c5_vacancy_productivity_loss_factor_fire_ems
+  value: 0
+  low: 0
+  high: 0
+  unit: ratio
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
+    is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
+    roles, where the vacancy is covered by overtime instead. (firefighter/EMT)
+- id: c5_vacancy_productivity_loss_factor_civilian_skilled
+  value: 0.5
+  low: 0.25
+  high: 0.75
+  unit: ratio
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
+    is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
+    roles, where the vacancy is covered by overtime instead. (skilled civilian)
+- id: c5_vacancy_productivity_loss_factor_civilian_standard
+  value: 0.5
+  low: 0.25
+  high: 0.75
+  unit: ratio
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
+    is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
+    roles, where the vacancy is covered by overtime instead. (standard civilian)
+- id: c5_expected_vacancy_days_sworn_deputy
+  value: 150
+  low: 90
+  high: 240
+  unit: days
+  applies_to:
+    turnover_profile: sworn_deputy
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
+    replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (sworn
+    deputy)'
+- id: c5_expected_vacancy_days_corrections
+  value: 90
+  low: 60
+  high: 180
+  unit: days
+  applies_to:
+    turnover_profile: corrections
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
+    replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (corrections
+    officer)'
+- id: c5_expected_vacancy_days_dispatch
+  value: 120
+  low: 75
+  high: 210
+  unit: days
+  applies_to:
+    turnover_profile: dispatch
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
+    replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (telecommunicator)'
+- id: c5_expected_vacancy_days_fire_ems
+  value: 135
+  low: 80
+  high: 220
+  unit: days
+  applies_to:
+    turnover_profile: fire_ems
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
+    replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (firefighter/EMT)'
+- id: c5_expected_vacancy_days_civilian_skilled
+  value: 75
+  low: 40
+  high: 140
+  unit: days
+  applies_to:
+    turnover_profile: civilian_skilled
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
+    replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (skilled
+    civilian)'
+- id: c5_expected_vacancy_days_civilian_standard
+  value: 60
+  low: 30
+  high: 120
+  unit: days
+  applies_to:
+    turnover_profile: civilian_standard
+  source: Owner professional estimate.
+  confidence: low
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
+    replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (standard
+    civilian)'

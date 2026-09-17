@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.duckdb
+.DS_Store
+
+# Generated synthetic data: everything except the committed sample
+data/synthetic/*
+!data/synthetic/sample/
+!data/synthetic/sample/**

@@ -1,0 +1,270 @@
+# Synthetic data generator profile for Harlow County.
+#
+# Every distribution parameter the generator uses is here, and every one is explained in
+# src/wri_engine/generator/README.md. These are DATA-SHAPE parameters, not cost
+# coefficients -- no dollar amount belongs in this file.
+#
+# The data produced from this profile is synthetic. It is built from public distributional
+# shapes and documented judgement. It is not derived from any real agency's records.
+
+horizon:
+  # Discipline history window, counted backwards from as_of_date.
+  years: 3
+  as_of_date: "2026-09-17"
+  target_action_count: 520          # tuned so the dashboard reads as realistic, not noisy
+
+workforce:
+  # Annual separations unrelated to discipline, as a share of headcount. Keeps the employee
+  # table realistic (some records carry a separation_date) without inflating C5.
+  annual_voluntary_attrition: 0.07
+  # Tenure at the start of the window, in years: triangular(min, mode, max).
+  tenure_years: {min: 0.2, mode: 5.0, max: 28.0}
+  # Pay step is drawn from tenure: one step per this many years, capped at the plan maximum.
+  years_per_step: 2.5
+
+# ---------------------------------------------------------------------------
+# Who gets disciplined. A role family's share of actions is its headcount share
+# multiplied by these rate factors. Public-safety roles run higher because contact with
+# the public, minimum staffing and formal progressive-discipline systems all raise the
+# rate at which conduct becomes a documented action.
+# ---------------------------------------------------------------------------
+action_rate_factor_by_role:
+  deputy: 1.5
+  patrol_sergeant: 0.6
+  patrol_lieutenant: 0.3
+  corrections_officer: 1.9
+  corrections_sergeant: 0.7
+  telecommunicator: 1.3
+  comms_supervisor: 0.5
+  firefighter_emt: 0.8
+  fire_captain: 0.4
+  equipment_operator: 0.9
+  maintenance_worker: 1.0
+  crew_supervisor: 0.4
+  caseworker: 0.6
+  eligibility_specialist: 0.6
+  social_services_supervisor: 0.3
+  park_maintenance: 0.9
+  recreation_specialist: 0.5
+  analyst: 0.3
+  admin_specialist: 0.4
+  manager: 0.2
+
+# ---------------------------------------------------------------------------
+# Embedded realism pattern.
+#
+# One location-and-role combination carries elevated attendance violations, so the cost
+# baseline surfaces it naturally as an expensive cell. Phase 1 must NOT label it an alert
+# or a hotspot -- detection is Phase 2. It is documented in docs/cost_methodology.md and
+# in the generator README so nobody mistakes it for a discovery.
+# ---------------------------------------------------------------------------
+embedded_pattern:
+  role_family: corrections_officer
+  work_location: "Main Detention Center"
+  action_rate_multiplier: 1.8
+  category_weight_multipliers:
+    attendance_awol: 3.2
+    tardiness: 1.8
+  severity_shift: 0.15    # share of this cell's actions pushed one step up the severity ladder
+
+# ---------------------------------------------------------------------------
+# What they are disciplined for. Weights are relative, not percentages; sworn-only
+# categories are dropped and the remainder renormalized for non-sworn employees.
+# ---------------------------------------------------------------------------
+misconduct_weights:
+  attendance_awol: 26
+  tardiness: 16
+  policy_violation: 13
+  neglect_of_duty: 9
+  insubordination: 8
+  conduct_unbecoming: 7
+  vehicle_misuse: 6
+  time_falsification: 5
+  off_duty_misconduct: 4
+  drug_alcohol: 3
+  harassment_violence: 2
+  use_of_force: 1
+
+# Each category sits in a severity tier; the tier decides the action-type distribution.
+category_severity_tier:
+  attendance_awol: minor
+  tardiness: minor
+  policy_violation: moderate
+  neglect_of_duty: moderate
+  insubordination: moderate
+  conduct_unbecoming: moderate
+  vehicle_misuse: moderate
+  off_duty_misconduct: moderate
+  time_falsification: serious
+  drug_alcohol: serious
+  harassment_violence: serious
+  use_of_force: serious
+
+# Action-type weights by tier. Blended against the category mix these produce removals at
+# roughly 6% of all actions, inside the 5-8% target.
+action_type_weights:
+  minor:
+    documented_counseling: 42
+    written_reprimand: 32
+    suspension_1_3: 17
+    suspension_4_14: 5
+    suspension_15_plus: 1.5
+    demotion: 0.5
+    removal: 2.5
+  moderate:
+    documented_counseling: 24
+    written_reprimand: 29
+    suspension_1_3: 22
+    suspension_4_14: 13
+    suspension_15_plus: 4
+    demotion: 3
+    removal: 6
+  serious:
+    documented_counseling: 4
+    written_reprimand: 10
+    suspension_1_3: 14
+    suspension_4_14: 24
+    suspension_15_plus: 16
+    demotion: 6
+    removal: 28
+
+# ---------------------------------------------------------------------------
+# Process timing, in calendar days: triangular(min, mode, max).
+# ---------------------------------------------------------------------------
+timing:
+  incident_to_proposal: {min: 3, mode: 21, max: 120}
+  proposal_to_decision: {min: 5, mode: 18, max: 90}
+  decision_to_suspension_start: {min: 3, mode: 10, max: 35}
+  decision_to_appeal_filed: {min: 1, mode: 8, max: 25}
+  appeal_filed_to_resolution:
+    grievance_step: {min: 10, mode: 35, max: 120}
+    civil_service_board: {min: 45, mode: 120, max: 300}
+    arbitration: {min: 90, mode: 210, max: 480}
+    court: {min: 150, mode: 400, max: 900}
+
+# ---------------------------------------------------------------------------
+# Investigations.
+# ---------------------------------------------------------------------------
+investigation:
+  probability_by_tier: {minor: 0.15, moderate: 0.45, serious: 0.90}
+  type_weights_sworn: {supervisory: 25, hr: 25, internal_affairs: 50}
+  type_weights_civilian: {supervisory: 55, hr: 40, internal_affairs: 5}
+
+# ---------------------------------------------------------------------------
+# Paid administrative leave. Sworn roles and serious categories are far more likely to be
+# relieved of duty pending the outcome.
+# ---------------------------------------------------------------------------
+admin_leave:
+  probability_by_action:
+    removal: {sworn: 0.75, civilian: 0.35}
+    demotion: {sworn: 0.40, civilian: 0.15}
+    suspension_15_plus: {sworn: 0.55, civilian: 0.20}
+    suspension_4_14: {sworn: 0.30, civilian: 0.10}
+    suspension_1_3: {sworn: 0.08, civilian: 0.03}
+  serious_tier_multiplier: 1.3
+  max_probability: 0.95
+  # Calendar days of leave, ending on the decision date.
+  duration_days:
+    removal: {min: 5, mode: 24, max: 120}
+    demotion: {min: 4, mode: 18, max: 75}
+    suspension_15_plus: {min: 4, mode: 18, max: 80}
+    suspension_4_14: {min: 3, mode: 11, max: 45}
+    suspension_1_3: {min: 2, mode: 6, max: 20}
+
+# ---------------------------------------------------------------------------
+# Appeals and grievances. Suspensions overall land at roughly 18% appealed; removals at
+# 60%, as specified.
+# ---------------------------------------------------------------------------
+appeals:
+  probability_by_action:
+    suspension_1_3: 0.12
+    suspension_4_14: 0.22
+    suspension_15_plus: 0.30
+    demotion: 0.45
+    removal: 0.60
+  forum_weights_default:
+    grievance_step: 55
+    civil_service_board: 25
+    arbitration: 17
+    court: 3
+  forum_weights_removal:
+    grievance_step: 20
+    civil_service_board: 35
+    arbitration: 35
+    court: 10
+  outcome_weights:
+    sustained: 50
+    mitigated: 20
+    overturned: 10
+    settled: 20
+  # Share of back pay relative to the pay the employee lost, by outcome.
+  back_pay_share: {sustained: 0.0, mitigated: 0.45, overturned: 1.0, settled: 0.35}
+  settlement_probability_when_settled: 1.0
+  settlement_amount: {min: 2500, mode: 12000, max: 60000}
+  outside_counsel_hours:
+    grievance_step: {min: 0, mode: 0, max: 4}
+    civil_service_board: {min: 2, mode: 12, max: 45}
+    arbitration: {min: 6, mode: 28, max: 90}
+    court: {min: 20, mode: 90, max: 300}
+
+# ---------------------------------------------------------------------------
+# Open appeal windows. Actions decided inside this recent window are left unresolved, so
+# the engine's cost_incomplete flag logic is exercised. Targets 5-10% of all actions.
+# ---------------------------------------------------------------------------
+open_window:
+  recent_days: 270
+  pending_share: 0.80      # share of recent appealed actions left at outcome = pending
+
+# ---------------------------------------------------------------------------
+# What happens to the position after a removal.
+# ---------------------------------------------------------------------------
+separations:
+  resignation_in_lieu_share: 0.18   # share of removals recorded as a resignation instead
+  refill_outcome_weights:
+    refilled: 85
+    refill_pending: 8
+    abolished: 7
+  days_to_refill:
+    sworn_deputy: {min: 60, mode: 165, max: 330}
+    corrections: {min: 35, mode: 95, max: 220}
+    dispatch: {min: 55, mode: 130, max: 280}
+    fire_ems: {min: 60, mode: 145, max: 300}
+    civilian_skilled: {min: 25, mode: 80, max: 190}
+    civilian_standard: {min: 20, mode: 65, max: 160}
+
+# ---------------------------------------------------------------------------
+# Deliberately malformed rows, written into the export so the adapter's validation rules
+# have something to catch and the Data Quality page has content. Set every count to 0 for
+# a clean export.
+# ---------------------------------------------------------------------------
+data_quality_injection:
+  orphan_action: 3              # action referencing an employee id that does not exist
+  suspension_days_mismatch: 2   # days outside the range the action type allows
+  decision_before_incident: 2   # decision date earlier than the incident date
+  missing_salary: 2             # employee row with a blank annual salary
+  leave_after_separation: 2     # admin leave overlapping or following the separation date
+  sworn_only_category_misapplied: 2  # use-of-force recorded against a non-sworn employee
+
+# Who signs the action, by the action type's severity rank (1 = counseling .. 7 = removal).
+# When the level is "supervisor" the employee's own supervisor is named on the record, so
+# C1 costs those hours at that person's actual rate; higher levels are left unnamed and
+# fall back to the reference salaries in assumptions.yaml.
+deciding_level_by_severity_rank:
+  1: supervisor
+  2: supervisor
+  3: division_head
+  4: department_head
+  5: department_head
+  6: county_administrator
+  7: county_administrator
+
+# Reasons for separations unrelated to discipline.
+voluntary_separation_reason_weights:
+  voluntary_resignation: 55
+  retirement: 25
+  end_of_probation: 12
+  layoff: 8
+
+# How employees distribute across a department's work locations (truncated and
+# renormalized to the number of locations the department actually has).
+location_share_weights: [0.55, 0.28, 0.17]
