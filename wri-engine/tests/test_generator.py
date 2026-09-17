@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import date
 
 import pytest
 
@@ -50,11 +51,113 @@ def test_removals_are_five_to_eight_percent_of_actions(export):
     assert 0.05 <= share <= 0.08, f"removal share {share:.1%} is outside the 5-8% target"
 
 
-def test_suspension_appeal_rate_is_fifteen_to_twenty_five_percent(export):
+def test_suspension_appeal_rate_on_the_demo_seed(export):
+    """Smoke check on one seed. `test_appeal_rates_pooled_across_seeds` is the authoritative
+    one -- a single seed's rate carries real sampling error and a tight band here would flake
+    on any harmless change to the generator."""
     appealed = {r["ACTN_NBR"] for r in export.appeals}
     suspensions = [r for r in export.actions if r["ACTN_CD"].startswith("SP")]
     rate = sum(1 for r in suspensions if r["ACTN_NBR"] in appealed) / len(suspensions)
-    assert 0.15 <= rate <= 0.25, f"suspension appeal rate {rate:.1%} is outside target"
+    assert 0.10 <= rate <= 0.30, f"suspension appeal rate {rate:.1%} is far outside target"
+
+
+# ---------------------------------------------------------------------------
+# Appeal rates, measured the only way that is meaningful
+# ---------------------------------------------------------------------------
+#
+# Two things make a naive appeal-rate assertion misleading, and this test handles both.
+#
+# 1. ACTIONS WHOSE FILING WINDOW IS STILL OPEN have not had their chance to be appealed.
+#    Counting them drags the realized rate below the configured probability for no good
+#    reason, so they are excluded: only actions decided at least
+#    `timing.decision_to_appeal_filed.max` days before the extract date are in scope.
+#
+# 2. ONE SEED IS NOT A MEASUREMENT. There are only ~30 removals per seed, so the standard
+#    deviation on the removal rate is about 9 percentage points. A single seed sitting two
+#    or three sigma off the parameter is ordinary sampling noise, not a bug -- the demo seed
+#    20260917 is exactly such a draw, at 36% against a 60% parameter. Pooling five fixed
+#    seeds gets n above 150 and makes the assertion mean something.
+#
+# If this test fails, the generator's draw is genuinely wrong. If a single seed looks wrong
+# but this passes, the seed is unlucky and the parameter is fine.
+
+APPEAL_RATE_SEEDS = (20260917, 1, 2, 3, 4)
+
+
+def _closed_window_appeal_rates(seed: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    """(removals appealed, removals), (suspensions appealed, suspensions) for one seed,
+    counting only actions whose filing window has closed by the extract date."""
+    from datetime import datetime, timedelta
+
+    import yaml
+
+    from wri_engine.paths import GENERATOR_PROFILE_FILE
+
+    profile = yaml.safe_load(GENERATOR_PROFILE_FILE.read_text())
+    as_of = date.fromisoformat(str(profile["horizon"]["as_of_date"]))
+    window = int(profile["timing"]["decision_to_appeal_filed"]["max"])
+    cutoff = as_of - timedelta(days=window)
+
+    export = generate(seed=seed)
+    appealed = {r["ACTN_NBR"] for r in export.appeals}
+
+    def closed(rows):
+        return [r for r in rows if datetime.strptime(r["DECN_DT"], "%m/%d/%Y").date() <= cutoff]
+
+    removals = closed([r for r in export.actions if r["ACTN_CD"] == "RMV"])
+    suspensions = closed([r for r in export.actions if r["ACTN_CD"].startswith("SP")])
+    return (
+        (sum(1 for r in removals if r["ACTN_NBR"] in appealed), len(removals)),
+        (sum(1 for r in suspensions if r["ACTN_NBR"] in appealed), len(suspensions)),
+    )
+
+
+def test_appeal_rates_pooled_across_seeds():
+    removals_appealed = removals = suspensions_appealed = suspensions = 0
+    for seed in APPEAL_RATE_SEEDS:
+        (ra, r), (sa, s) = _closed_window_appeal_rates(seed)
+        removals_appealed += ra
+        removals += r
+        suspensions_appealed += sa
+        suspensions += s
+
+    assert removals >= 150, f"only {removals} removals pooled; the band would be meaningless"
+    removal_rate = removals_appealed / removals
+    suspension_rate = suspensions_appealed / suspensions
+
+    # profile sets removals at 0.60 and suspensions at roughly 0.18 once blended.
+    assert 0.48 <= removal_rate <= 0.72, (
+        f"pooled removal appeal rate {removal_rate:.1%} over {removals} removals is outside "
+        f"the 48-72% band around the configured 60%. This is wide enough that sampling noise "
+        f"will not trip it, so the draw itself is wrong."
+    )
+    assert 0.12 <= suspension_rate <= 0.24, (
+        f"pooled suspension appeal rate {suspension_rate:.1%} over {suspensions} "
+        f"suspensions is outside the 12-24% band around the configured ~18%."
+    )
+
+
+def test_open_filing_windows_are_not_counted_against_the_rate():
+    """The exclusion in the test above must actually exclude something, or it is decoration."""
+    from datetime import datetime, timedelta
+
+    import yaml
+
+    from wri_engine.paths import GENERATOR_PROFILE_FILE
+
+    profile = yaml.safe_load(GENERATOR_PROFILE_FILE.read_text())
+    as_of = date.fromisoformat(str(profile["horizon"]["as_of_date"]))
+    window = int(profile["timing"]["decision_to_appeal_filed"]["max"])
+    cutoff = as_of - timedelta(days=window)
+
+    export = generate(seed=20260917)
+    still_open = [
+        r for r in export.actions if datetime.strptime(r["DECN_DT"], "%m/%d/%Y").date() > cutoff
+    ]
+    assert still_open, (
+        "no action in the dataset is inside an open filing window, so the engine's "
+        "open-window flag logic has nothing to exercise"
+    )
 
 
 def test_use_of_force_only_appears_for_sworn_employees(export):
