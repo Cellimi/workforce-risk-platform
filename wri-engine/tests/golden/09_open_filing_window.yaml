@@ -1,0 +1,99 @@
+name: "Open filing window on a recent suspension"
+description: >
+  A three-day suspension decided twelve days before the extract date, with nothing filed yet.
+  The represented employee still has time to grieve or demand arbitration, so the engine
+  emits a zero-dollar C4 line item that carries the flag. The action's total is a floor, and
+  the drill-down says why.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Administration / Finance / IT"
+    role_family: admin_specialist
+    job_title: "Administrative Specialist"
+    job_class_code: AD-8100
+    pay_grade: G16
+    pay_step: 4
+    annual_base_salary: 52000
+    hourly_base_rate: 25.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_standard
+    work_location: "County Administration Building"
+    supervisor_id: E2
+    hire_date: 2021-06-14
+  - employee_id: E2
+    department: "Administration / Finance / IT"
+    role_family: manager
+    job_title: "Division Manager"
+    job_class_code: AD-8400
+    pay_grade: G25
+    pay_step: 5
+    annual_base_salary: 104000
+    hourly_base_rate: 50.00
+    flsa_status: exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_skilled
+    work_location: "County Administration Building"
+    hire_date: 2010-01-11
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-08-14
+    proposal_date: 2026-08-25
+    decision_date: 2026-09-05
+    misconduct_category: insubordination
+    misconduct_subtype: "Refusal of direct order"
+    action_type: suspension_1_3
+    suspension_days: 3
+    suspension_start_date: 2026-09-14
+    was_investigated: false
+    deciding_official_level: division_head
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Administrative specialist E1: $52,000 / 2,080 = $25.00/hr x 1.627 = $40.675/hr loaded.
+# Division manager E2 (supervisor): $104,000 / 2,080 = $50.00/hr x 1.627 = $81.35/hr loaded.
+#
+# C1 supervisor  12 hrs x $81.35      = $976.20
+# C1 HR          10 hrs x $61.0125    = $610.125 -> $610.13
+# C1 deciding     4 hrs x $82.132212  = $328.529 -> $328.53
+#
+# C3 backfill: none. The role has no minimum staffing requirement, so nobody covers the post.
+# C3-offset    3 shifts x 8 hrs = 24 hrs x $25.00 x 1.0765 = $645.90, recorded negative
+#
+# C4 open_filing_window: $0.00, flagged cost_incomplete.
+#   The employee is represented, so the forums available are a grievance step (14-day window)
+#   and arbitration (30-day window). The longest is 30 days, so the deadline is
+#   2026-09-05 + 30 = 2026-10-05, which is after the 2026-09-17 extract date.
+#   Nothing has been filed, so the appeal cost so far is genuinely zero -- but the total for
+#   this action is a floor, not a settled figure, and the flag says so.
+#
+# Gross $1,914.86   Offset -$645.90   Net $1,268.96   cost_incomplete = true
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '328.53'}
+    - {component: C1, subcomponent: hr_hours, amount: '610.13'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '976.20'}
+    - {component: C3-offset, subcomponent: unpaid_suspension_salary_saved, amount: '-645.90'}
+    - {component: C4, subcomponent: open_filing_window, amount: '0.00'}
+  gross: '1914.86'
+  offset: '-645.90'
+  net: '1268.96'
+  cost_incomplete: true

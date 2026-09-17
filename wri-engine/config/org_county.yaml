@@ -1,0 +1,519 @@
+# Harlow County — fictional agency configuration.
+#
+# NOTHING IN THIS FILE DESCRIBES A REAL AGENCY. Department names, role families, union
+# names, locations and pay scales are invented. Magnitudes are anchored on the general
+# shape of published county pay scales; no specific real county's data is copied.
+#
+# Cost coefficients do NOT live here — they live in config/assumptions.yaml. This file
+# describes the *organization*: who works where, on what schedule, under which rules.
+
+agency:
+  id: harlow_county
+  name: "Harlow County"
+  fictional: true
+  # TBD-MIKE: final fictional county name (open item 7).
+  name_status: TBD-MIKE
+  fiscal_year_start_month: 7
+  headcount_target: 2500
+
+# ---------------------------------------------------------------------------
+# Schedule model. Used by C2 (paid admin leave) and C3 (backfill) to convert a
+# calendar date range into scheduled shifts. Deliberately simple; documented in
+# docs/cost_methodology.md as a known simplification.
+# ---------------------------------------------------------------------------
+schedules:
+  civilian_5x8:
+    description: "Monday-Friday, 8-hour days, county holidays off."
+    kind: weekday_calendar
+    shift_hours: 8
+    workdays: [MON, TUE, WED, THU, FRI]
+    observes_holidays: true
+    annual_paid_hours: 2080
+  shift_12:
+    description: "Rotating 12-hour shifts, roughly every other day, holidays worked."
+    kind: fractional
+    shift_hours: 12
+    shift_fraction: 0.5          # works ~14 of every 28 calendar days
+    observes_holidays: false
+    annual_paid_hours: 2080
+  fire_24_48:
+    description: "24 hours on, 48 hours off; 56-hour average week, holidays worked."
+    kind: fractional
+    shift_hours: 24
+    shift_fraction: 0.3333333333
+    observes_holidays: false
+    annual_paid_hours: 2912
+
+# Observed county holidays (month-day). Used only by weekday_calendar schedules.
+holidays:
+  - "01-01"
+  - "01-15"
+  - "02-19"
+  - "05-27"
+  - "06-19"
+  - "07-04"
+  - "09-02"
+  - "11-11"
+  - "11-28"
+  - "11-29"
+  - "12-25"
+
+# ---------------------------------------------------------------------------
+# Pay plan. Step/grade table: each grade carries a step-1 base salary and a fixed
+# percentage step increment. Ten steps per grade.
+# ---------------------------------------------------------------------------
+pay_plan:
+  steps: 10
+  step_increment_pct: 2.5
+  grades:
+    G12: {step1_base: 42000}
+    G14: {step1_base: 47000}
+    G16: {step1_base: 52000}
+    G17: {step1_base: 55000}
+    G18: {step1_base: 58000}
+    G19: {step1_base: 62000}
+    G20: {step1_base: 66000}
+    G22: {step1_base: 74000}
+    G23: {step1_base: 78000}
+    G25: {step1_base: 88000}
+
+bargaining_units:
+  - id: deputies_assoc
+    name: "Deputies' Association"
+  - id: corrections_assoc
+    name: "Corrections Officers' Association"
+  - id: firefighters_assoc
+    name: "Firefighters' Association"
+  - id: general_employees
+    name: "General Employees' Union"
+  - id: non_represented
+    name: "Non-represented"
+
+# ---------------------------------------------------------------------------
+# Departments and role families.
+#
+# role family keys:
+#   benefits_group     -> selects the benefits multiplier in assumptions.yaml
+#   turnover_profile   -> selects the C5 replacement-cost bundle in assumptions.yaml
+#   minimum_staffing_role -> if true, a lost shift must be backfilled (C3 applies)
+# ---------------------------------------------------------------------------
+departments:
+  - id: sheriff_patrol
+    name: "Sheriff's Office - Patrol"
+    bargaining_unit: deputies_assoc
+    staffing_model: minimum_staffing
+    flsa_basis: "7k"
+    locations: ["North District", "South District", "Central Headquarters"]
+    role_families:
+      - id: deputy
+        name: "Deputy"
+        job_titles: ["Deputy Sheriff I", "Deputy Sheriff II"]
+        job_class_code: "SW-1100"
+        pay_grade: G19
+        headcount: 380
+        is_sworn: true
+        minimum_staffing_role: true
+        flsa_status: "7k"
+        schedule: shift_12
+        benefits_group: sworn_public_safety
+        turnover_profile: sworn_deputy
+        is_supervisory: false
+      - id: patrol_sergeant
+        name: "Sergeant"
+        job_titles: ["Sheriff's Sergeant"]
+        job_class_code: "SW-1300"
+        pay_grade: G23
+        headcount: 48
+        is_sworn: true
+        minimum_staffing_role: true
+        flsa_status: "7k"
+        schedule: shift_12
+        benefits_group: sworn_public_safety
+        turnover_profile: sworn_deputy
+        is_supervisory: true
+      - id: patrol_lieutenant
+        name: "Lieutenant"
+        job_titles: ["Sheriff's Lieutenant"]
+        job_class_code: "SW-1400"
+        pay_grade: G25
+        headcount: 14
+        is_sworn: true
+        minimum_staffing_role: false
+        flsa_status: exempt
+        schedule: civilian_5x8
+        benefits_group: sworn_public_safety
+        turnover_profile: sworn_deputy
+        is_supervisory: true
+
+  - id: sheriff_detention
+    name: "Sheriff's Office - Detention Center"
+    bargaining_unit: corrections_assoc
+    staffing_model: minimum_staffing
+    flsa_basis: "7k"
+    locations: ["Main Detention Center", "Annex Detention Facility"]
+    role_families:
+      - id: corrections_officer
+        name: "Corrections Officer"
+        job_titles: ["Corrections Officer I", "Corrections Officer II"]
+        job_class_code: "CO-2100"
+        pay_grade: G17
+        headcount: 430
+        is_sworn: true
+        minimum_staffing_role: true
+        flsa_status: "7k"
+        schedule: shift_12
+        benefits_group: sworn_public_safety
+        turnover_profile: corrections
+        is_supervisory: false
+      - id: corrections_sergeant
+        name: "Corrections Sergeant"
+        job_titles: ["Corrections Sergeant"]
+        job_class_code: "CO-2300"
+        pay_grade: G22
+        headcount: 55
+        is_sworn: true
+        minimum_staffing_role: true
+        flsa_status: "7k"
+        schedule: shift_12
+        benefits_group: sworn_public_safety
+        turnover_profile: corrections
+        is_supervisory: true
+
+  - id: emergency_comms
+    name: "Emergency Communications"
+    bargaining_unit: general_employees
+    staffing_model: minimum_staffing
+    flsa_basis: "standard_40"
+    locations: ["Emergency Communications Center"]
+    role_families:
+      - id: telecommunicator
+        name: "Telecommunicator"
+        job_titles: ["Telecommunicator I", "Telecommunicator II"]
+        job_class_code: "EC-3100"
+        pay_grade: G16
+        headcount: 105
+        is_sworn: false
+        minimum_staffing_role: true
+        flsa_status: non_exempt
+        schedule: shift_12
+        benefits_group: civilian
+        turnover_profile: dispatch
+        is_supervisory: false
+      - id: comms_supervisor
+        name: "Shift Supervisor"
+        job_titles: ["Communications Shift Supervisor"]
+        job_class_code: "EC-3300"
+        pay_grade: G20
+        headcount: 15
+        is_sworn: false
+        minimum_staffing_role: true
+        flsa_status: non_exempt
+        schedule: shift_12
+        benefits_group: civilian
+        turnover_profile: dispatch
+        is_supervisory: true
+
+  - id: fire_rescue
+    name: "Fire & Rescue"
+    bargaining_unit: firefighters_assoc
+    staffing_model: minimum_staffing
+    flsa_basis: "7k"
+    locations: ["Fire District North", "Fire District South", "Fire District Central"]
+    role_families:
+      - id: firefighter_emt
+        name: "Firefighter/EMT"
+        job_titles: ["Firefighter/EMT", "Firefighter/Paramedic"]
+        job_class_code: "FR-4100"
+        pay_grade: G19
+        headcount: 330
+        is_sworn: true
+        minimum_staffing_role: true
+        flsa_status: "7k"
+        schedule: fire_24_48
+        benefits_group: sworn_public_safety
+        turnover_profile: fire_ems
+        is_supervisory: false
+      - id: fire_captain
+        name: "Captain"
+        job_titles: ["Fire Captain"]
+        job_class_code: "FR-4300"
+        pay_grade: G23
+        headcount: 45
+        is_sworn: true
+        minimum_staffing_role: true
+        flsa_status: "7k"
+        schedule: fire_24_48
+        benefits_group: sworn_public_safety
+        turnover_profile: fire_ems
+        is_supervisory: true
+
+  - id: public_works
+    name: "Public Works"
+    bargaining_unit: general_employees
+    staffing_model: standard
+    flsa_basis: "standard_40"
+    locations: ["North Yard", "South Yard", "Central Garage"]
+    role_families:
+      - id: equipment_operator
+        name: "Equipment Operator"
+        job_titles: ["Equipment Operator I", "Equipment Operator II"]
+        job_class_code: "PW-5200"
+        pay_grade: G14
+        headcount: 190
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_skilled
+        is_supervisory: false
+      - id: maintenance_worker
+        name: "Maintenance Worker"
+        job_titles: ["Maintenance Worker I", "Maintenance Worker II"]
+        job_class_code: "PW-5100"
+        pay_grade: G12
+        headcount: 230
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_standard
+        is_supervisory: false
+      - id: crew_supervisor
+        name: "Crew Supervisor"
+        job_titles: ["Public Works Crew Supervisor"]
+        job_class_code: "PW-5400"
+        pay_grade: G18
+        headcount: 40
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_skilled
+        is_supervisory: true
+
+  - id: social_services
+    name: "Social Services"
+    bargaining_unit: general_employees
+    staffing_model: standard
+    flsa_basis: "standard_40"
+    locations: ["Human Services Center"]
+    role_families:
+      - id: caseworker
+        name: "Caseworker"
+        job_titles: ["Social Caseworker I", "Social Caseworker II"]
+        job_class_code: "SS-6100"
+        pay_grade: G18
+        headcount: 195
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_skilled
+        is_supervisory: false
+      - id: eligibility_specialist
+        name: "Eligibility Specialist"
+        job_titles: ["Eligibility Specialist"]
+        job_class_code: "SS-6200"
+        pay_grade: G14
+        headcount: 140
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_standard
+        is_supervisory: false
+      - id: social_services_supervisor
+        name: "Supervisor"
+        job_titles: ["Social Services Supervisor"]
+        job_class_code: "SS-6400"
+        pay_grade: G22
+        headcount: 35
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_skilled
+        is_supervisory: true
+
+  - id: parks_rec
+    name: "Parks & Recreation"
+    bargaining_unit: general_employees
+    staffing_model: standard
+    flsa_basis: "standard_40"
+    locations: ["Parks North", "Parks South"]
+    role_families:
+      - id: park_maintenance
+        name: "Park Maintenance"
+        job_titles: ["Park Maintenance Worker"]
+        job_class_code: "PR-7100"
+        pay_grade: G12
+        headcount: 105
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_standard
+        is_supervisory: false
+      - id: recreation_specialist
+        name: "Recreation Specialist"
+        job_titles: ["Recreation Specialist"]
+        job_class_code: "PR-7200"
+        pay_grade: G14
+        headcount: 70
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_standard
+        is_supervisory: false
+
+  - id: admin_finance_it
+    name: "Administration / Finance / IT"
+    bargaining_unit: non_represented
+    staffing_model: standard
+    flsa_basis: "mixed"
+    locations: ["County Administration Building"]
+    role_families:
+      - id: analyst
+        name: "Analyst"
+        job_titles: ["Management Analyst", "Systems Analyst"]
+        job_class_code: "AD-8200"
+        pay_grade: G19
+        headcount: 45
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_skilled
+        is_supervisory: false
+      - id: admin_specialist
+        name: "Specialist"
+        job_titles: ["Administrative Specialist", "Accounting Specialist"]
+        job_class_code: "AD-8100"
+        pay_grade: G16
+        headcount: 45
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: non_exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_standard
+        is_supervisory: false
+      - id: manager
+        name: "Manager"
+        job_titles: ["Division Manager"]
+        job_class_code: "AD-8400"
+        pay_grade: G25
+        headcount: 25
+        is_sworn: false
+        minimum_staffing_role: false
+        flsa_status: exempt
+        schedule: civilian_5x8
+        benefits_group: civilian
+        turnover_profile: civilian_skilled
+        is_supervisory: true
+
+# ---------------------------------------------------------------------------
+# Taxonomies. Code must read these, never redefine them.
+# ---------------------------------------------------------------------------
+taxonomies:
+  misconduct_categories:
+    - id: attendance_awol
+      label: "Attendance / AWOL"
+      sworn_only: false
+      subtypes: ["Unscheduled absence", "Failure to report", "AWOL", "Leave abuse"]
+    - id: tardiness
+      label: "Tardiness"
+      sworn_only: false
+      subtypes: ["Late to shift", "Late from break", "Repeated tardiness"]
+    - id: time_falsification
+      label: "Time & Attendance falsification"
+      sworn_only: false
+      subtypes: ["Timesheet falsification", "Buddy punching", "Unearned overtime claim"]
+    - id: insubordination
+      label: "Insubordination"
+      sworn_only: false
+      subtypes: ["Refusal of direct order", "Disrespect toward supervisor"]
+    - id: conduct_unbecoming
+      label: "Conduct unbecoming"
+      sworn_only: false
+      subtypes: ["Public conduct", "Social media conduct", "Untruthfulness"]
+    - id: policy_violation
+      label: "Policy / procedure violation"
+      sworn_only: false
+      subtypes: ["Report writing", "Evidence handling", "Safety procedure", "Records access"]
+    - id: use_of_force
+      label: "Use-of-force violation"
+      sworn_only: true
+      subtypes: ["Excessive force", "Failure to report force", "De-escalation failure"]
+    - id: vehicle_misuse
+      label: "Vehicle misuse / accident"
+      sworn_only: false
+      subtypes: ["Preventable accident", "Unauthorized use", "Pursuit policy violation"]
+    - id: harassment_violence
+      label: "Harassment / workplace violence"
+      sworn_only: false
+      subtypes: ["Harassment", "Hostile conduct", "Threats"]
+    - id: drug_alcohol
+      label: "Drug / alcohol violation"
+      sworn_only: false
+      subtypes: ["Positive test", "Refusal to test", "On-duty impairment"]
+    - id: neglect_of_duty
+      label: "Neglect of duty"
+      sworn_only: false
+      subtypes: ["Failure to respond", "Post abandonment", "Inattention to duty"]
+    - id: off_duty_misconduct
+      label: "Off-duty misconduct"
+      sworn_only: false
+      subtypes: ["Off-duty arrest", "Off-duty conduct"]
+
+  action_types:
+    - id: documented_counseling
+      label: "Documented counseling"
+      severity_rank: 1
+      suspension_days_range: [0, 0]
+    - id: written_reprimand
+      label: "Written reprimand"
+      severity_rank: 2
+      suspension_days_range: [0, 0]
+    - id: suspension_1_3
+      label: "Suspension 1-3 days"
+      severity_rank: 3
+      suspension_days_range: [1, 3]
+    - id: suspension_4_14
+      label: "Suspension 4-14 days"
+      severity_rank: 4
+      suspension_days_range: [4, 14]
+    - id: suspension_15_plus
+      label: "Suspension 15+ days"
+      severity_rank: 5
+      suspension_days_range: [15, 45]
+    - id: demotion
+      label: "Demotion"
+      severity_rank: 6
+      suspension_days_range: [0, 0]
+    - id: removal
+      label: "Removal / termination"
+      severity_rank: 7
+      suspension_days_range: [0, 0]
+
+  investigation_types: [supervisory, hr, internal_affairs]
+  deciding_official_levels: [supervisor, division_head, department_head, county_administrator]
+  appeal_forums: [grievance_step, arbitration, civil_service_board, court]
+  appeal_outcomes: [sustained, mitigated, overturned, settled, pending]
+  separation_reasons:
+    - voluntary_resignation
+    - resignation_in_lieu_of_removal
+    - removal_for_cause
+    - retirement
+    - layoff
+    - end_of_probation

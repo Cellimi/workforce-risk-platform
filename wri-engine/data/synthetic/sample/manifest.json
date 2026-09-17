@@ -1,0 +1,39 @@
+{
+  "agency": "Harlow County",
+  "as_of_date": "2026-09-17",
+  "config_digests": {
+    "generator_profile.yaml": "01d99015f17796bc",
+    "mapping_county_hr_csv.yaml": "9c21ec727ac18063",
+    "org_county.yaml": "c86ae9144b643099"
+  },
+  "counts": {
+    "actions": 223,
+    "active_employees": 289,
+    "admin_leave_periods": 18,
+    "appeals": 15,
+    "employees": 321,
+    "separations": 14
+  },
+  "disclaimer": "Synthetic data for a fictional county. Generated from documented distributions; not derived from any real agency's records.",
+  "full_export_counts": {
+    "actions": 521,
+    "active_employees": 2517,
+    "admin_leave_periods": 56,
+    "appeals": 42,
+    "employees": 3073,
+    "separations": 29
+  },
+  "injected_data_quality_issues": {
+    "decision_before_incident": 2,
+    "leave_after_separation": 2,
+    "missing_salary": 2,
+    "orphan_action": 3,
+    "suspension_days_mismatch": 2,
+    "sworn_only_category_misapplied": 2
+  },
+  "sample": true,
+  "sample_note": "A trimmed slice of the full export, kept in version control so the project is runnable without regenerating. Use `make generate` for the full dataset.",
+  "seed": 20260917,
+  "synthetic": true,
+  "window_start": "2023-09-18"
+}

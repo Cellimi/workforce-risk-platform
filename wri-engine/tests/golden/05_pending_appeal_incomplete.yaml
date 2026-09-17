@@ -1,0 +1,116 @@
+name: "Pending appeal flags the action as incomplete"
+description: >
+  A telecommunicator's 20-day suspension is before the civil service board and has not been
+  decided. The appeal's internal hours are counted, but nothing is guessed about the outcome:
+  no back pay, no settlement. Every appeal line item carries cost_incomplete, so the action
+  is reported as a floor rather than a total.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Emergency Communications"
+    role_family: telecommunicator
+    job_title: "Telecommunicator II"
+    job_class_code: EC-3100
+    pay_grade: G16
+    pay_step: 4
+    annual_base_salary: 52000
+    hourly_base_rate: 25.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: civilian
+    turnover_profile: dispatch
+    work_location: "Emergency Communications Center"
+    supervisor_id: E2
+    hire_date: 2020-11-02
+  - employee_id: E2
+    department: "Emergency Communications"
+    role_family: comms_supervisor
+    job_title: "Communications Shift Supervisor"
+    job_class_code: EC-3300
+    pay_grade: G20
+    pay_step: 5
+    annual_base_salary: 72800
+    hourly_base_rate: 35.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: civilian
+    turnover_profile: dispatch
+    work_location: "Emergency Communications Center"
+    hire_date: 2013-03-25
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-04-02
+    proposal_date: 2026-05-01
+    decision_date: 2026-06-10
+    misconduct_category: neglect_of_duty
+    misconduct_subtype: "Inattention to duty"
+    action_type: suspension_15_plus
+    suspension_days: 20
+    suspension_start_date: 2026-06-22
+    was_investigated: true
+    investigation_type: hr
+    deciding_official_level: division_head
+
+appeals:
+  - appeal_id: P1
+    action_id: A1
+    forum: civil_service_board
+    filed_date: 2026-06-25
+    resolution_date: null
+    outcome: pending
+    back_pay_awarded: 0
+    settlement_amount: 0
+    outside_counsel_hours: 8
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Telecommunicator E1: $52,000 / 2,080 = $25.00/hr x 1.627 civilian = $40.675/hr loaded.
+# Shift supervisor E2: $72,800 / 2,080 = $35.00/hr x 1.627 = $56.945/hr loaded.
+# HR reference $61.0125/hr; division head $82.132212/hr.
+#
+# C1 supervisor     12 hrs x $56.945    = $  683.34
+# C1 HR             10 hrs x $61.0125   = $  610.125 -> $610.13
+# C1 deciding        4 hrs x $82.132212 = $  328.529 -> $328.53
+# C1 investigation  16 hrs x $61.0125   = $  976.20
+#
+# C3 backfill       20 shifts x 12 hrs = 240 hrs. Dispatch is minimum-staffing.
+#                   Peer base $25.00 x 1.5 x 1.0765 = $40.36875/hr x 240 = $9,688.50
+# C3-offset         240 hrs x $25.00 x 1.0765 = $6,459.00, recorded negative
+#
+# C4 internal HR    civil service board: 30 hrs x $61.0125 = $1,830.375 -> $1,830.38
+# C4 counsel        8 hrs x $325 = $2,600.00
+# NOTHING ELSE. The board has not ruled, so there is no back pay, no settlement and no
+# interest -- the engine records what happened, not what might.
+# Both C4 lines carry cost_incomplete, so the action is flagged.
+#
+# Gross $16,717.08   Offset -$6,459.00   Net $10,258.08   cost_incomplete = true
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '328.53'}
+    - {component: C1, subcomponent: hr_hours, amount: '610.13'}
+    - {component: C1, subcomponent: investigation_hr, amount: '976.20'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '683.34'}
+    - {component: C3, subcomponent: backfill_suspension, amount: '9688.50'}
+    - {component: C3-offset, subcomponent: unpaid_suspension_salary_saved, amount: '-6459.00'}
+    - {component: C4, subcomponent: internal_hr_hours, amount: '1830.38'}
+    - {component: C4, subcomponent: outside_counsel, amount: '2600.00'}
+  gross: '16717.08'
+  offset: '-6459.00'
+  net: '10258.08'
+  cost_incomplete: true

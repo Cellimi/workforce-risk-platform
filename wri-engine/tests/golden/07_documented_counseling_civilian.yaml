@@ -1,0 +1,88 @@
+name: "Documented counseling for a civilian: processing labor only"
+description: >
+  The smallest case in the set, and the one that runs most often. No suspension, no leave, no
+  appeal, no separation - only the hours three people spend on the paperwork. It exists to
+  prove that the low-severity end of the ladder is costed, not rounded to zero.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Parks & Recreation"
+    role_family: park_maintenance
+    job_title: "Park Maintenance Worker"
+    job_class_code: PR-7100
+    pay_grade: G12
+    pay_step: 3
+    annual_base_salary: 41600
+    hourly_base_rate: 20.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_standard
+    work_location: "Parks North"
+    supervisor_id: E2
+    hire_date: 2022-04-04
+  - employee_id: E2
+    department: "Parks & Recreation"
+    role_family: recreation_specialist
+    job_title: "Recreation Specialist"
+    job_class_code: PR-7200
+    pay_grade: G14
+    pay_step: 5
+    annual_base_salary: 52000
+    hourly_base_rate: 25.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_standard
+    work_location: "Parks North"
+    hire_date: 2018-08-20
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2025-05-06
+    proposal_date: 2025-05-09
+    decision_date: 2025-05-20
+    misconduct_category: tardiness
+    misconduct_subtype: "Late to shift"
+    action_type: documented_counseling
+    suspension_days: 0
+    was_investigated: false
+    deciding_official_level: supervisor
+    deciding_official_id: E2
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Park maintenance worker E1: $41,600 / 2,080 = $20.00/hr x 1.627 = $32.54/hr loaded
+#   (his own rate is not used -- counseling costs other people's time, not his).
+# Recreation specialist E2, named as both supervisor and deciding official:
+#   $52,000 / 2,080 = $25.00/hr x 1.627 = $40.675/hr loaded.
+#
+# C1 supervisor   2 hrs x $40.675   = $81.35
+# C1 HR         0.5 hrs x $61.0125  = $30.506 -> $30.51
+# C1 deciding   0 hrs for a documented counseling -> no line item is emitted at all.
+#
+# No suspension, no leave, no appeal, no separation.
+# Gross = Net = $111.86
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: hr_hours, amount: '30.51'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '81.35'}
+  gross: '111.86'
+  offset: '0'
+  net: '111.86'
+  cost_incomplete: false

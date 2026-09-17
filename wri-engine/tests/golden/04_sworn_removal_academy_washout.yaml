@@ -1,0 +1,155 @@
+name: "Sworn removal with academy, field training and the washout adjustment"
+description: >
+  A deputy is removed and the seat is refilled. This case isolates C5 for the sworn_deputy
+  profile: the recruit's 22-week academy salary, 14 weeks of field training with a trainer
+  differential, and every recruiting and training item divided by (1 - 0.25 washout). No
+  administrative leave and no appeal, so C5 stands on its own.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Sheriff's Office - Patrol"
+    role_family: deputy
+    job_title: "Deputy Sheriff II"
+    job_class_code: SW-1100
+    pay_grade: G19
+    pay_step: 7
+    annual_base_salary: 72800
+    hourly_base_rate: 35.00
+    flsa_status: "7k"
+    bargaining_unit: "Deputies' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: sworn_deputy
+    work_location: "South District"
+    supervisor_id: E2
+    hire_date: 2014-08-11
+    separation_date: 2024-09-30
+    separation_reason: resignation_in_lieu_of_removal
+  - employee_id: E2
+    department: "Sheriff's Office - Patrol"
+    role_family: patrol_sergeant
+    job_title: "Sheriff's Sergeant"
+    job_class_code: SW-1300
+    pay_grade: G23
+    pay_step: 4
+    annual_base_salary: 83200
+    hourly_base_rate: 40.00
+    flsa_status: "7k"
+    bargaining_unit: "Deputies' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: sworn_deputy
+    work_location: "South District"
+    hire_date: 2010-02-15
+  - employee_id: E3
+    department: "Sheriff's Office - Patrol"
+    role_family: deputy
+    job_title: "Deputy Sheriff II"
+    job_class_code: SW-1100
+    pay_grade: G19
+    pay_step: 6
+    annual_base_salary: 66560
+    hourly_base_rate: 32.00
+    flsa_status: "7k"
+    bargaining_unit: "Deputies' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: sworn_deputy
+    work_location: "South District"
+    hire_date: 2015-05-20
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2024-06-02
+    proposal_date: 2024-07-15
+    decision_date: 2024-09-25
+    misconduct_category: conduct_unbecoming
+    misconduct_subtype: "Untruthfulness"
+    action_type: removal
+    suspension_days: 0
+    was_investigated: false
+    deciding_official_level: county_administrator
+
+separations:
+  - employee_id: E1
+    separation_date: 2024-09-30
+    separation_reason: resignation_in_lieu_of_removal
+    linked_action_id: A1
+    position_refilled: true
+    refill_date: 2025-03-29
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Deputy E1: $72,800 / 2,080 = $35.00/hr base x 1.75 = $61.25/hr loaded (his own rate is not
+#   used for C5 -- a replacement starts at step 1).
+# Sergeant E2 (supervisor): $40.00/hr base x 1.75 = $70.00/hr loaded.
+# Deputy E3 is the only ACTIVE deputy: $32.00/hr base -> $51.672/hr with overtime,
+#   and $56.00/hr loaded as the field training officer.
+# County administrator: $175,000 x 1.627 / 2,080 = $136.887019/hr.
+#
+# C1 supervisor  30 hrs x $70.00       = $2,100.00
+# C1 HR          20 hrs x $61.0125     = $1,220.25
+# C1 deciding     8 hrs x $136.887019  = $1,095.096 -> $1,095.10
+# No investigation on the record, so no investigation hours.
+#
+# C5, sworn_deputy profile, washout 0.25 -> x 1/0.75 = 1.333333
+#   vacancy overtime  2024-10-01 to 2025-03-29 = 180 days x 0.5 = 90 shifts x 12 = 1,080 hrs
+#                     1,080 x $51.672 = $55,805.76   (not washout-adjusted)
+#   advertising       $2,500 -> $3,333.33
+#   recruiter hours   40 hrs x $61.0125 = $2,440.50 x 1.333333 = $3,254.00
+#   testing           $350 -> $466.67
+#   interview panel   3 x 2 hrs x $70.00 = $420.00 x 1.333333 = $560.00
+#   background        $3,500 -> $4,666.67   polygraph $375 -> $500.00
+#   psychological     $550 -> $733.33       medical   $350 -> $466.67   drug $65 -> $86.67
+#   Replacement rate: G19 step 1 = $62,000 / 2,080 = $29.807692 x 1.75 = $52.163462/hr
+#   orientation       40 hrs x $52.163462 = $2,086.54 x 1.333333 = $2,782.05
+#   academy tuition   $6,500 x 1.333333 = $8,666.67
+#   academy salary    22 wks x 40 hrs = 880 hrs x $52.163462 = $45,903.85
+#                     x 1.333333 = $61,205.13   <- the single largest item
+#   field training    14 wks x 40 hrs = 560 hrs x $52.163462 = $29,211.54 x 1.333333 = $38,948.72
+#   trainer diff.     560 hrs x $56.00 x 0.07 = $2,195.20 x 1.333333 = $2,926.93
+#   equipment         $6,500 x 1.333333 = $8,666.67
+#
+# C1 $4,415.35 + C5 $193,069.27 = Gross = Net = $197,484.62
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '1095.10'}
+    - {component: C1, subcomponent: hr_hours, amount: '1220.25'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '2100.00'}
+    - {component: C5, subcomponent: academy_salary, amount: '61205.13'}
+    - {component: C5, subcomponent: academy_tuition, amount: '8666.67'}
+    - {component: C5, subcomponent: advertising, amount: '3333.33'}
+    - {component: C5, subcomponent: background_investigation, amount: '4666.67'}
+    - {component: C5, subcomponent: drug_screen, amount: '86.67'}
+    - {component: C5, subcomponent: equipment_and_uniform, amount: '8666.67'}
+    - {component: C5, subcomponent: field_training_trainee_salary, amount: '38948.72'}
+    - {component: C5, subcomponent: field_training_trainer_differential, amount: '2926.93'}
+    - {component: C5, subcomponent: hr_recruiter_hours, amount: '3254.00'}
+    - {component: C5, subcomponent: interview_panel, amount: '560.00'}
+    - {component: C5, subcomponent: medical_exam, amount: '466.67'}
+    - {component: C5, subcomponent: orientation, amount: '2782.05'}
+    - {component: C5, subcomponent: polygraph, amount: '500.00'}
+    - {component: C5, subcomponent: psychological_evaluation, amount: '733.33'}
+    - {component: C5, subcomponent: selection_testing, amount: '466.67'}
+    - {component: C5, subcomponent: vacancy_coverage_overtime, amount: '55805.76'}
+  gross: '197484.62'
+  offset: '0'
+  net: '197484.62'
+  cost_incomplete: false

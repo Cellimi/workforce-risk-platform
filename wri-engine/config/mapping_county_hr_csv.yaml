@@ -1,0 +1,172 @@
+# Field and code mapping: Harlow County HR export  ->  WRI canonical schema.
+#
+# This is the whole contract between one source system and the engine. A new source system
+# gets its own mapping file and its own adapter module; the canonical schema never moves.
+
+source:
+  id: county_hr_csv
+  description: "Harlow County HR system flat-file extract (5 CSVs, MM/DD/YYYY dates)."
+  date_format: "%m/%d/%Y"
+  boolean_true: ["Y", "YES", "1", "TRUE"]
+  boolean_false: ["N", "NO", "0", "FALSE", ""]
+
+files:
+  employees: hr_empl_master.csv
+  actions: hr_disc_actn.csv
+  admin_leave: hr_admn_leave.csv
+  appeals: hr_appl_grv.csv
+  separations: hr_sepn.csv
+
+columns:
+  employees:
+    EMP_NBR: employee_id
+    DEPT_CD: department_code
+    CLASS_CD: job_class_code
+    POSN_TITLE: job_title
+    GRADE: pay_grade
+    STEP: pay_step
+    ANNL_SAL: annual_base_salary
+    FLSA_CD: flsa_code
+    BARG_CD: bargaining_unit_code
+    SWORN_IND: is_sworn
+    MIN_STAFF_IND: minimum_staffing_role
+    SHIFT_HRS: standard_shift_hours
+    WORK_LOC: work_location
+    SUPV_EMP_NBR: supervisor_id
+    HIRE_DT: hire_date
+    TERM_DT: separation_date
+    TERM_RSN_CD: separation_reason_code
+  actions:
+    ACTN_NBR: action_id
+    EMP_NBR: employee_id
+    INCDT_DT: incident_date
+    PROP_DT: proposal_date
+    DECN_DT: decision_date
+    MISCND_CD: misconduct_code
+    MISCND_SUB: misconduct_subtype
+    ACTN_CD: action_code
+    SUSP_DAYS: suspension_days
+    SUSP_BEG_DT: suspension_start_date
+    INVEST_IND: was_investigated
+    INVEST_TYP: investigation_code
+    DECIDE_LVL: deciding_official_level_code
+    DECIDE_EMP_NBR: deciding_official_id
+    POSN_ABOLISH_IND: position_abolished
+  admin_leave:
+    LEAVE_NBR: leave_id
+    EMP_NBR: employee_id
+    ACTN_NBR: action_id
+    BEG_DT: start_date
+    END_DT: end_date
+    PAID_IND: paid
+  appeals:
+    APPL_NBR: appeal_id
+    ACTN_NBR: action_id
+    FORUM_CD: forum_code
+    FILED_DT: filed_date
+    RESOLV_DT: resolution_date
+    OUTCOME_CD: outcome_code
+    BACKPAY_AMT: back_pay_awarded
+    SETTLE_AMT: settlement_amount
+    OC_HOURS: outside_counsel_hours
+  separations:
+    EMP_NBR: employee_id
+    TERM_DT: separation_date
+    TERM_RSN_CD: separation_reason_code
+    ACTN_NBR: linked_action_id
+    REFILL_IND: position_refilled
+    REFILL_DT: refill_date
+    ABOLISH_IND: position_abolished
+
+codes:
+  department:
+    SHPAT: sheriff_patrol
+    SHDET: sheriff_detention
+    EMCOM: emergency_comms
+    FIRER: fire_rescue
+    PUBWK: public_works
+    SOCSV: social_services
+    PKREC: parks_rec
+    ADMIN: admin_finance_it
+  flsa:
+    E: exempt
+    N: non_exempt
+    K: "7k"
+  bargaining_unit:
+    DEP: deputies_assoc
+    COR: corrections_assoc
+    FFA: firefighters_assoc
+    GEN: general_employees
+    NON: non_represented
+  misconduct:
+    ATT: attendance_awol
+    TRD: tardiness
+    TFL: time_falsification
+    INS: insubordination
+    CUB: conduct_unbecoming
+    POL: policy_violation
+    UOF: use_of_force
+    VEH: vehicle_misuse
+    HAR: harassment_violence
+    DRG: drug_alcohol
+    NEG: neglect_of_duty
+    ODM: off_duty_misconduct
+  action_type:
+    CNS: documented_counseling
+    WRP: written_reprimand
+    SP1: suspension_1_3
+    SP2: suspension_4_14
+    SP3: suspension_15_plus
+    DEM: demotion
+    RMV: removal
+  investigation:
+    SUP: supervisory
+    HRI: hr
+    IAD: internal_affairs
+  deciding_official_level:
+    "1": supervisor
+    "2": division_head
+    "3": department_head
+    "4": county_administrator
+  appeal_forum:
+    GRV: grievance_step
+    CSB: civil_service_board
+    ARB: arbitration
+    CRT: court
+  appeal_outcome:
+    SUS: sustained
+    MIT: mitigated
+    OVR: overturned
+    STL: settled
+    PND: pending
+  separation_reason:
+    RES: voluntary_resignation
+    RILR: resignation_in_lieu_of_removal
+    RFC: removal_for_cause
+    RET: retirement
+    LAY: layoff
+    PRB: end_of_probation
+
+# Class code -> role family. In the real export this is the only reliable link between a
+# position and its role family; job titles are free text.
+job_class_to_role_family:
+  SW-1100: deputy
+  SW-1300: patrol_sergeant
+  SW-1400: patrol_lieutenant
+  CO-2100: corrections_officer
+  CO-2300: corrections_sergeant
+  EC-3100: telecommunicator
+  EC-3300: comms_supervisor
+  FR-4100: firefighter_emt
+  FR-4300: fire_captain
+  PW-5200: equipment_operator
+  PW-5100: maintenance_worker
+  PW-5400: crew_supervisor
+  SS-6100: caseworker
+  SS-6200: eligibility_specialist
+  SS-6400: social_services_supervisor
+  PR-7100: park_maintenance
+  PR-7200: recreation_specialist
+  AD-8200: analyst
+  AD-8100: admin_specialist
+  AD-8400: manager
