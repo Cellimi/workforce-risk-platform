@@ -7,6 +7,14 @@ name = "wri-engine"
 version = "0.1.0"
 description = "Workforce Risk Intelligence - Phase 1: fully loaded cost of discipline"
 readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "Mike Celli"}]
+classifiers = [
+    "License :: Other/Proprietary License",
+    # Guard rail: setuptools/twine refuse to upload anything carrying this classifier.
+    # This package is proprietary and must never reach a public index.
+    "Private :: Do Not Upload",
+]
 # Target is Python 3.12; 3.11 is supported so the project runs on older toolchains.
 requires-python = ">=3.11"
 dependencies = [

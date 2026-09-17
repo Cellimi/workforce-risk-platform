@@ -172,3 +172,17 @@ make lint     # ruff
 8. The **final fictional county name** — "Harlow County" is a placeholder.
 
 Every one of them is visible, tinted, on the Assumptions page of the demo.
+
+---
+
+## License
+
+**Proprietary. Copyright (c) 2026 Mike Celli. All rights reserved.** See [`LICENSE`](LICENSE).
+
+No license to use, copy, modify or distribute is granted, and having access to this
+repository does not grant one. Third-party dependencies keep their own terms; see
+`pyproject.toml` for the list.
+
+The license also records what this software is not: it produces cost estimates from
+configurable assumptions, and those are neither measured agency costs nor legal, actuarial,
+financial or HR advice.

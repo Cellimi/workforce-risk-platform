@@ -1,0 +1,39 @@
+Copyright (c) 2026 Mike Celli. All rights reserved.
+
+PROPRIETARY AND CONFIDENTIAL
+
+This software and its accompanying documentation (the "Software") are the
+proprietary and confidential property of the copyright holder.
+
+No license, express or implied, is granted to any person to use, copy, modify,
+merge, publish, distribute, sublicense or sell copies of the Software, in whole
+or in part, without the prior written permission of the copyright holder.
+Unauthorized copying, distribution or disclosure of the Software, via any
+medium, is strictly prohibited.
+
+Receiving a copy of the Software, including by access to any repository in
+which it is stored, does not grant any of the rights withheld above.
+
+NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+NOT PROFESSIONAL ADVICE
+
+The Software produces cost estimates from configurable assumptions. Those
+assumptions are documented in the Software and are not, and must not be
+presented as, measured costs of any agency, nor as legal, actuarial, financial
+or human resources advice. Any figure the Software produces is only as reliable
+as the assumptions supplied to it, which remain the responsibility of the party
+supplying them.
+
+THIRD-PARTY COMPONENTS
+
+The Software depends on third-party open source packages, which are not covered
+by this license and remain subject to their own terms. See pyproject.toml for
+the dependency list.
