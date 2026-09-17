@@ -1,18 +1,20 @@
-Copyright (c) 2026 Mike Celli. All rights reserved.
+Copyright (c) 2026 Michael V. Celli. All rights reserved.
 
-PROPRIETARY AND CONFIDENTIAL
+PUBLISHED FOR VIEWING. NOT LICENSED FOR USE.
 
-This software and its accompanying documentation (the "Software") are the
-proprietary and confidential property of the copyright holder.
+This source code and its accompanying documentation (the "Software") are
+published so that they can be read, reviewed and evaluated. Publication is not
+a license.
 
 No license, express or implied, is granted to any person to use, copy, modify,
 merge, publish, distribute, sublicense or sell copies of the Software, in whole
-or in part, without the prior written permission of the copyright holder.
-Unauthorized copying, distribution or disclosure of the Software, via any
-medium, is strictly prohibited.
+or in part, or to create derivative works from it, without the prior written
+permission of the copyright holder. All rights not expressly granted are
+reserved.
 
-Receiving a copy of the Software, including by access to any repository in
-which it is stored, does not grant any of the rights withheld above.
+Reading the Software, or obtaining a copy of it by any means including cloning
+or downloading this repository, does not grant any of the rights withheld
+above.
 
 NO WARRANTY
 
@@ -31,6 +33,13 @@ presented as, measured costs of any agency, nor as legal, actuarial, financial
 or human resources advice. Any figure the Software produces is only as reliable
 as the assumptions supplied to it, which remain the responsibility of the party
 supplying them.
+
+SYNTHETIC DATA
+
+All data in this repository is synthetic and depicts a fictional county. It is
+generated from public distributional shapes and documented assumptions, and is
+not derived from any real agency's records. No real county, agency, union,
+employer or person is represented.
 
 THIRD-PARTY COMPONENTS
 

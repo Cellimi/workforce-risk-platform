@@ -1,35 +1,63 @@
-# WRI Engine — Phase 1: the fully loaded cost of discipline
+# Cost of Discipline — WRI Engine, Phase 1
 
-The first working slice of the Workforce Risk Intelligence engine. It joins HR records to
-discipline records for a fictional county government and reports **what discipline actually
-costs**, broken down by employee type and misconduct type — with every dollar traceable back
-to its formula, its inputs, and the assumption it used.
+**Every agency tracks discipline as paperwork. Nobody can say what it costs.** This tool
+answers that question: it joins HR records to discipline records and reports the fully loaded
+cost of discipline for a county government — broken down by employee type and misconduct
+type, and **traceable to the last dollar**. Click any figure and it decomposes into line
+items that each name their own formula, the values used, and the assumption behind them.
 
-> **Synthetic data for a fictional county. Cost figures reflect documented assumptions, not
-> measured agency costs.** Harlow County does not exist. The data is generated from public
-> distributional shapes and documented judgement; nothing in this repository is derived from
-> any real agency's records, and no real county, agency, union or person is represented.
+> ### All data here is synthetic
+> **Harlow County does not exist.** The data is generated from public distributional shapes
+> and documented judgement. Nothing is derived from any real agency's records, and no real
+> county, agency, union, employer or person is represented. Cost figures reflect documented
+> assumptions, **not measured agency costs** — 151 of the 166 assumptions are still owner
+> placeholders, and the demo marks every one of them.
 
-This project is self-contained. It shares no code with the Streamlit MVP at the root of this
-repository.
+> **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
+> rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
+> modify or distribute it.
 
 ---
 
-## Run the demo in under ten minutes
+## Run it — four commands
 
 ```bash
-cd wri-engine
-make install          # venv + dependencies (Python 3.11+)
-make generate         # write the synthetic county HR export to data/synthetic/
-make test             # 146 tests, coverage gate on costing/ and aggregation/
-make api              # terminal one: http://localhost:8000  (docs at /docs)
-make ui               # terminal two: http://localhost:8501
+make install      # create the virtual environment and install dependencies
+make generate     # build the synthetic county dataset
+make api          # terminal one — the engine  (http://localhost:8000/docs)
+make ui           # terminal two — the demo    (http://localhost:8501)
 ```
 
-A trimmed sample export is committed at `data/synthetic/sample/`, so the API and tests run
-without `make generate`. Use `make generate` for the full 2,500-employee dataset.
+Needs Python 3.11 or newer, and nothing else. `make api` and `make ui` run at the same time,
+in two terminals. Then open <http://localhost:8501>.
 
-Then read `docs/demo_script.md` and walk the five pages in order.
+`make generate` is optional the first time — a small sample dataset is committed, so the
+engine and the tests run on a fresh clone without it. Run it for the full
+2,500-employee county.
+
+## What you'll see
+
+Five pages, and a role selector in the sidebar that changes what each role is allowed to see:
+
+1. **Executive summary** — what discipline costs per year and per employee, where the money
+   goes, and a "How this number was calculated" panel beside every headline figure.
+2. **Cost matrix** — employee type against misconduct type. Small groups are suppressed to
+   protect individuals, and the totals still reconcile.
+3. **Drill-down** — one action, every line item, back to the assumption behind it.
+4. **Assumptions** — all 166 coefficients with their source and confidence. Move a slider and
+   the whole model recomputes.
+5. **Data quality** — what failed validation and what that excluded from the totals.
+
+`docs/demo_script.md` walks the five pages as a five-minute presentation.
+`docs/cost_methodology.md` explains every formula, including the judgement calls.
+
+---
+
+## Everything below is detail
+
+`make test` runs 146 tests with a coverage gate on the cost and aggregation code.
+This project is self-contained and shares no code with the earlier MVP at the root of this
+repository.
 
 ---
 
@@ -177,11 +205,12 @@ Every one of them is visible, tinted, on the Assumptions page of the demo.
 
 ## License
 
-**Proprietary. Copyright (c) 2026 Mike Celli. All rights reserved.** See [`LICENSE`](LICENSE).
+**Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
+rights reserved. See [`LICENSE`](LICENSE).
 
-No license to use, copy, modify or distribute is granted, and having access to this
-repository does not grant one. Third-party dependencies keep their own terms; see
-`pyproject.toml` for the list.
+Publication is not a license. No right to use, copy, modify or distribute is granted, and
+cloning this repository does not confer one. Third-party dependencies keep their own terms;
+see `pyproject.toml` for the list.
 
 The license also records what this software is not: it produces cost estimates from
 configurable assumptions, and those are neither measured agency costs nor legal, actuarial,

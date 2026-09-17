@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Workforce Risk Intelligence - Phase 1: fully loaded cost of discipline"
 readme = "README.md"
 license = {file = "LICENSE"}
-authors = [{name = "Mike Celli"}]
+authors = [{name = "Michael V. Celli"}]
 classifiers = [
     "License :: Other/Proprietary License",
     # Guard rail: setuptools/twine refuse to upload anything carrying this classifier.
