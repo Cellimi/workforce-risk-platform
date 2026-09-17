@@ -7,19 +7,19 @@
     "org_county.yaml": "c86ae9144b643099"
   },
   "counts": {
-    "actions": 228,
-    "active_employees": 282,
-    "admin_leave_periods": 19,
-    "appeals": 18,
-    "employees": 312,
-    "separations": 11
+    "actions": 223,
+    "active_employees": 289,
+    "admin_leave_periods": 18,
+    "appeals": 15,
+    "employees": 321,
+    "separations": 14
   },
   "disclaimer": "Synthetic data for a fictional county. Generated from documented distributions; not derived from any real agency's records.",
   "full_export_counts": {
-    "actions": 523,
-    "active_employees": 2516,
-    "admin_leave_periods": 59,
-    "appeals": 45,
+    "actions": 521,
+    "active_employees": 2517,
+    "admin_leave_periods": 56,
+    "appeals": 42,
     "employees": 3073,
     "separations": 29
   },

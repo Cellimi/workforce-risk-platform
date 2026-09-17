@@ -432,6 +432,23 @@ assumptions:
   status: TBD-MIKE
   last_reviewed: '2026-09-17'
   notes: Internal HR/labor-relations hours to carry one case through grievance step.
+- id: c3_unpaid_suspension_burden_multiplier
+  value: 1.0765
+  low: 1.0765
+  high: 1.35
+  unit: ratio
+  applies_to:
+    scope: unpaid_suspension_offset
+  source: 'Employer FICA that is not paid on wages the employee does not earn: 6.2% OASDI + 1.45% HI
+    = 7.65% (26 U.S.C. 3111). Health insurance and OPEB continue during an unpaid suspension and are
+    deliberately excluded.'
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'The county does NOT save the full loaded cost of an unpaid suspension - it keeps paying health
+    and OPEB. It saves the wage plus only the burdens that scale with the wage. Raise the value if
+    pension contributions are also suspended with the pay, which is plan-specific. See OPEN ITEM 3.'
 - id: c4_hr_hours_arbitration
   value: 40
   low: 25

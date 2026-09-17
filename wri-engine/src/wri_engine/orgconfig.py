@@ -39,7 +39,9 @@ class Schedule:
     annual_paid_hours: int
     description: str
 
-    def shifts_between(self, start: date, end: date, holidays: frozenset[tuple[int, int]]) -> Decimal:
+    def shifts_between(
+        self, start: date, end: date, holidays: frozenset[tuple[int, int]]
+    ) -> Decimal:
         """Scheduled shifts in the inclusive range [start, end]."""
         if end < start:
             return Decimal("0")
@@ -56,7 +58,9 @@ class Schedule:
             day += timedelta(days=1)
         return Decimal(count)
 
-    def hours_between(self, start: date, end: date, holidays: frozenset[tuple[int, int]]) -> Decimal:
+    def hours_between(
+        self, start: date, end: date, holidays: frozenset[tuple[int, int]]
+    ) -> Decimal:
         return self.shifts_between(start, end, holidays) * self.shift_hours
 
 

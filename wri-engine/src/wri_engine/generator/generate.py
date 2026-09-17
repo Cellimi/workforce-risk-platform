@@ -24,9 +24,9 @@ from pathlib import Path
 
 import yaml
 
+from wri_engine.generator.profile import GeneratorProfile, load_generator_profile
 from wri_engine.orgconfig import OrgConfig, RoleFamily, default_org_config
 from wri_engine.paths import CONFIG_DIR
-from wri_engine.generator.profile import GeneratorProfile, load_generator_profile
 
 MAPPING_FILE = CONFIG_DIR / "mapping_county_hr_csv.yaml"
 DATE_FMT = "%m/%d/%Y"
@@ -235,7 +235,8 @@ class _Generator:
             span = emp.active_between(self.window_start, self.as_of)
             if span is None:
                 continue
-            active_share = ((span[1] - span[0]).days + 1) / ((self.as_of - self.window_start).days + 1)
+            window_days = (self.as_of - self.window_start).days + 1
+            active_share = ((span[1] - span[0]).days + 1) / window_days
             weight = float(rate_factors.get(emp.role.id, 1.0)) * active_share
             if self._in_pattern(emp, pattern):
                 weight *= float(pattern["action_rate_multiplier"])
@@ -249,6 +250,35 @@ class _Generator:
             attempts += 1
             emp = self.rng.choices(candidates, weights=weights, k=1)[0]
             self._make_action(emp, pattern)
+        self._prune_actions_after_separation()
+
+    def _prune_actions_after_separation(self) -> None:
+        """Drop actions decided after the employee had already left.
+
+        Actions are drawn in random order, so a removal generated late can set a separation
+        date earlier than an action generated earlier. Rather than order the draws, the
+        inconsistency is cleaned up here: an action decided after the employee's separation
+        never happened, and neither did its leave, appeal or separation rows. Pruning a
+        removal's separation puts the employee back to active, so the loop repeats until
+        nothing more is removed.
+        """
+        while True:
+            stale = {
+                rec["action_id"]
+                for rec in self.actions_raw
+                if rec["emp"].separation_date and rec["decision"] > rec["emp"].separation_date
+            }
+            if not stale:
+                return
+            for sep in [s for s in self.separations if s["ACTN_NBR"] in stale]:
+                employee = self.by_id[sep["EMP_NBR"]]
+                employee.separation_date = None
+                employee.separation_reason = None
+            self.actions_raw = [r for r in self.actions_raw if r["action_id"] not in stale]
+            self.actions = [r for r in self.actions if r["ACTN_NBR"] not in stale]
+            self.admin_leave = [r for r in self.admin_leave if r["ACTN_NBR"] not in stale]
+            self.appeals = [r for r in self.appeals if r["ACTN_NBR"] not in stale]
+            self.separations = [s for s in self.separations if s["ACTN_NBR"] not in stale]
 
     def _in_pattern(self, emp: _Emp, pattern: dict) -> bool:
         return emp.role.id == pattern["role_family"] and emp.location == pattern["work_location"]
@@ -264,8 +294,10 @@ class _Generator:
             self.rng, timing["incident_to_proposal"]))
         decision = proposal + timedelta(days=GeneratorProfile.triangular_days(
             self.rng, timing["proposal_to_decision"]))
-        if decision > self.as_of:
-            return  # still in progress at the extract date; not yet a decided action
+        if decision > span[1]:
+            # Still open at the extract date, or the employee left before it was decided.
+            # Either way there is no decided action to cost.
+            return
 
         category = self._pick_category(emp, pattern)
         tier = self.p["category_severity_tier"][category]
@@ -348,7 +380,9 @@ class _Generator:
         return GeneratorProfile.weighted_choice(self.rng, weights)
 
     def _pick_action_type(self, emp: _Emp, tier: str, pattern: dict) -> str:
-        action_type = GeneratorProfile.weighted_choice(self.rng, self.p["action_type_weights"][tier])
+        action_type = GeneratorProfile.weighted_choice(
+            self.rng, self.p["action_type_weights"][tier]
+        )
         if self._in_pattern(emp, pattern) and self.rng.random() < float(pattern["severity_shift"]):
             ranked = sorted(self.org.action_types.values(), key=lambda a: a["severity_rank"])
             ids = [a["id"] for a in ranked]
@@ -423,7 +457,9 @@ class _Generator:
                         self.rng, self.p["appeals"]["settlement_amount"]), -2)
                 )
         counsel_hours = round(
-            GeneratorProfile.triangular(self.rng, self.p["appeals"]["outside_counsel_hours"][forum]),
+            GeneratorProfile.triangular(
+                self.rng, self.p["appeals"]["outside_counsel_hours"][forum]
+            ),
             1,
         )
         record = {

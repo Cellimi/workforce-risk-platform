@@ -1,0 +1,197 @@
+name: "Paid-admin-leave removal of a corrections officer who arbitrated and won partial back pay"
+description: >
+  The full stack. The officer sits on paid administrative leave for 76 calendar days, so the
+  county pays both the leave (C2) and the overtime covering the post (C3). The removal goes
+  to arbitration, which mitigates it and awards back pay with interest (C4). The position is
+  refilled, so the whole corrections replacement bundle applies (C5).
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Sheriff's Office - Detention Center"
+    role_family: corrections_officer
+    job_title: "Corrections Officer II"
+    job_class_code: CO-2100
+    pay_grade: G17
+    pay_step: 4
+    annual_base_salary: 56160
+    hourly_base_rate: 27.00
+    flsa_status: "7k"
+    bargaining_unit: "Corrections Officers' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: corrections
+    work_location: "Main Detention Center"
+    supervisor_id: E2
+    hire_date: 2018-02-05
+    separation_date: 2025-06-20
+    separation_reason: removal_for_cause
+  - employee_id: E2
+    department: "Sheriff's Office - Detention Center"
+    role_family: corrections_sergeant
+    job_title: "Corrections Sergeant"
+    job_class_code: CO-2300
+    pay_grade: G22
+    pay_step: 5
+    annual_base_salary: 74880
+    hourly_base_rate: 36.00
+    flsa_status: "7k"
+    bargaining_unit: "Corrections Officers' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: corrections
+    work_location: "Main Detention Center"
+    hire_date: 2011-09-12
+  - employee_id: E3
+    department: "Sheriff's Office - Detention Center"
+    role_family: corrections_officer
+    job_title: "Corrections Officer II"
+    job_class_code: CO-2100
+    pay_grade: G17
+    pay_step: 5
+    annual_base_salary: 58240
+    hourly_base_rate: 28.00
+    flsa_status: "7k"
+    bargaining_unit: "Corrections Officers' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: corrections
+    work_location: "Main Detention Center"
+    hire_date: 2017-04-03
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2025-03-01
+    proposal_date: 2025-04-01
+    decision_date: 2025-06-15
+    misconduct_category: neglect_of_duty
+    misconduct_subtype: "Failure to respond"
+    action_type: removal
+    suspension_days: 0
+    was_investigated: true
+    investigation_type: internal_affairs
+    deciding_official_level: department_head
+
+admin_leave:
+  - leave_id: L1
+    employee_id: E1
+    action_id: A1
+    start_date: 2025-04-01
+    end_date: 2025-06-15
+    paid: true
+
+appeals:
+  - appeal_id: P1
+    action_id: A1
+    forum: arbitration
+    filed_date: 2025-07-01
+    resolution_date: 2026-03-01
+    outcome: mitigated
+    back_pay_awarded: 28000
+    settlement_amount: 0
+    outside_counsel_hours: 35
+
+separations:
+  - employee_id: E1
+    separation_date: 2025-06-20
+    separation_reason: removal_for_cause
+    linked_action_id: A1
+    position_refilled: true
+    refill_date: 2025-12-18
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Officer E1: $56,160 / 2,080 = $27.00/hr base x 1.75 sworn = $47.25/hr loaded.
+# Sergeant E2 (supervisor): $74,880 / 2,080 = $36.00/hr x 1.75 = $63.00/hr loaded.
+# Officer E3 is the only ACTIVE corrections officer, so peer averages use his $28.00/hr base
+#   ($45.213/hr with overtime) and $49.00/hr loaded (as the field trainer).
+# HR reference $61.0125/hr. Department head $135,000 x 1.627 / 2,080 = $105.598558/hr.
+# Division head (internal affairs) $105,000 x 1.627 / 2,080 = $82.132212/hr.
+#
+# C1 supervisor        30 hrs x $63.000000 = $ 1,890.00
+# C1 HR                20 hrs x $61.012500 = $ 1,220.25
+# C1 deciding           8 hrs x $105.598558 = $   844.788 -> $844.79
+# C1 investigation (IA) 40 hrs x $82.132212 = $ 3,285.288 -> $3,285.29
+#
+# C2 paid admin leave  2025-04-01 to 2025-06-15 = 76 calendar days.
+#                      shift_12 works half of them: 76 x 0.5 = 38.0 shifts x 12 hrs = 456 hrs
+#                      456 x $47.25 = $21,546.00
+# C3 backfill          same 456 hrs x $45.213 overtime = $20,617.128 -> $20,617.13
+#                      (the county pays for the leave AND for covering the post)
+#
+# C4 internal HR       arbitration: 40 hrs x $61.0125 = $2,440.50
+# C4 outside counsel   35 hrs x $325 = $11,375.00
+# C4 arbitration fees  $7,500.00 flat
+# C4 back pay          $28,000.00 from the record
+# C4 interest          2025-07-01 to 2026-03-01 = 243 days.
+#                      $28,000 x 0.05 x 243/365 = $932.0548 -> $932.05
+#
+# C5, corrections profile, washout 0.30 -> every recruiting/training item x 1/0.70 = 1.428571
+#   vacancy overtime   2025-06-21 to 2025-12-18 = 181 days x 0.5 = 90.5 shifts x 12 = 1,086 hrs
+#                      1,086 x $45.213 = $49,101.318 -> $49,101.32   (not washout-adjusted)
+#   advertising        $2,000 x 1.428571 = $2,857.14
+#   recruiter hours    30 hrs x $61.0125 = $1,830.375 x 1.428571 = $2,614.82
+#   testing            $250 x 1.428571 = $357.14
+#   interview panel    3 x 1.5 hrs x $63.00 = $283.50 x 1.428571 = $405.00
+#   background         $2,200 -> $3,142.86      polygraph $375 -> $535.71
+#   psychological      $450 -> $642.86          medical   $350 -> $500.00
+#   drug screen        $65 -> $92.86
+#   Replacement rate:  G17 step 1 = $55,000 / 2,080 = $26.442308 x 1.75 = $46.274038/hr
+#   orientation        32 hrs x $46.274038 = $1,480.769 x 1.428571 = $2,115.38
+#   academy tuition    $2,800 x 1.428571 = $4,000.00
+#   academy salary     6 wks x 40 hrs = 240 hrs x $46.274038 = $11,105.77 x 1.428571 = $15,865.38
+#   field training     6 wks x 40 hrs = 240 hrs x $46.274038 = $11,105.77 x 1.428571 = $15,865.38
+#   trainer diff.      240 hrs x $49.00 x 0.05 = $588.00 x 1.428571 = $840.00
+#   equipment          $2,200 x 1.428571 = $3,142.86
+#
+# C1 $7,240.33 + C2 $21,546.00 + C3 $20,617.13 + C4 $50,247.55 + C5 $102,078.71
+# Gross = Net = $201,729.72   (no unpaid suspension, so no offset)
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '844.79'}
+    - {component: C1, subcomponent: hr_hours, amount: '1220.25'}
+    - {component: C1, subcomponent: investigation_internal_affairs, amount: '3285.29'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '1890.00'}
+    - {component: C2, subcomponent: paid_admin_leave, amount: '21546.00'}
+    - {component: C3, subcomponent: backfill_admin_leave, amount: '20617.13'}
+    - {component: C4, subcomponent: arbitration_fees, amount: '7500.00'}
+    - {component: C4, subcomponent: back_pay, amount: '28000.00'}
+    - {component: C4, subcomponent: back_pay_interest, amount: '932.05'}
+    - {component: C4, subcomponent: internal_hr_hours, amount: '2440.50'}
+    - {component: C4, subcomponent: outside_counsel, amount: '11375.00'}
+    - {component: C5, subcomponent: academy_salary, amount: '15865.38'}
+    - {component: C5, subcomponent: academy_tuition, amount: '4000.00'}
+    - {component: C5, subcomponent: advertising, amount: '2857.14'}
+    - {component: C5, subcomponent: background_investigation, amount: '3142.86'}
+    - {component: C5, subcomponent: drug_screen, amount: '92.86'}
+    - {component: C5, subcomponent: equipment_and_uniform, amount: '3142.86'}
+    - {component: C5, subcomponent: field_training_trainee_salary, amount: '15865.38'}
+    - {component: C5, subcomponent: field_training_trainer_differential, amount: '840.00'}
+    - {component: C5, subcomponent: hr_recruiter_hours, amount: '2614.82'}
+    - {component: C5, subcomponent: interview_panel, amount: '405.00'}
+    - {component: C5, subcomponent: medical_exam, amount: '500.00'}
+    - {component: C5, subcomponent: orientation, amount: '2115.38'}
+    - {component: C5, subcomponent: polygraph, amount: '535.71'}
+    - {component: C5, subcomponent: psychological_evaluation, amount: '642.86'}
+    - {component: C5, subcomponent: selection_testing, amount: '357.14'}
+    - {component: C5, subcomponent: vacancy_coverage_overtime, amount: '49101.32'}
+  gross: '201729.72'
+  offset: '0'
+  net: '201729.72'
+  cost_incomplete: false

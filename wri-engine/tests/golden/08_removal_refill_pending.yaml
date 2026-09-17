@@ -1,0 +1,124 @@
+name: "Removal with the refill still pending: expected costs, flagged incomplete"
+description: >
+  A maintenance worker is removed and the position has not been filled as of the extract
+  date. The engine does not pretend the vacancy is over: it uses the expected refill duration
+  for the role and flags every C5 line item as incomplete, so the number is visibly a
+  forecast rather than a settled cost.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Public Works"
+    role_family: maintenance_worker
+    job_title: "Maintenance Worker II"
+    job_class_code: PW-5100
+    pay_grade: G12
+    pay_step: 4
+    annual_base_salary: 45760
+    hourly_base_rate: 22.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_standard
+    work_location: "South Yard"
+    supervisor_id: E2
+    hire_date: 2020-02-10
+    separation_date: 2026-07-31
+    separation_reason: removal_for_cause
+  - employee_id: E2
+    department: "Public Works"
+    role_family: crew_supervisor
+    job_title: "Public Works Crew Supervisor"
+    job_class_code: PW-5400
+    pay_grade: G18
+    pay_step: 6
+    annual_base_salary: 66560
+    hourly_base_rate: 32.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_standard
+    work_location: "South Yard"
+    hire_date: 2013-09-16
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-05-12
+    proposal_date: 2026-06-08
+    decision_date: 2026-07-28
+    misconduct_category: attendance_awol
+    misconduct_subtype: AWOL
+    action_type: removal
+    suspension_days: 0
+    was_investigated: true
+    investigation_type: supervisory
+    deciding_official_level: department_head
+
+separations:
+  - employee_id: E1
+    separation_date: 2026-07-31
+    separation_reason: removal_for_cause
+    linked_action_id: A1
+    position_refilled: false
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Maintenance worker E1: $45,760 / 2,080 = $22.00/hr x 1.627 = $35.794/hr loaded.
+# Crew supervisor E2: $32.00/hr base x 1.627 = $52.064/hr loaded.
+#
+# C1 supervisor     30 hrs x $52.064    = $1,561.92
+# C1 HR             20 hrs x $61.0125   = $1,220.25
+# C1 deciding        8 hrs x $105.598558 = $  844.79
+# C1 investigation   6 hrs x $52.064    = $  312.38
+#
+# C5, civilian_standard, washout 0.12 -> x 1/0.88 = 1.136364.
+# The position is NOT refilled, so the vacancy uses the expected duration for the profile,
+# 60 days, and every C5 line is flagged cost_incomplete.
+#   vacancy        2026-08-01 to 2026-09-29 = 60 calendar days.
+#                  Mon-Fri only: 42 weekdays, less the 09-02 holiday (a Wednesday) = 41 days.
+#                  Loaded daily rate $35.794 x 8 = $286.352.
+#                  41 x $286.352 x 0.5 = $5,870.216 -> $5,870.22
+#   advertising    $600 x 1.136364 = $681.82
+#   recruiter      12 hrs x $61.0125 = $732.15 x 1.136364 = $831.99
+#   panel          2 x 1 hr x $52.064 = $104.128 x 1.136364 = $118.33
+#   background     $250 -> $284.09      drug screen $65 -> $73.86
+#   Replacement:   G12 step 1 = $42,000 / 2,080 = $20.192308 x 1.627 = $32.852885/hr
+#   orientation    12 hrs x $32.852885 = $394.235 x 1.136364 = $447.99
+#   equipment      $300 x 1.136364 = $340.91
+#   ramp           6 wks x 40 hrs = 240 hrs x $32.852885 = $7,884.69 x 0.30 = $2,365.41
+#   No testing, no medical exam, no academy and no field training for this profile.
+#
+# C1 $3,939.34 + C5 $11,014.62 = Gross = Net = $14,953.96, cost_incomplete = true
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '844.79'}
+    - {component: C1, subcomponent: hr_hours, amount: '1220.25'}
+    - {component: C1, subcomponent: investigation_supervisory, amount: '312.38'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '1561.92'}
+    - {component: C5, subcomponent: advertising, amount: '681.82'}
+    - {component: C5, subcomponent: background_investigation, amount: '284.09'}
+    - {component: C5, subcomponent: drug_screen, amount: '73.86'}
+    - {component: C5, subcomponent: equipment_and_uniform, amount: '340.91'}
+    - {component: C5, subcomponent: hr_recruiter_hours, amount: '831.99'}
+    - {component: C5, subcomponent: interview_panel, amount: '118.33'}
+    - {component: C5, subcomponent: orientation, amount: '447.99'}
+    - {component: C5, subcomponent: productivity_ramp, amount: '2365.41'}
+    - {component: C5, subcomponent: vacancy_productivity_loss, amount: '5870.22'}
+  gross: '14953.96'
+  offset: '0'
+  net: '14953.96'
+  cost_incomplete: true

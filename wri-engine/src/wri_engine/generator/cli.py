@@ -98,13 +98,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Harlow County synthetic export (seed {args.seed}) -> {args.out}")
     for key, value in counts.items():
         print(f"  {key:>22}: {value:,}")
-    print(f"  {'injected DQ issues':>22}: {sum(export.manifest['injected_data_quality_issues'].values())}")
+    injected = sum(export.manifest["injected_data_quality_issues"].values())
+    print(f"  {'injected DQ issues':>22}: {injected}")
     for path in written:
         print(f"    wrote {path}")
     if args.sample_out:
         sample = _trim(export, args.sample_employees)
         sample.write(args.sample_out)
-        print(f"  sample export -> {args.sample_out} ({sample.manifest['counts']['actions']} actions)")
+        sample_actions = sample.manifest["counts"]["actions"]
+        print(f"  sample export -> {args.sample_out} ({sample_actions} actions)")
     return 0
 
 

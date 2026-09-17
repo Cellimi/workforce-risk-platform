@@ -1,0 +1,103 @@
+name: "Unpaid suspension of a minimum-staffing deputy"
+description: >
+  A five-shift suspension for a patrol deputy. Because the post has a minimum staffing
+  requirement, a peer works the five shifts on overtime (C3) while the suspended deputy is
+  not paid (C3-offset). This is the case that shows gross and net diverging.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Sheriff's Office - Patrol"
+    role_family: deputy
+    job_title: "Deputy Sheriff II"
+    job_class_code: SW-1100
+    pay_grade: G19
+    pay_step: 5
+    annual_base_salary: 62400
+    hourly_base_rate: 30.00
+    flsa_status: "7k"
+    bargaining_unit: "Deputies' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: sworn_deputy
+    work_location: "North District"
+    supervisor_id: E2
+    hire_date: 2016-03-01
+  - employee_id: E2
+    department: "Sheriff's Office - Patrol"
+    role_family: patrol_sergeant
+    job_title: "Sheriff's Sergeant"
+    job_class_code: SW-1300
+    pay_grade: G23
+    pay_step: 4
+    annual_base_salary: 83200
+    hourly_base_rate: 40.00
+    flsa_status: "7k"
+    bargaining_unit: "Deputies' Association"
+    is_sworn: true
+    minimum_staffing_role: true
+    standard_shift_hours: 12
+    annual_paid_hours: 2080
+    schedule_id: shift_12
+    benefits_group: sworn_public_safety
+    turnover_profile: sworn_deputy
+    work_location: "North District"
+    hire_date: 2009-07-01
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2025-11-20
+    proposal_date: 2025-12-08
+    decision_date: 2026-01-15
+    misconduct_category: neglect_of_duty
+    misconduct_subtype: "Post abandonment"
+    action_type: suspension_4_14
+    suspension_days: 5
+    suspension_start_date: 2026-01-26
+    was_investigated: true
+    investigation_type: supervisory
+    deciding_official_level: supervisor
+    deciding_official_id: E2
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Deputy E1: $62,400 / 2,080 paid hrs = $30.00/hr base. Sworn benefits multiplier 1.75
+#   -> $52.50/hr loaded.
+# Sergeant E2 (named as supervisor AND as deciding official): $83,200 / 2,080 = $40.00/hr
+#   base -> $70.00/hr loaded.
+# HR reference rate: $78,000 / 2,080 = $37.50/hr x 1.627 = $61.0125/hr.
+#
+# C1 supervisor        12 hrs x $70.0000 = $  840.00
+# C1 HR / labor rel.   10 hrs x $61.0125 = $  610.125 -> $610.13
+# C1 deciding official  4 hrs x $70.0000 = $  280.00   (E2 is named, so his own rate applies)
+# C1 investigation      6 hrs x $70.0000 = $  420.00   (supervisory investigation)
+# C3 backfill          5 shifts x 12 hrs = 60 hrs.
+#                      Peer base rate $30.00 x 1.5 FLSA x 1.0765 OT burden = $48.4425/hr
+#                      60 x $48.4425 = $2,906.55
+# C3-offset            60 hrs x $30.00 base x 1.0765 wage burden = $1,937.70, recorded negative
+# C4                   none: no appeal filed, and the 30-day window closed on 2026-02-14
+# C5                   none: no separation
+#
+# Gross  840.00 + 610.13 + 280.00 + 420.00 + 2,906.55 = $5,056.68
+# Offset -$1,937.70
+# Net    $3,118.98
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '280.00'}
+    - {component: C1, subcomponent: hr_hours, amount: '610.13'}
+    - {component: C1, subcomponent: investigation_supervisory, amount: '420.00'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '840.00'}
+    - {component: C3, subcomponent: backfill_suspension, amount: '2906.55'}
+    - {component: C3-offset, subcomponent: unpaid_suspension_salary_saved, amount: '-1937.70'}
+  gross: '5056.68'
+  offset: '-1937.70'
+  net: '3118.98'
+  cost_incomplete: false

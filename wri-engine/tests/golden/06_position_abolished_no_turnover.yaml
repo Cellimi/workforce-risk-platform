@@ -1,0 +1,103 @@
+name: "Position abolished after removal: no turnover cost"
+description: >
+  An equipment operator is removed and the county eliminates the position. Nobody is hired,
+  so C5 produces nothing at all - not a reduced figure, nothing. This is the case that keeps
+  the engine honest about counting only what actually happened.
+as_of: 2026-09-17
+action_under_test: A1
+
+employees:
+  - employee_id: E1
+    department: "Public Works"
+    role_family: equipment_operator
+    job_title: "Equipment Operator II"
+    job_class_code: PW-5200
+    pay_grade: G14
+    pay_step: 5
+    annual_base_salary: 52000
+    hourly_base_rate: 25.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_skilled
+    work_location: "North Yard"
+    supervisor_id: E2
+    hire_date: 2017-05-08
+    separation_date: 2025-02-14
+    separation_reason: removal_for_cause
+  - employee_id: E2
+    department: "Public Works"
+    role_family: crew_supervisor
+    job_title: "Public Works Crew Supervisor"
+    job_class_code: PW-5400
+    pay_grade: G18
+    pay_step: 6
+    annual_base_salary: 66560
+    hourly_base_rate: 32.00
+    flsa_status: non_exempt
+    bargaining_unit: "General Employees' Union"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: civilian
+    turnover_profile: civilian_skilled
+    work_location: "North Yard"
+    hire_date: 2011-11-28
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2024-11-18
+    proposal_date: 2024-12-16
+    decision_date: 2025-02-10
+    misconduct_category: vehicle_misuse
+    misconduct_subtype: "Unauthorized use"
+    action_type: removal
+    suspension_days: 0
+    was_investigated: true
+    investigation_type: supervisory
+    deciding_official_level: division_head
+    position_abolished: true
+
+separations:
+  - employee_id: E1
+    separation_date: 2025-02-14
+    separation_reason: removal_for_cause
+    linked_action_id: A1
+    position_refilled: false
+    position_abolished: true
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Equipment operator E1: $52,000 / 2,080 = $25.00/hr x 1.627 = $40.675/hr loaded.
+# Crew supervisor E2: $66,560 / 2,080 = $32.00/hr x 1.627 = $52.064/hr loaded.
+#
+# C1 supervisor     30 hrs x $52.064    = $1,561.92
+# C1 HR             20 hrs x $61.0125   = $1,220.25
+# C1 deciding        8 hrs x $82.132212 = $  657.058 -> $657.06
+# C1 investigation   6 hrs x $52.064    = $  312.384 -> $312.38
+#
+# C5 = $0.00, and no C5 line items at all. The position was abolished, so no replacement is
+# recruited, trained or equipped, and no vacancy is covered. The engine returns nothing here
+# rather than a reduced figure.
+#
+# Gross = Net = $3,751.61
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '657.06'}
+    - {component: C1, subcomponent: hr_hours, amount: '1220.25'}
+    - {component: C1, subcomponent: investigation_supervisory, amount: '312.38'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '1561.92'}
+  gross: '3751.61'
+  offset: '0'
+  net: '3751.61'
+  cost_incomplete: false
