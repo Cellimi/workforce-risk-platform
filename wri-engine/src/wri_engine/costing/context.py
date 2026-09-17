@@ -71,9 +71,7 @@ class CostContext:
         return self.schedule_for(employee).shifts_between(start, end, self.org.holidays)
 
     def paid_leave_for(self, action: DisciplineAction) -> list[AdminLeavePeriod]:
-        return [
-            leave for leave in self.leave_by_action.get(action.action_id, []) if leave.paid
-        ]
+        return [leave for leave in self.leave_by_action.get(action.action_id, []) if leave.paid]
 
     def appeals_for(self, action: DisciplineAction) -> list[AppealOrGrievance]:
         return self.appeals_by_action.get(action.action_id, [])

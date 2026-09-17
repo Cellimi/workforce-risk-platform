@@ -41,7 +41,9 @@ def test_every_role_family_has_a_configured_turnover_profile(org, assumptions):
 def test_every_role_family_has_a_benefits_multiplier(org, assumptions):
     for role in org.role_families.values():
         assert role.benefits_group in {"civilian", "sworn_public_safety"}
-        assumptions.get(f"benefits_multiplier_{'sworn' if role.benefits_group == 'sworn_public_safety' else 'civilian'}")
+        assumptions.get(
+            f"benefits_multiplier_{'sworn' if role.benefits_group == 'sworn_public_safety' else 'civilian'}"
+        )
 
 
 def test_every_role_family_has_a_schedule(org):

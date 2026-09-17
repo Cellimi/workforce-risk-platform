@@ -94,8 +94,11 @@ def _guard(role: Role, capability: Capability, endpoint: str, filters: dict | No
         require(role, capability)
     except AccessDenied as exc:
         AUDIT.record(
-            role=str(role), endpoint=endpoint, outcome="denied",
-            filters=filters or {}, detail={"capability": str(capability)},
+            role=str(role),
+            endpoint=endpoint,
+            outcome="denied",
+            filters=filters or {},
+            detail={"capability": str(capability)},
         )
         raise HTTPException(403, str(exc)) from None
 
@@ -196,7 +199,9 @@ def cost_matrix(
     parsed = _filters(filters)
     _guard(role, Capability.VIEW_AGGREGATES, "/costs/matrix", parsed)
     AUDIT.record(
-        role=str(role), endpoint="/costs/matrix", filters=parsed,
+        role=str(role),
+        endpoint="/costs/matrix",
+        filters=parsed,
         detail={"rows": rows, "cols": cols, "mode": mode},
     )
     STATE.ensure_loaded()
@@ -228,9 +233,7 @@ def cost_summary(
     STATE.ensure_loaded()
     return {
         "caption": CAPTION,
-        **summarize(
-            STATE.run(mode=mode), STATE.dataset, min_cell_size=STATE.min_cell_size
-        ),
+        **summarize(STATE.run(mode=mode), STATE.dataset, min_cell_size=STATE.min_cell_size),
     }
 
 
@@ -263,11 +266,7 @@ def list_actions(
                 "gross": str(ac.gross),
                 "offset": str(ac.offset),
                 "cost_incomplete": ac.cost_incomplete,
-                **{
-                    k: v
-                    for k, v in ac.dimensions.items()
-                    if k not in {"employee_id"}
-                },
+                **{k: v for k, v in ac.dimensions.items() if k not in {"employee_id"}},
             }
             for ac in selected[:limit]
         ],
@@ -283,8 +282,11 @@ def action_detail(
     """Every line item behind one action, with its formula and the assumptions it used."""
     role = _role(x_wri_role)
     _guard(role, Capability.VIEW_RECORDS, f"/costs/actions/{action_id}")
-    AUDIT.record(role=str(role), endpoint="/costs/actions/{action_id}",
-                 detail={"action_id": action_id, "mode": mode})
+    AUDIT.record(
+        role=str(role),
+        endpoint="/costs/actions/{action_id}",
+        detail={"action_id": action_id, "mode": mode},
+    )
     STATE.ensure_loaded()
     action = STATE.run(mode=mode).by_action().get(action_id)
     if action is None:
@@ -295,9 +297,7 @@ def action_detail(
         "caption": CAPTION,
         "action_id": action.action_id,
         "employee": project_identifier(role, action.employee_id),
-        "dimensions": {
-            k: v for k, v in action.dimensions.items() if k != "employee_id"
-        },
+        "dimensions": {k: v for k, v in action.dimensions.items() if k != "employee_id"},
         "gross": str(action.gross),
         "offset": str(action.offset),
         "net": str(action.net),
@@ -401,7 +401,10 @@ def export_matrix(
     AUDIT.record(role=str(role), endpoint="/exports/matrix.csv", filters=parsed)
     STATE.ensure_loaded()
     matrix = build_matrix(
-        STATE.run(mode=mode), rows=rows, cols=cols, filters=parsed,
+        STATE.run(mode=mode),
+        rows=rows,
+        cols=cols,
+        filters=parsed,
         min_cell_size=STATE.min_cell_size,
         fte_by_row=fte_denominators(STATE.dataset, rows),
     )
@@ -413,27 +416,85 @@ def export_matrix(
     writer.writerow([f"# {CAPTION}"])
     writer.writerow([f"# mode={mode} min_cell_size={matrix.min_cell_size}"])
     writer.writerow(
-        [DIMENSIONS[rows], DIMENSIONS[cols], "actions", "employees", "gross", "offset",
-         "net", "cost_per_action", "cost_per_100_fte", "incomplete_records", "suppressed"]
+        [
+            DIMENSIONS[rows],
+            DIMENSIONS[cols],
+            "actions",
+            "employees",
+            "gross",
+            "offset",
+            "net",
+            "cost_per_action",
+            "cost_per_100_fte",
+            "incomplete_records",
+            "suppressed",
+        ]
     )
     for cell in matrix.cells.values():
         if cell.suppressed:
-            writer.writerow([cell.row_label, cell.col_label, "", "", "", "", "", "", "", "",
-                             cell.suppression_reason])
+            writer.writerow(
+                [
+                    cell.row_label,
+                    cell.col_label,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    cell.suppression_reason,
+                ]
+            )
         else:
-            writer.writerow([
-                cell.row_label, cell.col_label, cell.action_count, cell.employee_count,
-                cell.gross, cell.offset, cell.net,
-                cell.cost_per_action.quantize(Decimal("0.01")),
-                cell.cost_per_100_fte.quantize(Decimal("0.01"))
-                if cell.cost_per_100_fte is not None else "",
-                cell.incomplete_count, "",
-            ])
-    writer.writerow(["Other (suppressed)", "", "", "", matrix.suppressed_gross, "",
-                     matrix.suppressed_net, "", "", "", ""])
-    writer.writerow(["TOTAL", "", matrix.total_actions, "", matrix.total_gross,
-                     matrix.total_offset, matrix.total_net, "", "",
-                     matrix.total_incomplete, ""])
+            writer.writerow(
+                [
+                    cell.row_label,
+                    cell.col_label,
+                    cell.action_count,
+                    cell.employee_count,
+                    cell.gross,
+                    cell.offset,
+                    cell.net,
+                    cell.cost_per_action.quantize(Decimal("0.01")),
+                    cell.cost_per_100_fte.quantize(Decimal("0.01"))
+                    if cell.cost_per_100_fte is not None
+                    else "",
+                    cell.incomplete_count,
+                    "",
+                ]
+            )
+    writer.writerow(
+        [
+            "Other (suppressed)",
+            "",
+            "",
+            "",
+            matrix.suppressed_gross,
+            "",
+            matrix.suppressed_net,
+            "",
+            "",
+            "",
+            "",
+        ]
+    )
+    writer.writerow(
+        [
+            "TOTAL",
+            "",
+            matrix.total_actions,
+            "",
+            matrix.total_gross,
+            matrix.total_offset,
+            matrix.total_net,
+            "",
+            "",
+            matrix.total_incomplete,
+            "",
+        ]
+    )
     return Response(
         buffer.getvalue(),
         media_type="text/csv",
@@ -482,9 +543,12 @@ def _summary_markdown(s: dict[str, Any]) -> str:
         "|---|---:|",
     ]
     labels = {
-        "C1": "C1 Processing labor", "C2": "C2 Paid administrative leave",
-        "C3": "C3 Backfill overtime", "C3-offset": "C3-offset Unpaid suspension savings",
-        "C4": "C4 Appeals and grievances", "C5": "C5 Removal turnover",
+        "C1": "C1 Processing labor",
+        "C2": "C2 Paid administrative leave",
+        "C3": "C3 Backfill overtime",
+        "C3-offset": "C3-offset Unpaid suspension savings",
+        "C4": "C4 Appeals and grievances",
+        "C5": "C5 Removal turnover",
     }
     for key, label in labels.items():
         lines.append(f"| {label} | {money(s['component_totals'].get(key, '0'))} |")
@@ -501,8 +565,13 @@ def _summary_markdown(s: dict[str, Any]) -> str:
             f"| {cell['row_label']} | {cell['col_label']} | {cell['action_count']} | "
             f"{money(cell['net'])} | {money(cell['cost_per_action'])} |"
         )
-    lines += ["", "## Cost per employee per year, by department", "",
-              "| Department | Active FTE | Net per FTE per year |", "|---|---:|---:|"]
+    lines += [
+        "",
+        "## Cost per employee per year, by department",
+        "",
+        "| Department | Active FTE | Net per FTE per year |",
+        "|---|---:|---:|",
+    ]
     for dept in s["department_cost_per_fte_per_year"]:
         lines.append(
             f"| {dept['department']} | {dept['active_fte']:,} | "

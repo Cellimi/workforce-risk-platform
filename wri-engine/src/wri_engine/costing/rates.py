@@ -61,9 +61,9 @@ class RateBook:
         for employee in self.data.employees:
             if employee.separation_date is not None:
                 continue  # averages describe who is on the payroll now
-            by_role_location.setdefault(
-                (employee.role_family, employee.work_location), []
-            ).append(employee.hourly_base_rate)
+            by_role_location.setdefault((employee.role_family, employee.work_location), []).append(
+                employee.hourly_base_rate
+            )
             by_role.setdefault(employee.role_family, []).append(employee.hourly_base_rate)
             loaded = self.loaded_hourly(employee).amount
             by_role_loaded.setdefault(employee.role_family, []).append(loaded)
@@ -193,10 +193,7 @@ class RateBook:
         if key in self._role_location_base:
             return Rate(
                 amount=self._role_location_base[key],
-                basis=(
-                    f"average base rate for {employee.role_family} at "
-                    f"{employee.work_location}"
-                ),
+                basis=(f"average base rate for {employee.role_family} at {employee.work_location}"),
             )
         if employee.role_family in self._role_base:
             return Rate(
@@ -226,7 +223,5 @@ class RateBook:
         premium = self.a.value("c3_ot_premium_multiplier")
         burden = self.a.value("c3_ot_burden_multiplier")
         amount = base.amount * premium * burden
-        note = (
-            f"${base.amount:,.2f} base x {premium} FLSA premium x {burden} overtime burden"
-        )
+        note = f"${base.amount:,.2f} base x {premium} FLSA premium x {burden} overtime burden"
         return amount, ("c3_ot_premium_multiplier", "c3_ot_burden_multiplier"), note

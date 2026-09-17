@@ -35,7 +35,9 @@ def test_manifest_records_what_produced_the_data(export):
     assert manifest["synthetic"] is True
     assert "not derived from any real agency" in manifest["disclaimer"]
     assert set(manifest["config_digests"]) == {
-        "org_county.yaml", "generator_profile.yaml", "mapping_county_hr_csv.yaml"
+        "org_county.yaml",
+        "generator_profile.yaml",
+        "mapping_county_hr_csv.yaml",
     }
 
 
@@ -58,14 +60,17 @@ def test_suspension_appeal_rate_is_fifteen_to_twenty_five_percent(export):
 def test_use_of_force_only_appears_for_sworn_employees(export):
     sworn = {r["EMP_NBR"] for r in export.employees if r["SWORN_IND"] == "Y"}
     misapplied = [
-        r for r in export.actions
-        if r["MISCND_CD"] == "UOF" and r["EMP_NBR"] in {e["EMP_NBR"] for e in export.employees}
+        r
+        for r in export.actions
+        if r["MISCND_CD"] == "UOF"
+        and r["EMP_NBR"] in {e["EMP_NBR"] for e in export.employees}
         and r["EMP_NBR"] not in sworn
     ]
     # The only civilian use-of-force rows are the ones deliberately injected as bad data.
-    assert len(misapplied) == export.manifest["injected_data_quality_issues"][
-        "sworn_only_category_misapplied"
-    ]
+    assert (
+        len(misapplied)
+        == export.manifest["injected_data_quality_issues"]["sworn_only_category_misapplied"]
+    )
 
 
 def test_attendance_is_the_most_common_category(export):
@@ -91,8 +96,12 @@ def test_deliberate_data_quality_defects_are_present(export):
     injected = export.manifest["injected_data_quality_issues"]
     assert sum(injected.values()) == 13
     assert set(injected) == {
-        "orphan_action", "suspension_days_mismatch", "decision_before_incident",
-        "missing_salary", "leave_after_separation", "sworn_only_category_misapplied",
+        "orphan_action",
+        "suspension_days_mismatch",
+        "decision_before_incident",
+        "missing_salary",
+        "leave_after_separation",
+        "sworn_only_category_misapplied",
     }
 
 

@@ -14,10 +14,18 @@ from wri_engine.costing.assumptions import (
 )
 
 BASE = {
-    "id": "x", "value": 10, "low": 5, "high": 20, "unit": "hours",
-    "applies_to": {"scope": "test"}, "source": "test fixture",
-    "confidence": "medium", "owner": "Mike Celli", "status": "TBD-MIKE",
-    "last_reviewed": "2026-09-17", "notes": "",
+    "id": "x",
+    "value": 10,
+    "low": 5,
+    "high": 20,
+    "unit": "hours",
+    "applies_to": {"scope": "test"},
+    "source": "test fixture",
+    "confidence": "medium",
+    "owner": "Mike Celli",
+    "status": "TBD-MIKE",
+    "last_reviewed": "2026-09-17",
+    "notes": "",
 }
 
 
@@ -81,7 +89,7 @@ def test_overrides_win_over_the_mode_and_do_not_mutate(tmp_path):
     loaded = load_assumptions(write(tmp_path, [BASE]))
     scenario = loaded.with_mode("high").with_overrides({"x": 7})
     assert scenario.value("x") == Decimal("7")
-    assert loaded.value("x") == Decimal("10")          # original untouched
+    assert loaded.value("x") == Decimal("10")  # original untouched
     assert scenario.as_records()[0]["overridden"] is True
 
 
@@ -102,8 +110,6 @@ def test_placeholders_are_listed(assumptions):
 
 
 def test_records_expose_the_effective_value(assumptions):
-    record = next(
-        r for r in assumptions.as_records() if r["id"] == "c3_ot_premium_multiplier"
-    )
+    record = next(r for r in assumptions.as_records() if r["id"] == "c3_ot_premium_multiplier")
     assert record["effective_value"] == "1.5"
     assert record["status"] == "confirmed"

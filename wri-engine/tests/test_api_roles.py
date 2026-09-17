@@ -41,7 +41,9 @@ def first_action_id(client) -> str:
 # ---------------------------------------------------------------------------
 def test_executive_cannot_drill_down(client):
     action_id = first_action_id(client)
-    assert client.get(f"/costs/actions/{action_id}", headers=headers("executive")).status_code == 403
+    assert (
+        client.get(f"/costs/actions/{action_id}", headers=headers("executive")).status_code == 403
+    )
     assert client.get("/costs/actions", headers=headers("executive")).status_code == 403
 
 
@@ -66,7 +68,9 @@ def test_admin_sees_real_identifiers(client):
 
 def test_an_unknown_role_gets_the_weakest_one(client):
     action_id = first_action_id(client)
-    assert client.get(f"/costs/actions/{action_id}", headers=headers("superuser")).status_code == 403
+    assert (
+        client.get(f"/costs/actions/{action_id}", headers=headers("superuser")).status_code == 403
+    )
     assert client.get("/costs/matrix", headers=headers("superuser")).status_code == 200
 
 
@@ -86,8 +90,14 @@ def test_executive_cannot_run_scenarios(client):
 def test_openapi_documents_every_endpoint(client):
     paths = client.get("/openapi.json").json()["paths"]
     for expected in (
-        "/datasets/load", "/costs/matrix", "/costs/summary", "/costs/actions/{action_id}",
-        "/assumptions", "/scenarios/run", "/exports/matrix.csv", "/exports/summary.md",
+        "/datasets/load",
+        "/costs/matrix",
+        "/costs/summary",
+        "/costs/actions/{action_id}",
+        "/assumptions",
+        "/scenarios/run",
+        "/exports/matrix.csv",
+        "/exports/summary.md",
     ):
         assert expected in paths
 
@@ -129,7 +139,8 @@ def test_scenario_override_changes_the_total(client):
 
 def test_scenario_rejects_an_unknown_assumption(client):
     response = client.post(
-        "/scenarios/run", json={"overrides": {"no_such_assumption": 1}},
+        "/scenarios/run",
+        json={"overrides": {"no_such_assumption": 1}},
         headers=headers("admin"),
     )
     assert response.status_code == 400

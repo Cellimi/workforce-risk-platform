@@ -107,13 +107,18 @@ class Cell:
     def as_dict(self) -> dict:
         if self.suppressed:
             return {
-                "row": self.row, "col": self.col,
-                "row_label": self.row_label, "col_label": self.col_label,
-                "suppressed": True, "suppression_reason": self.suppression_reason,
+                "row": self.row,
+                "col": self.col,
+                "row_label": self.row_label,
+                "col_label": self.col_label,
+                "suppressed": True,
+                "suppression_reason": self.suppression_reason,
             }
         return {
-            "row": self.row, "col": self.col,
-            "row_label": self.row_label, "col_label": self.col_label,
+            "row": self.row,
+            "col": self.col,
+            "row_label": self.row_label,
+            "col_label": self.col_label,
             "suppressed": False,
             "action_count": self.action_count,
             "employee_count": self.employee_count,
@@ -166,24 +171,22 @@ class Matrix:
         labels = self.row_labels if axis == "row" else self.col_labels
         out = []
         for key in keys:
-            line = [
-                c
-                for c in self.cells.values()
-                if (c.row if axis == "row" else c.col) == key
-            ]
+            line = [c for c in self.cells.values() if (c.row if axis == "row" else c.col) == key]
             if (axis, key) in self.withheld_totals:
                 out.append({"key": key, "label": labels[key], "suppressed": True})
                 continue
-            out.append({
-                "key": key,
-                "label": labels[key],
-                "suppressed": False,
-                "actions": sum(c.action_count for c in line),
-                "gross": str(sum((c.gross for c in line), ZERO)),
-                "offset": str(sum((c.offset for c in line), ZERO)),
-                "net": str(sum((c.net for c in line), ZERO)),
-                "incomplete_count": sum(c.incomplete_count for c in line),
-            })
+            out.append(
+                {
+                    "key": key,
+                    "label": labels[key],
+                    "suppressed": False,
+                    "actions": sum(c.action_count for c in line),
+                    "gross": str(sum((c.gross for c in line), ZERO)),
+                    "offset": str(sum((c.offset for c in line), ZERO)),
+                    "net": str(sum((c.net for c in line), ZERO)),
+                    "incomplete_count": sum(c.incomplete_count for c in line),
+                }
+            )
         return out
 
     def reconciles(self) -> bool:
@@ -266,8 +269,10 @@ def build_matrix(
         cell = cells.get(key)
         if cell is None:
             cell = cells[key] = Cell(
-                row=row_key, col=col_key,
-                row_label=row_labels[row_key], col_label=col_labels[col_key],
+                row=row_key,
+                col=col_key,
+                row_label=row_labels[row_key],
+                col_label=col_labels[col_key],
             )
             cohorts[key] = set()
         cell.action_count += 1
@@ -380,24 +385,22 @@ def summarize(
     window = years or _window_years(run)
     net = run.net
     turnover = sum(
-        (
-            item.amount
-            for item in run.line_items
-            if item.component == CostComponent.C5_TURNOVER
-        ),
+        (item.amount for item in run.line_items if item.component == CostComponent.C5_TURNOVER),
         ZERO,
     )
 
-    matrix = build_matrix(run, rows="role_family", cols="misconduct_category",
-                          min_cell_size=min_cell_size)
+    matrix = build_matrix(
+        run, rows="role_family", cols="misconduct_category", min_cell_size=min_cell_size
+    )
     top_cells = sorted(
         (c for c in matrix.cells.values() if not c.suppressed),
         key=lambda c: c.net,
         reverse=True,
     )[:top_n]
 
-    dept_matrix = build_matrix(run, rows="department", cols="misconduct_category",
-                              min_cell_size=min_cell_size)
+    dept_matrix = build_matrix(
+        run, rows="department", cols="misconduct_category", min_cell_size=min_cell_size
+    )
     dept_fte = fte_denominators(data, "department")
     dept_net: dict[str, Decimal] = {}
     for cell in dept_matrix.cells.values():

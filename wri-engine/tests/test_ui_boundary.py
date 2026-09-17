@@ -46,7 +46,11 @@ def test_every_page_carries_the_synthetic_data_caption():
     # page_header() prints the caption, and every page calls it.
     tree = ast.parse(source)
     page_functions = {
-        "executive_summary", "cost_matrix", "drill_down", "assumptions_page", "data_quality"
+        "executive_summary",
+        "cost_matrix",
+        "drill_down",
+        "assumptions_page",
+        "data_quality",
     }
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name in page_functions:

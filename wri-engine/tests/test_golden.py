@@ -40,9 +40,7 @@ def test_required_scenarios_present():
 def test_line_items_match_hand_calculation(case, org, assumptions):
     result = case.compute(org, assumptions)
     assert result is not None, f"{case.name}: the action under test produced no cost record"
-    actual = sorted(
-        (str(i.component), i.subcomponent, i.amount) for i in result.line_items
-    )
+    actual = sorted((str(i.component), i.subcomponent, i.amount) for i in result.line_items)
     assert actual == case.expected_items
 
 

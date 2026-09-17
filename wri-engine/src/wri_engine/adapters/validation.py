@@ -159,8 +159,7 @@ def known_misconduct_category(data: CanonicalDataset, org: OrgConfig) -> Iterato
                 entity_id=action.action_id,
                 field="misconduct_subtype",
                 message=(
-                    f"subtype {action.misconduct_subtype!r} is not listed under "
-                    f"{category.label!r}"
+                    f"subtype {action.misconduct_subtype!r} is not listed under {category.label!r}"
                 ),
             )
 

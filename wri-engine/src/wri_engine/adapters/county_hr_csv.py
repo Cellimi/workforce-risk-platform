@@ -100,8 +100,15 @@ class CountyHrCsvAdapter(SourceAdapter):
         with open(path, newline="") as fh:
             return list(csv.DictReader(fh))
 
-    def _row_issue(self, rule_id: str, entity: str, entity_id: str, message: str,
-                   field: str | None = None, blocks: tuple[str, ...] = ()) -> None:
+    def _row_issue(
+        self,
+        rule_id: str,
+        entity: str,
+        entity_id: str,
+        message: str,
+        field: str | None = None,
+        blocks: tuple[str, ...] = (),
+    ) -> None:
         self._report.add(
             Issue(
                 rule_id=rule_id,
@@ -247,7 +254,10 @@ class CountyHrCsvAdapter(SourceAdapter):
                 )
             except Exception as exc:  # noqa: BLE001
                 self._row_issue(
-                    "unparsable_action_row", "action", action_id, str(exc),
+                    "unparsable_action_row",
+                    "action",
+                    action_id,
+                    str(exc),
                     blocks=(action_id,) if action_id else (),
                 )
         return out
@@ -270,7 +280,10 @@ class CountyHrCsvAdapter(SourceAdapter):
             except Exception as exc:  # noqa: BLE001
                 action_id = (row.get("ACTN_NBR") or "").strip()
                 self._row_issue(
-                    "unparsable_leave_row", "admin_leave", leave_id, str(exc),
+                    "unparsable_leave_row",
+                    "admin_leave",
+                    leave_id,
+                    str(exc),
                     blocks=(action_id,) if action_id else (),
                 )
         return out
@@ -316,7 +329,10 @@ class CountyHrCsvAdapter(SourceAdapter):
             except Exception as exc:  # noqa: BLE001
                 action_id = (row.get("ACTN_NBR") or "").strip()
                 self._row_issue(
-                    "unparsable_separation_row", "separation", employee_id, str(exc),
+                    "unparsable_separation_row",
+                    "separation",
+                    employee_id,
+                    str(exc),
                     blocks=(action_id,) if action_id else (),
                 )
         return out

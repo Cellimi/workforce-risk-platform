@@ -61,7 +61,11 @@ def test_low_base_high_are_ordered(loaded, org, assumptions):
     totals = {}
     for mode in MODES:
         result = run_costing(
-            data, as_of=date(2026, 9, 17), org=org, assumptions=assumptions, mode=mode,
+            data,
+            as_of=date(2026, 9, 17),
+            org=org,
+            assumptions=assumptions,
+            mode=mode,
             excluded_action_ids=report.blocked_action_ids,
         )
         totals[mode] = result.gross
@@ -96,8 +100,7 @@ def test_incomplete_flag_propagates_from_line_items(run):
                 "c4_outside_counsel_hourly_rate",
             ]
         ),
-        st.decimals(min_value=0, max_value=200, allow_nan=False, allow_infinity=False,
-                    places=2),
+        st.decimals(min_value=0, max_value=200, allow_nan=False, allow_infinity=False, places=2),
         min_size=1,
         max_size=4,
     )
@@ -108,7 +111,10 @@ def test_scenario_overrides_never_break_the_invariants(overrides, loaded, org, a
     data, report = loaded
     try:
         result = run_costing(
-            data, as_of=date(2026, 9, 17), org=org, assumptions=assumptions,
+            data,
+            as_of=date(2026, 9, 17),
+            org=org,
+            assumptions=assumptions,
             overrides={k: v for k, v in overrides.items()},
             excluded_action_ids=report.blocked_action_ids,
         )
@@ -118,8 +124,4 @@ def test_scenario_overrides_never_break_the_invariants(overrides, loaded, org, a
         assert overrides.get("c5_washout_rate_sworn_deputy", Decimal("0")) >= 1, exc
         return
     assert result.net == result.gross + result.offset
-    assert all(
-        i.amount >= 0
-        for i in result.line_items
-        if i.component != CostComponent.C3_OFFSET
-    )
+    assert all(i.amount >= 0 for i in result.line_items if i.component != CostComponent.C3_OFFSET)

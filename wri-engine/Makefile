@@ -5,8 +5,14 @@ PIP := $(VENV)/bin/pip
 .PHONY: install generate test lint fmt api ui demo clean
 
 install:
-	python3 -m venv $(VENV) || true
-	$(PIP) install -q -e ".[ui,dev]"
+	@if command -v uv >/dev/null 2>&1; then \
+		uv venv $(VENV) 2>/dev/null || true; \
+		uv pip install --python $(PY) -e ".[ui,dev]"; \
+	else \
+		python3 -m venv $(VENV) || true; \
+		$(PIP) install -q --upgrade pip; \
+		$(PIP) install -q -e ".[ui,dev]"; \
+	fi
 
 generate:
 	$(PY) -m wri_engine.generator.cli --seed 20260917 --out data/synthetic

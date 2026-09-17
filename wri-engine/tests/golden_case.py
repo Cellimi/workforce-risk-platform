@@ -56,16 +56,24 @@ class GoldenCase:
 
     def dataset(self) -> CanonicalDataset:
         employees = [
-            Employee(**{**EMPLOYEE_DEFAULTS, **_decimalize(e, ("annual_base_salary",
-                                                              "hourly_base_rate",
-                                                              "standard_shift_hours"))})
+            Employee(
+                **{
+                    **EMPLOYEE_DEFAULTS,
+                    **_decimalize(
+                        e, ("annual_base_salary", "hourly_base_rate", "standard_shift_hours")
+                    ),
+                }
+            )
             for e in self.raw["employees"]
         ]
         actions = [DisciplineAction(**a) for a in self.raw.get("actions", [])]
         leave = [AdminLeavePeriod(**lv) for lv in self.raw.get("admin_leave", [])]
         appeals = [
-            AppealOrGrievance(**_decimalize(ap, ("back_pay_awarded", "settlement_amount",
-                                                 "outside_counsel_hours")))
+            AppealOrGrievance(
+                **_decimalize(
+                    ap, ("back_pay_awarded", "settlement_amount", "outside_counsel_hours")
+                )
+            )
             for ap in self.raw.get("appeals", [])
         ]
         separations = [Separation(**s) for s in self.raw.get("separations", [])]

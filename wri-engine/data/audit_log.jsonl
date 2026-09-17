@@ -272,3 +272,105 @@
 {"detail": {}, "endpoint": "/datasets/validation", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:41:06.090965+00:00"}
 {"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:41:06.098212+00:00"}
 {"detail": {}, "endpoint": "/exports/summary.md", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:41:06.114228+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:46.926734+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:44:46.966165+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:44:46.971262+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:46.978618+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:46.989677+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.007450+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.017900+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "hr_analyst", "timestamp": "2026-09-17T15:44:47.027694+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.034538+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.044493+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.051190+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:44:47.061032+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.065862+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.078826+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:44:47.088823+00:00"}
+{"detail": {"capability": "run_scenarios"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:44:47.095397+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.124122+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.134791+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.153442+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "favourite_colour"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.165185+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.175522+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "overrides": {"c5_academy_tuition_sworn_deputy": 20000.0}, "rows": "role_family"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.192230+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "overrides": {"no_such_assumption": 1.0}, "rows": "role_family"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.239755+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.245806+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.253114+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.261266+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.271488+00:00"}
+{"detail": {"action_id": "NOPE", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:44:47.278303+00:00"}
+{"detail": {}, "endpoint": "/datasets/validation", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.283641+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.289205+00:00"}
+{"detail": {}, "endpoint": "/exports/summary.md", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:44:47.299496+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.156250+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:11.236777+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:11.244181+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.258797+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.286159+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.335170+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.358040+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "hr_analyst", "timestamp": "2026-09-17T15:45:11.378237+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.389419+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.408918+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.419623+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:11.442058+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.448614+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.474006+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:11.491878+00:00"}
+{"detail": {"capability": "run_scenarios"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:11.502394+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.553938+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.579129+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.626346+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "favourite_colour"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.654727+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.674838+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "overrides": {"c5_academy_tuition_sworn_deputy": 20000.0}, "rows": "role_family"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.719354+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "overrides": {"no_such_assumption": 1.0}, "rows": "role_family"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.837208+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.849208+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.860467+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.874957+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.896850+00:00"}
+{"detail": {"action_id": "NOPE", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:11.908147+00:00"}
+{"detail": {}, "endpoint": "/datasets/validation", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.917818+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.928393+00:00"}
+{"detail": {}, "endpoint": "/exports/summary.md", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:11.952615+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:26.967694+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:27.051700+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:27.058706+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.069459+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.094161+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.143233+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.168027+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "hr_analyst", "timestamp": "2026-09-17T15:45:27.188649+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.199729+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.218709+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.229148+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:27.247903+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.254918+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.281025+00:00"}
+{"detail": {"capability": "view_records"}, "endpoint": "/costs/actions/A00075", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:27.299415+00:00"}
+{"detail": {"capability": "run_scenarios"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "denied", "role": "executive", "timestamp": "2026-09-17T15:45:27.310038+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.356935+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.381029+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.428601+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "favourite_colour"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.457206+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.475180+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "overrides": {"c5_academy_tuition_sworn_deputy": 20000.0}, "rows": "role_family"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.524965+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "overrides": {"no_such_assumption": 1.0}, "rows": "role_family"}, "endpoint": "/scenarios/run", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.647322+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.657347+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.667358+00:00"}
+{"detail": {}, "endpoint": "/costs/actions", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.678868+00:00"}
+{"detail": {"action_id": "A00075", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.697241+00:00"}
+{"detail": {"action_id": "NOPE", "mode": "base"}, "endpoint": "/costs/actions/{action_id}", "filters": {}, "outcome": "allowed", "role": "admin", "timestamp": "2026-09-17T15:45:27.707175+00:00"}
+{"detail": {}, "endpoint": "/datasets/validation", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.716074+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.728111+00:00"}
+{"detail": {}, "endpoint": "/exports/summary.md", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:27.751785+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:59.149232+00:00"}
+{"detail": {}, "endpoint": "/exports/summary.md", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:45:59.251387+00:00"}
+{"detail": {}, "endpoint": "/meta", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:10.540423+00:00"}
+{"detail": {"cols": "misconduct_category", "mode": "base", "rows": "role_family"}, "endpoint": "/costs/matrix", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:10.548924+00:00"}
+{"detail": {}, "endpoint": "/exports/matrix.csv", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:10.621797+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/assumptions", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:22.630630+00:00"}
+{"detail": {}, "endpoint": "/datasets/validation", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:28.725115+00:00"}
+{"detail": {"mode": "base"}, "endpoint": "/costs/summary", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:34.718070+00:00"}
+{"detail": {}, "endpoint": "/exports/summary.md", "filters": {}, "outcome": "allowed", "role": "executive", "timestamp": "2026-09-17T15:46:34.804846+00:00"}

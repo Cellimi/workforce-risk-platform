@@ -24,8 +24,13 @@ class ApiError(RuntimeError):
 
 
 class EngineClient:
-    def __init__(self, base_url: str = DEFAULT_BASE_URL, role: str = "executive",
-                 session: str = "streamlit", timeout: float = 60.0):
+    def __init__(
+        self,
+        base_url: str = DEFAULT_BASE_URL,
+        role: str = "executive",
+        session: str = "streamlit",
+        timeout: float = 60.0,
+    ):
         self.base_url = base_url.rstrip("/")
         self.role = role
         self.session = session
@@ -66,24 +71,20 @@ class EngineClient:
     def summary(self, mode: str = "base") -> dict:
         return self._request("GET", "/costs/summary", params={"mode": mode}).json()
 
-    def matrix(self, rows: str, cols: str, mode: str = "base",
-               filters: dict | None = None) -> dict:
+    def matrix(self, rows: str, cols: str, mode: str = "base", filters: dict | None = None) -> dict:
         params: dict[str, Any] = {"rows": rows, "cols": cols, "mode": mode}
         if filters:
             params["filters"] = json.dumps(filters)
         return self._request("GET", "/costs/matrix", params=params).json()
 
-    def actions(self, filters: dict | None = None, mode: str = "base",
-                limit: int = 200) -> dict:
+    def actions(self, filters: dict | None = None, mode: str = "base", limit: int = 200) -> dict:
         params: dict[str, Any] = {"mode": mode, "limit": limit}
         if filters:
             params["filters"] = json.dumps(filters)
         return self._request("GET", "/costs/actions", params=params).json()
 
     def action(self, action_id: str, mode: str = "base") -> dict:
-        return self._request(
-            "GET", f"/costs/actions/{action_id}", params={"mode": mode}
-        ).json()
+        return self._request("GET", f"/costs/actions/{action_id}", params={"mode": mode}).json()
 
     def assumptions(self, mode: str = "base") -> dict:
         return self._request("GET", "/assumptions", params={"mode": mode}).json()
@@ -95,7 +96,8 @@ class EngineClient:
 
     def export_csv(self, rows: str, cols: str, mode: str = "base") -> bytes:
         return self._request(
-            "GET", "/exports/matrix.csv",
+            "GET",
+            "/exports/matrix.csv",
             params={"rows": rows, "cols": cols, "mode": mode},
         ).content
 

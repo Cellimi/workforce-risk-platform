@@ -44,9 +44,7 @@ def test_raising_the_threshold_never_reveals_more(run):
     visible_counts = []
     for size in (2, 5, 10, 25):
         matrix = build_matrix(run, min_cell_size=size)
-        visible_counts.append(
-            sum(1 for c in matrix.cells.values() if not c.suppressed)
-        )
+        visible_counts.append(sum(1 for c in matrix.cells.values() if not c.suppressed))
     assert visible_counts == sorted(visible_counts, reverse=True)
 
 
@@ -77,8 +75,8 @@ def test_a_lone_suppressed_cell_never_stands_alone_in_the_bucket(run):
 
 def test_complementary_suppression_picks_the_next_smallest():
     grid = {
-        ("r1", "c1"): frozenset({"a", "b"}),                       # below threshold
-        ("r1", "c2"): frozenset({"c", "d", "e", "f", "g"}),        # smallest visible
+        ("r1", "c1"): frozenset({"a", "b"}),  # below threshold
+        ("r1", "c2"): frozenset({"c", "d", "e", "f", "g"}),  # smallest visible
         ("r1", "c3"): frozenset({f"x{i}" for i in range(20)}),
     }
     decisions = {("r1", "c1"): SuppressionReason.THRESHOLD}
@@ -131,12 +129,8 @@ def test_differencing_two_overlapping_queries_reveals_nothing(run):
     wide = build_matrix(run, filters={"year": years}, min_cell_size=5, ledger=ledger)
     narrow = build_matrix(run, filters={"year": years[:-1]}, min_cell_size=5, ledger=ledger)
 
-    released_wide = {
-        (c.row, c.col): c.net for c in wide.cells.values() if not c.suppressed
-    }
-    released_narrow = {
-        (c.row, c.col): c.net for c in narrow.cells.values() if not c.suppressed
-    }
+    released_wide = {(c.row, c.col): c.net for c in wide.cells.values() if not c.suppressed}
+    released_narrow = {(c.row, c.col): c.net for c in narrow.cells.values() if not c.suppressed}
 
     # For every cell released in both, the implied residual must cover a group that is
     # large enough to release on its own.

@@ -94,9 +94,7 @@ class _Builder:
                 f"ever completes training"
             )
         self.washout_multiplier = Decimal("1") / (Decimal("1") - self.washout)
-        self.washout_note = (
-            f"/ (1 - {self.washout} washout) = x{self.washout_multiplier:.4f}"
-        )
+        self.washout_note = f"/ (1 - {self.washout} washout) = x{self.washout_multiplier:.4f}"
         schedule = ctx.schedule_for(employee)
         self.weekly_hours = Decimal(schedule.annual_paid_hours) / _WEEKS_PER_YEAR
         self.replacement_rate = ctx.rates.step_one_loaded_hourly(employee)
@@ -190,11 +188,17 @@ class _Builder:
         )
         items += self._panel()
         for key, sub, label in (
-            ("background_investigation_cost", "background_investigation",
-             "Pre-employment background investigation"),
+            (
+                "background_investigation_cost",
+                "background_investigation",
+                "Pre-employment background investigation",
+            ),
             ("polygraph_cost", "polygraph", "Pre-employment polygraph"),
-            ("psych_eval_cost", "psychological_evaluation",
-             "Pre-employment psychological evaluation"),
+            (
+                "psych_eval_cost",
+                "psychological_evaluation",
+                "Pre-employment psychological evaluation",
+            ),
             ("medical_exam_cost", "medical_exam", "Pre-placement medical examination"),
             ("drug_screen_cost", "drug_screen", "Pre-employment drug screen"),
         ):
@@ -233,17 +237,23 @@ class _Builder:
     def onboarding_and_training(self) -> list[CostLineItem]:
         items: list[CostLineItem] = []
         items += self._hours(
-            "orientation_hours", "orientation",
-            "New-hire orientation", self.replacement_rate,
+            "orientation_hours",
+            "orientation",
+            "New-hire orientation",
+            self.replacement_rate,
         )
         items += self._flat("academy_tuition", "academy_tuition", "Academy tuition per recruit")
         items += self._weeks_of_salary(
-            "academy_weeks", "academy_salary",
-            "Recruit salary during the academy", self.replacement_rate,
+            "academy_weeks",
+            "academy_salary",
+            "Recruit salary during the academy",
+            self.replacement_rate,
         )
         items += self._weeks_of_salary(
-            "field_training_weeks", "field_training_trainee_salary",
-            "Trainee salary during field training", self.replacement_rate,
+            "field_training_weeks",
+            "field_training_trainee_salary",
+            "Trainee salary during field training",
+            self.replacement_rate,
         )
         items += self._trainer_differential()
         items += self._flat(
@@ -351,9 +361,7 @@ class _Builder:
             )
         ]
 
-    def _weeks_of_salary(
-        self, key: str, subcomponent: str, label: str, rate
-    ) -> list[CostLineItem]:
+    def _weeks_of_salary(self, key: str, subcomponent: str, label: str, rate) -> list[CostLineItem]:
         assumption_id = self._id(key)
         weeks = self.ctx.value(assumption_id)
         if weeks <= 0:

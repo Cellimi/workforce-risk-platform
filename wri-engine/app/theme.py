@@ -24,9 +24,21 @@ PALETTES = {
         "saving": "#e34948",
         "suppressed": "#e6e5e1",
         # Sequential blue ramp, light -> dark. Near-zero is allowed to recede.
-        "ramp": ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec",
-                 "#5598e7", "#3987e5", "#2a78d6", "#256abf", "#1c5cab",
-                 "#184f95", "#104281", "#0d366b"],
+        "ramp": [
+            "#cde2fb",
+            "#b7d3f6",
+            "#9ec5f4",
+            "#86b6ef",
+            "#6da7ec",
+            "#5598e7",
+            "#3987e5",
+            "#2a78d6",
+            "#256abf",
+            "#1c5cab",
+            "#184f95",
+            "#104281",
+            "#0d366b",
+        ],
     },
     "dark": {
         "surface": "#1a1a19",
@@ -36,9 +48,21 @@ PALETTES = {
         "cost": "#3987e5",
         "saving": "#e66767",
         "suppressed": "#383835",
-        "ramp": ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf",
-                 "#2a78d6", "#3987e5", "#5598e7", "#6da7ec", "#86b6ef",
-                 "#9ec5f4", "#b7d3f6", "#cde2fb"],
+        "ramp": [
+            "#0d366b",
+            "#104281",
+            "#184f95",
+            "#1c5cab",
+            "#256abf",
+            "#2a78d6",
+            "#3987e5",
+            "#5598e7",
+            "#6da7ec",
+            "#86b6ef",
+            "#9ec5f4",
+            "#b7d3f6",
+            "#cde2fb",
+        ],
     },
 }
 
@@ -74,7 +98,11 @@ def style(fig, mode: str, *, height: int | None = None, showlegend: bool = False
         margin=dict(l=8, r=8, t=8, b=8),
         showlegend=showlegend,
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0,
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
             font=dict(color=colours["text_secondary"]),
         ),
         hoverlabel=dict(font_size=13),
@@ -82,11 +110,17 @@ def style(fig, mode: str, *, height: int | None = None, showlegend: bool = False
     if height:
         fig.update_layout(height=height)
     fig.update_xaxes(
-        showgrid=False, zeroline=False, linecolor=colours["grid"],
+        showgrid=False,
+        zeroline=False,
+        linecolor=colours["grid"],
         tickfont=dict(color=colours["text_secondary"]),
     )
     fig.update_yaxes(
-        showgrid=True, gridcolor=colours["grid"], gridwidth=1, zeroline=False,
-        linecolor=colours["grid"], tickfont=dict(color=colours["text_secondary"]),
+        showgrid=True,
+        gridcolor=colours["grid"],
+        gridwidth=1,
+        zeroline=False,
+        linecolor=colours["grid"],
+        tickfont=dict(color=colours["text_secondary"]),
     )
     return fig

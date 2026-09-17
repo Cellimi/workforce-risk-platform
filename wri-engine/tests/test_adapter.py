@@ -38,15 +38,15 @@ def test_source_vocabulary_is_translated(tmp_path, org):
     data, _ = load(tmp_path, org)
     employee = data.employees_by_id()["E1"]
     assert employee.department == "Sheriff's Office - Detention Center"
-    assert employee.role_family == "corrections_officer"       # from CLASS_CD, not the title
-    assert str(employee.flsa_status) == "7k"                    # from FLSA_CD "K"
+    assert employee.role_family == "corrections_officer"  # from CLASS_CD, not the title
+    assert str(employee.flsa_status) == "7k"  # from FLSA_CD "K"
     assert employee.bargaining_unit == "Corrections Officers' Association"
-    assert employee.annual_base_salary == 56160                 # "56,160.00"
-    assert employee.hire_date.isoformat() == "2018-02-05"       # "02/05/2018"
+    assert employee.annual_base_salary == 56160  # "56,160.00"
+    assert employee.hire_date.isoformat() == "2018-02-05"  # "02/05/2018"
     assert employee.hourly_base_rate == employee.annual_base_salary / 2080
     action = data.actions[0]
-    assert str(action.action_type) == "suspension_4_14"          # from ACTN_CD "SP2"
-    assert action.misconduct_category == "neglect_of_duty"       # from MISCND_CD "NEG"
+    assert str(action.action_type) == "suspension_4_14"  # from ACTN_CD "SP2"
+    assert action.misconduct_category == "neglect_of_duty"  # from MISCND_CD "NEG"
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +78,8 @@ def test_suspension_without_days(tmp_path, org):
 def test_decision_before_incident(tmp_path, org):
     actions = fx.rows("actions")
     actions[0]["INCDT_DT"], actions[0]["DECN_DT"] = (
-        actions[0]["DECN_DT"], actions[0]["INCDT_DT"],
+        actions[0]["DECN_DT"],
+        actions[0]["INCDT_DT"],
     )
     _, report = load(tmp_path, org, actions=actions)
     assert "decision_before_incident" in rule_ids(report)
@@ -149,22 +150,38 @@ def test_orphan_appeal(tmp_path, org):
 
 def test_orphan_separation(tmp_path, org):
     _, report = load(
-        tmp_path, org,
-        separations=[{
-            "EMP_NBR": "E999", "TERM_DT": "06/20/2025", "TERM_RSN_CD": "RFC",
-            "ACTN_NBR": "A1", "REFILL_IND": "N", "REFILL_DT": "", "ABOLISH_IND": "N",
-        }],
+        tmp_path,
+        org,
+        separations=[
+            {
+                "EMP_NBR": "E999",
+                "TERM_DT": "06/20/2025",
+                "TERM_RSN_CD": "RFC",
+                "ACTN_NBR": "A1",
+                "REFILL_IND": "N",
+                "REFILL_DT": "",
+                "ABOLISH_IND": "N",
+            }
+        ],
     )
     assert "orphan_separation" in rule_ids(report)
 
 
 def test_separation_pointing_at_an_unknown_action(tmp_path, org):
     _, report = load(
-        tmp_path, org,
-        separations=[{
-            "EMP_NBR": "E1", "TERM_DT": "06/20/2025", "TERM_RSN_CD": "RFC",
-            "ACTN_NBR": "A999", "REFILL_IND": "N", "REFILL_DT": "", "ABOLISH_IND": "N",
-        }],
+        tmp_path,
+        org,
+        separations=[
+            {
+                "EMP_NBR": "E1",
+                "TERM_DT": "06/20/2025",
+                "TERM_RSN_CD": "RFC",
+                "ACTN_NBR": "A999",
+                "REFILL_IND": "N",
+                "REFILL_DT": "",
+                "ABOLISH_IND": "N",
+            }
+        ],
     )
     assert "separation_unknown_action" in rule_ids(report)
 
@@ -196,7 +213,7 @@ def test_missing_source_file_is_reported_not_raised(tmp_path, org):
     fx.write_export(tmp_path)
     (tmp_path / "hr_appl_grv.csv").unlink()
     adapter = CountyHrCsvAdapter(org=org)
-    data = adapter.load(tmp_path)          # must not raise
+    data = adapter.load(tmp_path)  # must not raise
     assert "missing_source_file" in rule_ids(adapter.report)
     assert data.appeals == []
 
@@ -217,11 +234,19 @@ def test_bad_data_never_raises(tmp_path, org):
 def test_every_rule_has_a_test():
     """Guardrail: adding a rule without a failing fixture fails here."""
     tested = {
-        "orphan_action", "suspension_days_mismatch", "suspension_without_days",
-        "decision_before_incident", "proposal_after_decision", "leave_after_separation",
-        "sworn_only_category_misapplied", "unknown_misconduct_category",
-        "unknown_misconduct_subtype", "orphan_appeal", "orphan_separation",
-        "separation_unknown_action", "suspension_starts_before_decision",
+        "orphan_action",
+        "suspension_days_mismatch",
+        "suspension_without_days",
+        "decision_before_incident",
+        "proposal_after_decision",
+        "leave_after_separation",
+        "sworn_only_category_misapplied",
+        "unknown_misconduct_category",
+        "unknown_misconduct_subtype",
+        "orphan_appeal",
+        "orphan_separation",
+        "separation_unknown_action",
+        "suspension_starts_before_decision",
         "resolved_appeal_missing_date",
     }
     declared = {rule.__name__ for rule in RULES}
@@ -238,6 +263,13 @@ def test_nfc_adapter_is_an_unimplemented_stub():
     import wri_engine.adapters.nfc as nfc_module
 
     notes = nfc_module.__doc__.lower()
-    for field in ("pay plan", "grade", "step", "occupational series", "flsa",
-                  "bargaining unit", "duty station"):
+    for field in (
+        "pay plan",
+        "grade",
+        "step",
+        "occupational series",
+        "flsa",
+        "bargaining unit",
+        "duty station",
+    ):
         assert field in notes, f"the NFC mapping notes do not cover {field}"

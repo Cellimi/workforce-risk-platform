@@ -42,15 +42,34 @@ from wri_engine.schema import (
 COMPONENTS = (c1_processing, c2_admin_leave, c3_backfill, c4_appeals, c5_turnover)
 
 _TURNOVER_PROFILES = (
-    "sworn_deputy", "corrections", "dispatch", "fire_ems",
-    "civilian_skilled", "civilian_standard",
+    "sworn_deputy",
+    "corrections",
+    "dispatch",
+    "fire_ems",
+    "civilian_skilled",
+    "civilian_standard",
 )
 _C5_KEYS = (
-    "advertising_cost", "hr_recruiter_hours", "testing_cost", "panel_size", "panel_hours",
-    "background_investigation_cost", "polygraph_cost", "psych_eval_cost", "medical_exam_cost",
-    "drug_screen_cost", "orientation_hours", "academy_weeks", "academy_tuition",
-    "field_training_weeks", "trainer_differential_pct", "ramp_weeks", "ramp_loss_factor",
-    "equipment_uniform_cost", "washout_rate", "vacancy_productivity_loss_factor",
+    "advertising_cost",
+    "hr_recruiter_hours",
+    "testing_cost",
+    "panel_size",
+    "panel_hours",
+    "background_investigation_cost",
+    "polygraph_cost",
+    "psych_eval_cost",
+    "medical_exam_cost",
+    "drug_screen_cost",
+    "orientation_hours",
+    "academy_weeks",
+    "academy_tuition",
+    "field_training_weeks",
+    "trainer_differential_pct",
+    "ramp_weeks",
+    "ramp_loss_factor",
+    "equipment_uniform_cost",
+    "washout_rate",
+    "vacancy_productivity_loss_factor",
     "expected_vacancy_days",
 )
 

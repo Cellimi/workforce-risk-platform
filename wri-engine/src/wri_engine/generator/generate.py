@@ -32,22 +32,61 @@ MAPPING_FILE = CONFIG_DIR / "mapping_county_hr_csv.yaml"
 DATE_FMT = "%m/%d/%Y"
 
 EMPLOYEE_COLUMNS = [
-    "EMP_NBR", "DEPT_CD", "CLASS_CD", "POSN_TITLE", "GRADE", "STEP", "ANNL_SAL", "FLSA_CD",
-    "BARG_CD", "SWORN_IND", "MIN_STAFF_IND", "SHIFT_HRS", "WORK_LOC", "SUPV_EMP_NBR",
-    "HIRE_DT", "TERM_DT", "TERM_RSN_CD",
+    "EMP_NBR",
+    "DEPT_CD",
+    "CLASS_CD",
+    "POSN_TITLE",
+    "GRADE",
+    "STEP",
+    "ANNL_SAL",
+    "FLSA_CD",
+    "BARG_CD",
+    "SWORN_IND",
+    "MIN_STAFF_IND",
+    "SHIFT_HRS",
+    "WORK_LOC",
+    "SUPV_EMP_NBR",
+    "HIRE_DT",
+    "TERM_DT",
+    "TERM_RSN_CD",
 ]
 ACTION_COLUMNS = [
-    "ACTN_NBR", "EMP_NBR", "INCDT_DT", "PROP_DT", "DECN_DT", "MISCND_CD", "MISCND_SUB",
-    "ACTN_CD", "SUSP_DAYS", "SUSP_BEG_DT", "INVEST_IND", "INVEST_TYP", "DECIDE_LVL",
-    "DECIDE_EMP_NBR", "POSN_ABOLISH_IND",
+    "ACTN_NBR",
+    "EMP_NBR",
+    "INCDT_DT",
+    "PROP_DT",
+    "DECN_DT",
+    "MISCND_CD",
+    "MISCND_SUB",
+    "ACTN_CD",
+    "SUSP_DAYS",
+    "SUSP_BEG_DT",
+    "INVEST_IND",
+    "INVEST_TYP",
+    "DECIDE_LVL",
+    "DECIDE_EMP_NBR",
+    "POSN_ABOLISH_IND",
 ]
 LEAVE_COLUMNS = ["LEAVE_NBR", "EMP_NBR", "ACTN_NBR", "BEG_DT", "END_DT", "PAID_IND"]
 APPEAL_COLUMNS = [
-    "APPL_NBR", "ACTN_NBR", "FORUM_CD", "FILED_DT", "RESOLV_DT", "OUTCOME_CD",
-    "BACKPAY_AMT", "SETTLE_AMT", "OC_HOURS",
+    "APPL_NBR",
+    "ACTN_NBR",
+    "FORUM_CD",
+    "FILED_DT",
+    "RESOLV_DT",
+    "OUTCOME_CD",
+    "BACKPAY_AMT",
+    "SETTLE_AMT",
+    "OC_HOURS",
 ]
 SEPARATION_COLUMNS = [
-    "EMP_NBR", "TERM_DT", "TERM_RSN_CD", "ACTN_NBR", "REFILL_IND", "REFILL_DT", "ABOLISH_IND",
+    "EMP_NBR",
+    "TERM_DT",
+    "TERM_RSN_CD",
+    "ACTN_NBR",
+    "REFILL_IND",
+    "REFILL_DT",
+    "ABOLISH_IND",
 ]
 
 
@@ -290,10 +329,12 @@ class _Generator:
         timing = self.p["timing"]
         # Work backwards from the decision so the decision always lands inside the window.
         incident = self._rand_date(span[0], span[1])
-        proposal = incident + timedelta(days=GeneratorProfile.triangular_days(
-            self.rng, timing["incident_to_proposal"]))
-        decision = proposal + timedelta(days=GeneratorProfile.triangular_days(
-            self.rng, timing["proposal_to_decision"]))
+        proposal = incident + timedelta(
+            days=GeneratorProfile.triangular_days(self.rng, timing["incident_to_proposal"])
+        )
+        decision = proposal + timedelta(
+            days=GeneratorProfile.triangular_days(self.rng, timing["proposal_to_decision"])
+        )
         if decision > span[1]:
             # Still open at the extract date, or the employee left before it was decided.
             # Either way there is no decided action to cost.
@@ -307,8 +348,12 @@ class _Generator:
         min_days, max_days = self.org.action_types[action_type]["suspension_days_range"]
         suspension_days = self.rng.randint(min_days, max_days) if max_days else 0
         suspension_start = (
-            decision + timedelta(days=GeneratorProfile.triangular_days(
-                self.rng, timing["decision_to_suspension_start"]))
+            decision
+            + timedelta(
+                days=GeneratorProfile.triangular_days(
+                    self.rng, timing["decision_to_suspension_start"]
+                )
+            )
             if suspension_days
             else None
         )
@@ -402,8 +447,12 @@ class _Generator:
         probability = min(probability, float(self.p["admin_leave"]["max_probability"]))
         if self.rng.random() >= probability:
             return
-        days = max(1, GeneratorProfile.triangular_days(
-            self.rng, self.p["admin_leave"]["duration_days"][action_type]))
+        days = max(
+            1,
+            GeneratorProfile.triangular_days(
+                self.rng, self.p["admin_leave"]["duration_days"][action_type]
+            ),
+        )
         end = decision
         start = end - timedelta(days=days - 1)
         self.admin_leave.append(
@@ -424,17 +473,22 @@ class _Generator:
         if self.rng.random() >= probability:
             return None
         timing = self.p["timing"]
-        filed = decision + timedelta(days=GeneratorProfile.triangular_days(
-            self.rng, timing["decision_to_appeal_filed"]))
+        filed = decision + timedelta(
+            days=GeneratorProfile.triangular_days(self.rng, timing["decision_to_appeal_filed"])
+        )
         if filed > self.as_of:
             return None
         forum = GeneratorProfile.weighted_choice(
             self.rng,
-            self.p["appeals"]["forum_weights_removal" if action_type == "removal"
-                              else "forum_weights_default"],
+            self.p["appeals"][
+                "forum_weights_removal" if action_type == "removal" else "forum_weights_default"
+            ],
         )
-        resolution = filed + timedelta(days=GeneratorProfile.triangular_days(
-            self.rng, timing["appeal_filed_to_resolution"][forum]))
+        resolution = filed + timedelta(
+            days=GeneratorProfile.triangular_days(
+                self.rng, timing["appeal_filed_to_resolution"][forum]
+            )
+        )
         recent = (self.as_of - decision).days <= int(self.p["open_window"]["recent_days"])
         left_pending = resolution > self.as_of or (
             recent and self.rng.random() < float(self.p["open_window"]["pending_share"])
@@ -453,8 +507,12 @@ class _Generator:
             back_pay = (lost * share).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             if outcome == "settled":
                 settlement = Decimal(
-                    round(GeneratorProfile.triangular(
-                        self.rng, self.p["appeals"]["settlement_amount"]), -2)
+                    round(
+                        GeneratorProfile.triangular(
+                            self.rng, self.p["appeals"]["settlement_amount"]
+                        ),
+                        -2,
+                    )
                 )
         counsel_hours = round(
             GeneratorProfile.triangular(
@@ -578,22 +636,34 @@ class _Generator:
                     "INCDT_DT": _fmt(self.as_of - timedelta(days=200 + i)),
                     "PROP_DT": _fmt(self.as_of - timedelta(days=180 + i)),
                     "DECN_DT": _fmt(self.as_of - timedelta(days=165 + i)),
-                    "MISCND_CD": "ATT", "MISCND_SUB": "Unscheduled absence",
-                    "ACTN_CD": "WRP", "SUSP_DAYS": "0", "SUSP_BEG_DT": "",
-                    "INVEST_IND": "N", "INVEST_TYP": "", "DECIDE_LVL": "1",
-                    "DECIDE_EMP_NBR": "", "POSN_ABOLISH_IND": "N",
+                    "MISCND_CD": "ATT",
+                    "MISCND_SUB": "Unscheduled absence",
+                    "ACTN_CD": "WRP",
+                    "SUSP_DAYS": "0",
+                    "SUSP_BEG_DT": "",
+                    "INVEST_IND": "N",
+                    "INVEST_TYP": "",
+                    "DECIDE_LVL": "1",
+                    "DECIDE_EMP_NBR": "",
+                    "POSN_ABOLISH_IND": "N",
                 }
             )
         injected["orphan_action"] = n
 
-        rows = pick(self.actions, lambda r: r["ACTN_CD"] == "SP1",
-                    int(spec.get("suspension_days_mismatch", 0)))
+        rows = pick(
+            self.actions,
+            lambda r: r["ACTN_CD"] == "SP1",
+            int(spec.get("suspension_days_mismatch", 0)),
+        )
         for row in rows:
             row["SUSP_DAYS"] = "22"
         injected["suspension_days_mismatch"] = len(rows)
 
-        rows = pick(self.actions, lambda r: r["INCDT_DT"] and r["DECN_DT"],
-                    int(spec.get("decision_before_incident", 0)))
+        rows = pick(
+            self.actions,
+            lambda r: r["INCDT_DT"] and r["DECN_DT"],
+            int(spec.get("decision_before_incident", 0)),
+        )
         for row in rows:
             row["INCDT_DT"], row["DECN_DT"] = row["DECN_DT"], row["INCDT_DT"]
         injected["decision_before_incident"] = len(rows)
@@ -624,8 +694,11 @@ class _Generator:
         )
 
         civilian_ids = {e.employee_id for e in self.employees if not e.role.is_sworn}
-        rows = pick(self.actions, lambda r: r["EMP_NBR"] in civilian_ids,
-                    int(spec.get("sworn_only_category_misapplied", 0)))
+        rows = pick(
+            self.actions,
+            lambda r: r["EMP_NBR"] in civilian_ids,
+            int(spec.get("sworn_only_category_misapplied", 0)),
+        )
         for row in rows:
             row["MISCND_CD"] = "UOF"
             row["MISCND_SUB"] = "Excessive force"

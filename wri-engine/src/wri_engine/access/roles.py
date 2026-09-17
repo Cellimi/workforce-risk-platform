@@ -54,9 +54,7 @@ class AccessDenied(PermissionError):
     def __init__(self, role: Role, capability: Capability):
         self.role = role
         self.capability = capability
-        super().__init__(
-            f"role {role} is not permitted to {str(capability).replace('_', ' ')}"
-        )
+        super().__init__(f"role {role} is not permitted to {str(capability).replace('_', ' ')}")
 
 
 def parse_role(raw: str | None, default: Role = Role.EXECUTIVE) -> Role:

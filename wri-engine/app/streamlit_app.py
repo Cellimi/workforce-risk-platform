@@ -112,18 +112,24 @@ def sidebar() -> str:
     st.sidebar.divider()
 
     st.session_state["role"] = st.sidebar.selectbox(
-        "Role", ROLES, index=ROLES.index(st.session_state["role"]),
+        "Role",
+        ROLES,
+        index=ROLES.index(st.session_state["role"]),
         help=(
             "The role is sent to the API as a header and enforced there. "
             "No authentication yet - this is the seam where SSO goes."
         ),
     )
     st.session_state["mode"] = st.sidebar.select_slider(
-        "Sensitivity", options=["low", "base", "high"], value=st.session_state["mode"],
+        "Sensitivity",
+        options=["low", "base", "high"],
+        value=st.session_state["mode"],
         help="Runs the whole engine on the low, base or high value of every assumption.",
     )
     st.session_state["chart_theme"] = st.sidebar.radio(
-        "Chart theme", ["light", "dark"], horizontal=True,
+        "Chart theme",
+        ["light", "dark"],
+        horizontal=True,
         index=["light", "dark"].index(st.session_state["chart_theme"]),
     )
 
@@ -172,14 +178,14 @@ def executive_summary(api: EngineClient) -> None:
 Net cost is **gross cost plus the offset**. The offset is negative: it is the salary the
 county does not pay during an unpaid suspension.
 
-- Gross: **{md_money(data['total_gross'])}**
-- Offset: **{md_money(data['total_offset'])}**
-- Net: **{md_money(data['total_net'])}** over **{data['window_years']} years**
-  -> **{md_money(data['annual_net'])} per year**
+- Gross: **{md_money(data["total_gross"])}**
+- Offset: **{md_money(data["total_offset"])}**
+- Net: **{md_money(data["total_net"])}** over **{data["window_years"]} years**
+  -> **{md_money(data["annual_net"])} per year**
 
 The window is the span between the earliest and latest decided action in the dataset, not a
-count of calendar years. {data['actions_excluded']} actions were excluded for data quality
-and contribute nothing; {data['incomplete_actions']} are still accruing cost and are counted
+count of calendar years. {data["actions_excluded"]} actions were excluded for data quality
+and contribute nothing; {data["incomplete_actions"]} are still accruing cost and are counted
 at their current actual figure only.
 """,
     )
@@ -188,8 +194,8 @@ at their current actual figure only.
         f"""
 Net cost / window years / **active** headcount.
 
-{md_money(data['total_net'])} / {data['window_years']} / {data['active_fte']:,} =
-**{md_money(data['net_per_fte_per_year'], 2)}**
+{md_money(data["total_net"])} / {data["window_years"]} / {data["active_fte"]:,} =
+**{md_money(data["net_per_fte_per_year"], 2)}**
 
 The denominator is everyone on the payroll, not the number of people disciplined. It answers
 "what does this cost the organisation per head", not "what does a disciplined employee cost".
@@ -264,8 +270,11 @@ def component_chart(data: dict) -> None:
         (True, "Cost", colours["cost"]),
         (False, "Saving", colours["saving"]),
     ):
-        selected = [(label, value) for label, value, f in zip(labels, values, is_cost, strict=True)
-                    if f is flag]
+        selected = [
+            (label, value)
+            for label, value, f in zip(labels, values, is_cost, strict=True)
+            if f is flag
+        ]
         if not selected:
             continue
         fig.add_bar(
@@ -285,12 +294,13 @@ def component_chart(data: dict) -> None:
     span = high - low or 1
     # Room for the direct labels at each end, proportional to the bar that needs it.
     fig.update_xaxes(
-        showgrid=True, gridcolor=colours["grid"], tickformat="$~s",
+        showgrid=True,
+        gridcolor=colours["grid"],
+        tickformat="$~s",
         range=[low - (span * 0.10 if low < 0 else 0), high + span * 0.14],
     )
     fig.update_yaxes(showgrid=False, autorange="reversed")
-    st.plotly_chart(style(fig, theme(), height=340, showlegend=True),
-                    use_container_width=True)
+    st.plotly_chart(style(fig, theme(), height=340, showlegend=True), use_container_width=True)
 
 
 def department_chart(data: dict) -> None:
@@ -307,14 +317,16 @@ def department_chart(data: dict) -> None:
             textfont=dict(color=colours["text_secondary"]),
             customdata=[r["active_fte"] for r in rows],
             hovertemplate="%{y}<br>%{x:$,.0f} per FTE per year<br>"
-                          "%{customdata:,} active FTE<extra></extra>",
+            "%{customdata:,} active FTE<extra></extra>",
         )
     )
     fig.update_layout(bargap=0.4)
     fig.update_traces(cliponaxis=False)
     high = max([float(r["net_per_fte_per_year"]) for r in rows] + [0])
     fig.update_xaxes(
-        showgrid=True, gridcolor=colours["grid"], tickformat="$,.0f",
+        showgrid=True,
+        gridcolor=colours["grid"],
+        tickformat="$,.0f",
         range=[0, high * 1.25],
     )
     fig.update_yaxes(showgrid=False, autorange="reversed")
@@ -331,23 +343,29 @@ def cost_matrix(api: EngineClient) -> None:
 
     controls = st.columns([2, 2, 2, 3])
     rows = controls[0].selectbox(
-        "Rows", keys, index=keys.index("role_family"),
+        "Rows",
+        keys,
+        index=keys.index("role_family"),
         format_func=lambda k: dimensions[k],
     )
     cols = controls[1].selectbox(
-        "Columns", keys, index=keys.index("misconduct_category"),
+        "Columns",
+        keys,
+        index=keys.index("misconduct_category"),
         format_func=lambda k: dimensions[k],
     )
     metric = controls[2].selectbox(
-        "Colour by", ["net", "cost_per_action", "cost_per_100_fte", "action_count"],
+        "Colour by",
+        ["net", "cost_per_action", "cost_per_100_fte", "action_count"],
         format_func=lambda k: {
-            "net": "Net cost", "cost_per_action": "Cost per action",
-            "cost_per_100_fte": "Cost per 100 FTE", "action_count": "Number of actions",
+            "net": "Net cost",
+            "cost_per_action": "Cost per action",
+            "cost_per_100_fte": "Cost per 100 FTE",
+            "action_count": "Number of actions",
         }[k],
     )
     controls[3].caption(
-        f"Sensitivity: **{mode()}**. Change it in the sidebar to see the whole matrix "
-        f"move."
+        f"Sensitivity: **{mode()}**. Change it in the sidebar to see the whole matrix move."
     )
 
     if rows == cols:
@@ -362,10 +380,11 @@ def cost_matrix(api: EngineClient) -> None:
         "Suppressed cells",
         suppression["suppressed_cells"],
         help=f"Fewer than {suppression['min_cell_size']} distinct employees, or withheld to "
-             f"stop a suppressed cell being recovered by subtraction.",
+        f"stop a suppressed cell being recovered by subtraction.",
     )
     right.metric(
-        "Records still accruing", data["totals"]["incomplete_actions"],
+        "Records still accruing",
+        data["totals"]["incomplete_actions"],
         help="Pending appeals, open filing windows, and positions not yet refilled.",
     )
 
@@ -402,15 +421,21 @@ withheld.
         st.dataframe(
             [
                 {
-                    "Row": c["row_label"], "Column": c["col_label"],
-                    "Actions": c["action_count"], "Employees": c["employee_count"],
-                    "Gross": money(c["gross"]), "Offset": money(c["offset"]),
-                    "Net": money(c["net"]), "Per action": money(c["cost_per_action"]),
+                    "Row": c["row_label"],
+                    "Column": c["col_label"],
+                    "Actions": c["action_count"],
+                    "Employees": c["employee_count"],
+                    "Gross": money(c["gross"]),
+                    "Offset": money(c["offset"]),
+                    "Net": money(c["net"]),
+                    "Per action": money(c["cost_per_action"]),
                     "Still accruing": c["incomplete_count"],
                 }
-                for c in data["cells"] if not c["suppressed"]
+                for c in data["cells"]
+                if not c["suppressed"]
             ],
-            hide_index=True, use_container_width=True,
+            hide_index=True,
+            use_container_width=True,
         )
 
     st.download_button(
@@ -472,7 +497,8 @@ def heatmap(data: dict, metric: str) -> None:
             y=row_labels,
             colorscale=colorscale(theme()),
             hoverongaps=False,
-            xgap=2, ygap=2,                      # surface gap between fills
+            xgap=2,
+            ygap=2,  # surface gap between fills
             text=labels,
             texttemplate="%{text}",
             textfont=dict(size=10, color=colours["text_secondary"]),
@@ -530,14 +556,17 @@ def drill_down(api: EngineClient) -> None:
         st.dataframe(
             [
                 {
-                    "Action": a["action_id"], "Employee": a["employee"],
-                    "Type": a["action_type_label"], "Decided": a["decision_date"],
+                    "Action": a["action_id"],
+                    "Employee": a["employee"],
+                    "Type": a["action_type_label"],
+                    "Decided": a["decision_date"],
                     "Net": money(a["net"]),
                     "Accruing": "yes" if a["cost_incomplete"] else "",
                 }
                 for a in actions
             ],
-            hide_index=True, use_container_width=True,
+            hide_index=True,
+            use_container_width=True,
             height=min(460, 40 + 35 * len(actions)),
         )
     with right:
@@ -547,8 +576,13 @@ def drill_down(api: EngineClient) -> None:
         st.caption(
             " / ".join(
                 str(detail["dimensions"][k])
-                for k in ("role_family_label", "department", "work_location",
-                          "misconduct_category_label", "action_type_label")
+                for k in (
+                    "role_family_label",
+                    "department",
+                    "work_location",
+                    "misconduct_category_label",
+                    "action_type_label",
+                )
             )
         )
         if detail["cost_incomplete"]:
@@ -571,21 +605,25 @@ def drill_down(api: EngineClient) -> None:
                 st.markdown(f"**{item['formula']}**{flag}")
                 st.json(item["inputs"], expanded=False)
                 if item["assumption_ids"]:
-                    st.markdown("Assumptions used: " + ", ".join(
-                        f"`{a}`" for a in item["assumption_ids"]
-                    ))
+                    st.markdown(
+                        "Assumptions used: " + ", ".join(f"`{a}`" for a in item["assumption_ids"])
+                    )
 
         st.markdown("#### Assumptions behind this action")
         st.dataframe(
             [
                 {
-                    "Assumption": a["id"], "Value": a["effective_value"], "Unit": a["unit"],
-                    "Confidence": a["confidence"], "Status": a["status"],
+                    "Assumption": a["id"],
+                    "Value": a["effective_value"],
+                    "Unit": a["unit"],
+                    "Confidence": a["confidence"],
+                    "Status": a["status"],
                     "Source": a["source"][:120] + ("..." if len(a["source"]) > 120 else ""),
                 }
                 for a in detail["assumptions_used"]
             ],
-            hide_index=True, use_container_width=True,
+            hide_index=True,
+            use_container_width=True,
         )
     _ = dimensions
 
@@ -611,7 +649,8 @@ def assumptions_page(api: EngineClient) -> None:
     left, mid, right = st.columns(3)
     left.metric("Assumptions", data["count"])
     mid.metric(
-        "Awaiting owner confirmation", data["placeholder_count"],
+        "Awaiting owner confirmation",
+        data["placeholder_count"],
         help="Marked TBD-MIKE. These must be confirmed before the demo is shown externally.",
     )
     right.metric("Editable here", "yes" if data["editable"] else "no (admin only)")
@@ -619,16 +658,22 @@ def assumptions_page(api: EngineClient) -> None:
     show_placeholders = st.checkbox("Show only rows awaiting confirmation", value=False)
     search = st.text_input("Filter by id", "")
     rows = [
-        a for a in data["assumptions"]
+        a
+        for a in data["assumptions"]
         if (not show_placeholders or a["status"] == "TBD-MIKE")
         and search.lower() in a["id"].lower()
     ]
     table = pd.DataFrame(
         [
             {
-                "Status": a["status"], "Assumption": a["id"], "Low": a["low"],
-                "Value": a["effective_value"], "High": a["high"], "Unit": a["unit"],
-                "Confidence": a["confidence"], "Source": a["source"],
+                "Status": a["status"],
+                "Assumption": a["id"],
+                "Low": a["low"],
+                "Value": a["effective_value"],
+                "High": a["high"],
+                "Unit": a["unit"],
+                "Confidence": a["confidence"],
+                "Source": a["source"],
             }
             for a in rows
         ]
@@ -638,7 +683,9 @@ def assumptions_page(api: EngineClient) -> None:
         return
     st.dataframe(
         table.style.apply(_highlight_placeholders, axis=1),
-        hide_index=True, use_container_width=True, height=420,
+        hide_index=True,
+        use_container_width=True,
+        height=420,
     )
 
     if not data["editable"]:
@@ -655,7 +702,8 @@ def assumptions_page(api: EngineClient) -> None:
         "every line item from scratch."
     )
     tunable = [
-        a for a in data["assumptions"]
+        a
+        for a in data["assumptions"]
         if a["unit"] not in {"role_family"} and Decimal(a["high"]) > Decimal(a["low"])
     ]
     defaults = [
@@ -664,7 +712,8 @@ def assumptions_page(api: EngineClient) -> None:
         "c4_outside_counsel_hourly_rate",
     ]
     chosen = st.multiselect(
-        "Assumptions to adjust", [a["id"] for a in tunable],
+        "Assumptions to adjust",
+        [a["id"] for a in tunable],
         default=[d for d in defaults if any(a["id"] == d for a in tunable)],
     )
     overrides: dict[str, float] = {}
@@ -674,7 +723,9 @@ def assumptions_page(api: EngineClient) -> None:
         current = float(record["effective_value"])
         overrides[assumption_id] = st.slider(
             f"{assumption_id} ({record['unit']})",
-            min_value=low, max_value=high, value=current,
+            min_value=low,
+            max_value=high,
+            value=current,
             step=max((high - low) / 100, 1e-4),
             help=record["source"],
         )
@@ -685,7 +736,8 @@ def assumptions_page(api: EngineClient) -> None:
         left.metric("Before", money(result["baseline_net"]))
         mid.metric("After", money(result["scenario_net"]))
         right.metric(
-            "Difference", money(result["delta"]),
+            "Difference",
+            money(result["delta"]),
             delta=f"{result['delta_pct']}%" if result["delta_pct"] else None,
         )
         st.caption(
@@ -707,12 +759,14 @@ def data_quality(api: EngineClient) -> None:
     cells[0].metric("Issues found", report["total_issues"])
     cells[1].metric("Blocking", report["blocking"])
     cells[2].metric(
-        "Actions excluded", report["excluded_actions"],
+        "Actions excluded",
+        report["excluded_actions"],
         help="Excluded from every total. The count is always shown - records are never "
-             "silently dropped.",
+        "silently dropped.",
     )
     cells[3].metric(
-        "Still accruing cost", report["actions_incomplete_cost"],
+        "Still accruing cost",
+        report["actions_incomplete_cost"],
         help="Costed at their current actual figure and flagged, not estimated forward.",
     )
 
@@ -721,21 +775,27 @@ def data_quality(api: EngineClient) -> None:
     st.subheader("By rule")
     st.dataframe(
         [{"Rule": k, "Records": v} for k, v in report["counts_by_rule"].items()],
-        hide_index=True, use_container_width=True,
+        hide_index=True,
+        use_container_width=True,
     )
 
     st.subheader("Every issue")
     st.dataframe(
         [
             {
-                "Severity": i["severity"], "Rule": i["rule_id"], "Record type": i["entity"],
-                "Record": i["entity_id"], "Field": i["field"] or "",
+                "Severity": i["severity"],
+                "Rule": i["rule_id"],
+                "Record type": i["entity"],
+                "Record": i["entity_id"],
+                "Field": i["field"] or "",
                 "Blocked actions": ", ".join(i["blocked_actions"]),
                 "What is wrong": i["message"],
             }
             for i in report["issues"]
         ],
-        hide_index=True, use_container_width=True, height=420,
+        hide_index=True,
+        use_container_width=True,
+        height=420,
     )
     how_calculated(
         "the exclusion count",
@@ -777,8 +837,9 @@ def main() -> None:
         PAGE_FUNCTIONS[page](api)
     except ApiError as exc:
         if exc.status == 403:
-            st.error(f"The `{st.session_state['role']}` role is not permitted to see this. "
-                     f"{exc.detail}")
+            st.error(
+                f"The `{st.session_state['role']}` role is not permitted to see this. {exc.detail}"
+            )
         else:
             st.error(str(exc))
 

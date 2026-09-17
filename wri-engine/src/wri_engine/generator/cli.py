@@ -1,6 +1,6 @@
 """Command line entry point for the synthetic data generator.
 
-    python -m wri_engine.generator.cli --seed 20260917 --out data/synthetic
+python -m wri_engine.generator.cli --seed 20260917 --out data/synthetic
 """
 
 from __future__ import annotations
@@ -14,14 +14,30 @@ from wri_engine.paths import SYNTHETIC_DIR
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate the Harlow County synthetic HR export.")
-    parser.add_argument("--seed", type=int, default=20260917,
-                        help="random seed; the same seed always produces identical files")
-    parser.add_argument("--out", type=Path, default=SYNTHETIC_DIR,
-                        help="output directory for the five source CSVs and manifest.json")
-    parser.add_argument("--sample-out", type=Path, default=None,
-                        help="also write a trimmed, committable sample export to this directory")
-    parser.add_argument("--sample-employees", type=int, default=120,
-                        help="number of employees to keep in the sample export")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=20260917,
+        help="random seed; the same seed always produces identical files",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=SYNTHETIC_DIR,
+        help="output directory for the five source CSVs and manifest.json",
+    )
+    parser.add_argument(
+        "--sample-out",
+        type=Path,
+        default=None,
+        help="also write a trimmed, committable sample export to this directory",
+    )
+    parser.add_argument(
+        "--sample-employees",
+        type=int,
+        default=120,
+        help="number of employees to keep in the sample export",
+    )
     return parser
 
 
