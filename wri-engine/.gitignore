@@ -14,3 +14,6 @@ htmlcov/
 data/synthetic/*
 !data/synthetic/sample/
 !data/synthetic/sample/**
+
+# Runtime artifact: the API appends a line here per request. Never source.
+data/audit_log.jsonl
