@@ -111,6 +111,9 @@ separations:
 # C5, sworn_deputy profile, washout 0.25 -> x 1/0.75 = 1.333333
 #   vacancy overtime  2024-10-01 to 2025-03-29 = 180 days x 0.5 = 90 shifts x 12 = 1,080 hrs
 #                     1,080 x $51.672 = $55,805.76   (not washout-adjusted)
+#   C5-OFFSET         His own pay stops for the same 1,080 hours, credited at HIS base rate
+#                     ($35.00), not the $32.00 peer rate the overtime was charged at:
+#                     1,080 hrs x $35.00 x 1.0765 = $40,691.70 -> recorded negative.
 #   advertising       $2,500 -> $3,333.33
 #   recruiter hours   40 hrs x $61.0125 = $2,440.50 x 1.333333 = $3,254.00
 #   testing           $350 -> $466.67
@@ -126,7 +129,10 @@ separations:
 #   trainer diff.     560 hrs x $56.00 x 0.07 = $2,195.20 x 1.333333 = $2,926.93
 #   equipment         $6,500 x 1.333333 = $8,666.67
 #
-# C1 $4,415.35 + C5 $193,069.27 = Gross = Net = $197,484.62
+# C1 $4,415.35 + C5 $193,069.27
+# Gross   $197,484.62
+# Offset  -$40,691.70   (vacancy salary)
+# Net     $156,792.92
 
 expected:
   line_items:
@@ -149,7 +155,8 @@ expected:
     - {component: C5, subcomponent: psychological_evaluation, amount: '733.33'}
     - {component: C5, subcomponent: selection_testing, amount: '466.67'}
     - {component: C5, subcomponent: vacancy_coverage_overtime, amount: '55805.76'}
+    - {component: C5-offset, subcomponent: vacancy_salary_saved, amount: '-40691.70'}
   gross: '197484.62'
-  offset: '0'
-  net: '197484.62'
+  offset: '-40691.70'
+  net: '156792.92'
   cost_incomplete: false

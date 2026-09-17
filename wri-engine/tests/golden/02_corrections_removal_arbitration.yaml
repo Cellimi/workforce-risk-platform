@@ -144,6 +144,11 @@ separations:
 # C5, corrections profile, washout 0.30 -> every recruiting/training item x 1/0.70 = 1.428571
 #   vacancy overtime   2025-06-21 to 2025-12-18 = 181 days x 0.5 = 90.5 shifts x 12 = 1,086 hrs
 #                      1,086 x $45.213 = $49,101.318 -> $49,101.32   (not washout-adjusted)
+#   C5-OFFSET          The officer's own pay stops for the same 1,086 hours. Credited at HIS
+#                      base rate ($27.00), not the peer rate used for the overtime above:
+#                      1,086 hrs x $27.00 x 1.0765 wage-scaling burden = $31,565.133
+#                      -> -$31,565.13, recorded negative. Health and OPEB for the vacant
+#                      seat are not treated as saved.
 #   advertising        $2,000 x 1.428571 = $2,857.14
 #   recruiter hours    30 hrs x $61.0125 = $1,830.375 x 1.428571 = $2,614.82
 #   testing            $250 x 1.428571 = $357.14
@@ -160,7 +165,9 @@ separations:
 #   equipment          $2,200 x 1.428571 = $3,142.86
 #
 # C1 $7,240.33 + C2 $21,546.00 + C3 $20,617.13 + C4 $50,247.55 + C5 $102,078.71
-# Gross = Net = $201,729.72   (no unpaid suspension, so no offset)
+# Gross   $201,729.72
+# Offset  -$31,565.13   (vacancy salary; no unpaid suspension in this case)
+# Net     $170,164.59
 
 expected:
   line_items:
@@ -191,7 +198,8 @@ expected:
     - {component: C5, subcomponent: psychological_evaluation, amount: '642.86'}
     - {component: C5, subcomponent: selection_testing, amount: '357.14'}
     - {component: C5, subcomponent: vacancy_coverage_overtime, amount: '49101.32'}
+    - {component: C5-offset, subcomponent: vacancy_salary_saved, amount: '-31565.13'}
   gross: '201729.72'
-  offset: '0'
-  net: '201729.72'
+  offset: '-31565.13'
+  net: '170164.59'
   cost_incomplete: false

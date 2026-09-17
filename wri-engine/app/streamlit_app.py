@@ -44,6 +44,7 @@ COMPONENT_LABELS = {
     "C3-offset": "C3-offset Unpaid suspension saved",
     "C4": "C4 Appeals & grievances",
     "C5": "C5 Removal turnover",
+    "C5-offset": "C5-offset Vacancy salary saved",
 }
 
 st.set_page_config(page_title="WRI - Cost of Discipline", page_icon="::", layout="wide")
@@ -221,9 +222,13 @@ nothing to do with turnover - does not inflate the percentage.
 Each bar is the sum of every line item carrying that component tag, across every costed
 action. Blue is money spent; red is money saved.
 
-C3-offset is shown as a negative bar on purpose. Unpaid suspensions do save the county the
-wage, and burying that inside a net total would hide it. Gross, offset and net are always
-reported separately.
+The two offset components are shown as negative bars on purpose. An unpaid suspension
+(C3-offset) and a vacant post after a removal (C5-offset) both genuinely stop the county
+paying that person's wage, and burying either inside a net total would hide it. Gross, offset
+and net are always reported separately.
+
+Only the wage and the burdens that scale with it are treated as saved. Health insurance and
+retiree health carry on, so they are not counted as savings in either case.
 """,
     )
 

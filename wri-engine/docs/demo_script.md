@@ -29,9 +29,9 @@ Don't sell the product yet. Let them sit with the gap for a beat.
 
 *Executive summary page.*
 
-> "Harlow County — 2,500 employees, eight departments — spends **$1.76 million a year** on
-> discipline. That's **$698 per employee per year**, every year, whether or not anyone is
-> looking at it.
+> "Harlow County — 2,500 employees, eight departments — spends **$1.60 million a year** on
+> discipline, net. That's **$634 per employee per year**, every year, whether or not anyone
+> is looking at it.
 >
 > And **44% of it is turnover**. Not the discipline process — the cost of replacing the
 > people who get removed. Recruiting, background investigations, the academy, field training,
@@ -44,11 +44,18 @@ Point at the component chart.
 
 Point at the red bar.
 
-> "That negative bar matters. Unpaid suspensions genuinely save the county the wage — about
-> $487,000 over three years. We show it, we don't net it away quietly. Gross, offset, net,
-> always separately. If we hid that, you'd be right not to trust the rest."
+> "Those two negative bars matter. When the county stops paying someone, that is a real
+> saving and we credit it back — **$953,000 over three years**, in two places. An unpaid
+> suspension saves the wage for the shifts served: **$487,000**. And after a removal, the
+> vacant post stops drawing a salary even while overtime covers the shifts: another
+> **$467,000**.
+>
+> We show both and we don't net them away quietly. Gross, offset, net, always separately. And
+> we only credit the wage and the payroll taxes on it — health insurance and retiree health
+> carry on regardless, so they're not savings. If we'd been sloppy in either direction here,
+> you'd be right not to trust the rest."
 
-**If they ask where $698 comes from:** open the expander. Don't paraphrase it — click it.
+**If they ask where $634 comes from:** open the expander. Don't paraphrase it — click it.
 That's the differentiator, and it works better shown than described.
 
 ---
@@ -62,12 +69,12 @@ That's the differentiator, and it works better shown than described.
 Set **Rows = Department** (the default role-family view is honest but sparse — 20 role
 families over 500 actions means most cells are suppressed).
 
-> "Two things jump out. The Sheriff's Office spends **$1,753 per employee per year** on
-> discipline; Public Works spends **$214**. Same county, same HR policy, eight times the cost
+> "Two things jump out. The Sheriff's Office spends **$1,539 per employee per year** on
+> discipline; Public Works spends **$214**. Same county, same HR policy, seven times the cost
 > per head.
 >
 > And the biggest single block of actions in the county is **the Detention Center on
-> attendance** — 83 actions, about $447,000, roughly $5,400 each. Switch Rows back to
+> attendance** — 83 actions, about $410,000, roughly $4,900 each. Switch Rows back to
 > Employee type and it's Corrections Officers carrying almost all of it."
 
 Then be careful, because this is the honest bit and it lands well:
@@ -97,7 +104,7 @@ about it by counsel within a week of any real deployment:
 
 Pick the Deputy / Time & Attendance falsification cell, then the top action.
 
-> "One removal. **$259,000.** Here is every dollar of it."
+> "One removal. **$259,000 gross, $211,000 net.** Here is every dollar of it."
 
 Open three line items, in this order:
 
@@ -113,8 +120,15 @@ Open three line items, in this order:
 Then scroll to the C5 block.
 
 > "And this is the replacement: $76,000 of vacancy overtime, $61,000 of academy salary,
-> $39,000 of field training. Every one of them divided by one-minus-the-washout-rate, because
-> you don't hire one recruit to fill one seat — you hire 1.33."
+> $39,000 of field training. The recruiting and training items are each divided by
+> one-minus-the-washout-rate, because you don't hire one recruit to fill one seat — you hire
+> 1.33.
+>
+> Then scroll one more line, because this is the one a CFO will look for: **minus $48,000**.
+> That's the deputy's own salary, which the county stops paying the day he leaves. We charge
+> the overtime at the rate of the peer who covers the shift and we credit the salary at his
+> rate, over the same 118 and a half shifts. Net cost of that vacancy is $28,000, not
+> $76,000."
 
 > "Every line item names its formula, its inputs, and the assumptions it used. There is no
 > step in this product where a number appears that you can't take apart."
@@ -183,6 +197,23 @@ No — it's two different payments. The employee is paid not to work, and a seco
 paid overtime to cover the post. The only way to avoid the second one is to leave the post
 unstaffed, which a minimum-staffing rule forbids. Where there is no minimum staffing
 requirement, the engine doesn't charge backfill at all.
+
+**"You charge overtime for the whole vacancy. Doesn't the county save the salary?"**
+Yes, and we credit it — that's the `C5-offset` line. We charge the overtime at the rate of the
+peer who covers the shift and credit the salary at the removed employee's own rate, over
+exactly the same shifts. Across the dataset that's $705,525 charged and $466,671 credited, so
+the net vacancy cost is $238,855. What we don't credit is health insurance and retiree health:
+the obligation attached to that position doesn't vanish on the separation date. If your plan
+also stops pension contributions, that's a one-number change —
+`c5_vacancy_salary_burden_multiplier`, and it's deliberately a separate assumption from the
+suspension one so the two can differ.
+
+**"Can the saving ever be bigger than the overtime?"**
+Not at base assumptions, and the reason is arithmetic rather than judgement: both sides carry
+the same payroll-tax burden, so the ratio is the removed employee's rate over one-and-a-half
+times the peer rate. The FLSA premium caps it. Within one pay grade the widest step spread is
+about 1.25x, so the credit tops out near 83% of the charge. It can only overtake it if the two
+burden multipliers diverge. There's a golden test case sitting exactly at that ceiling.
 
 **"What about 7(k)?"**
 A real simplification, and it's documented. The demo treats every backfill hour as overtime.

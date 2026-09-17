@@ -12,15 +12,20 @@ from decimal import Decimal
 import pytest
 
 from golden_case import load_cases
+from wri_engine.schema import OFFSET_COMPONENTS, CostComponent
 
 CASES = load_cases()
 IDS = [c.path.stem for c in CASES]
 
 
 def test_every_component_is_covered():
-    """The set as a whole must exercise all five components and the offset."""
+    """Every component the engine can emit must appear in at least one golden case.
+
+    Derived from the enum, not a hardcoded list, so adding a component forces a golden case
+    rather than silently shipping one nothing has ever hand-checked.
+    """
     seen = {i["component"] for case in CASES for i in case.raw["expected"]["line_items"]}
-    assert seen == {"C1", "C2", "C3", "C3-offset", "C4", "C5"}
+    assert seen == {str(c) for c in CostComponent}
 
 
 def test_required_scenarios_present():
@@ -32,6 +37,7 @@ def test_required_scenarios_present():
         "04_sworn_removal_academy_washout",
         "05_pending_appeal_incomplete",
         "06_position_abolished_no_turnover",
+        "10_vacancy_offset_senior_deputy",
     ):
         assert required in names, f"golden case {required} is missing"
 
@@ -81,6 +87,40 @@ def test_pending_appeal_awards_nothing(org, assumptions):
     assert "back_pay" not in appeal_subs
     assert "settlement" not in appeal_subs
     assert result.cost_incomplete
+
+
+def test_vacancy_offset_mirrors_the_overtime_it_credits(org, assumptions):
+    """The charge and the credit must cover the same shifts, or the net is meaningless."""
+    for case in CASES:
+        result = case.compute(org, assumptions)
+        overtime = [i for i in result.line_items if i.subcomponent == "vacancy_coverage_overtime"]
+        offsets = [i for i in result.line_items if i.subcomponent == "vacancy_salary_saved"]
+        assert len(overtime) == len(offsets), (
+            f"{case.name}: {len(overtime)} vacancy overtime line(s) but "
+            f"{len(offsets)} offset line(s) -- they must come in pairs"
+        )
+        for charge, credit in zip(overtime, offsets, strict=True):
+            assert charge.inputs["scheduled_shifts"] == credit.inputs["scheduled_shifts"]
+            assert credit.component in OFFSET_COMPONENTS
+            assert credit.amount < 0
+
+
+def test_civilian_vacancies_get_no_salary_offset(org, assumptions):
+    """`c5_vacancy_productivity_loss_factor` is defined as a NET figure, so crediting the
+    salary again would double-count it. Documented in cost_methodology.md section 7."""
+    for stem in ("03_civilian_removal_refilled", "08_removal_refill_pending"):
+        case = next(c for c in CASES if c.path.stem == stem)
+        result = case.compute(org, assumptions)
+        subs = {i.subcomponent for i in result.line_items}
+        assert "vacancy_productivity_loss" in subs
+        assert "vacancy_salary_saved" not in subs
+        assert result.offset == 0
+
+
+def test_abolished_position_has_no_offset_either(org, assumptions):
+    case = next(c for c in CASES if c.path.stem == "06_position_abolished_no_turnover")
+    result = case.compute(org, assumptions)
+    assert not [i for i in result.line_items if i.component in OFFSET_COMPONENTS]
 
 
 def test_washout_multiplier_is_visible_in_the_drill_down(org, assumptions):

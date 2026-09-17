@@ -14,6 +14,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from wri_engine.schema.enums import (
+    OFFSET_COMPONENTS,
     ActionType,
     AppealForum,
     AppealOutcome,
@@ -180,9 +181,9 @@ class CostLineItem(BaseModel):
 
     @model_validator(mode="after")
     def _sign_convention(self) -> CostLineItem:
-        if self.component == CostComponent.C3_OFFSET:
+        if self.component in OFFSET_COMPONENTS:
             if self.amount > 0:
-                raise ValueError("C3-offset line items must be zero or negative")
+                raise ValueError(f"{self.component} line items must be zero or negative")
         elif self.amount < 0:
             raise ValueError(f"{self.component} line items must not be negative")
         return self

@@ -76,9 +76,15 @@ its full field mapping in `src/wri_engine/adapters/nfc.py`.
 | C1 | Processing labor | Supervisor, HR/labor relations, deciding official and investigator hours |
 | C2 | Paid administrative leave | Scheduled shifts of leave × the employee's loaded rate |
 | C3 | Backfill overtime | Overtime covering minimum-staffing posts, at the peer's rate and the overtime burden — not the full benefits multiplier |
-| C3-offset | Unpaid suspension savings | The wage not paid, as a **negative** line item, so net never hides it |
+| C3-offset | Unpaid suspension savings | The wage not paid during the suspension, as a **negative** line item, so net never hides it |
 | C4 | Appeals and grievances | Internal hours, outside counsel, arbitration fees, back pay, interest, settlements — only where a record exists |
 | C5 | Removal turnover | Vacancy coverage, recruiting, screening, academy, field training, ramp-up, equipment, adjusted for recruit washout |
+| C5-offset | Vacancy salary savings | The removed employee's salary, which stops on the separation date, credited back over the same shifts the vacancy overtime was charged for |
+
+The two offsets exist because the engine charges **gross**: it bills the overtime that covers
+a suspended or vacant post at the rate of whoever works the shift, then credits back the wage
+the county stopped paying, at that person's own rate. Only the wage and the payroll taxes on
+it are treated as saved — health insurance and retiree health continue either way.
 
 **Explains every dollar.** Each line item stores its formula in plain English, the values it
 used, and the ids of the assumptions it consumed:

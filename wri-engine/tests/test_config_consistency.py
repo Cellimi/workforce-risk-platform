@@ -38,6 +38,34 @@ def test_every_role_family_has_a_configured_turnover_profile(org, assumptions):
         assumptions.get(f"c5_academy_weeks_{role.turnover_profile}")
 
 
+def test_the_vacancy_salary_burden_assumption_exists(assumptions):
+    """C5 references it for every minimum-staffing vacancy, so a missing id would take the
+    whole engine down rather than degrade quietly."""
+    assumption = assumptions.get("c5_vacancy_salary_burden_multiplier")
+    assert assumption.unit == "ratio"
+    assert assumption.value >= 1, "a burden multiplier below 1 would credit less than the wage"
+    assert assumption.status == "TBD-MIKE"
+    assert "OPEN ITEM 3" in assumption.notes
+
+
+def test_the_two_wage_burden_assumptions_are_separate_ids(assumptions):
+    """They start equal on purpose, but must stay independently settable: a vacancy and a
+    suspension are different events and the employer may stop different things."""
+    suspension = assumptions.get("c3_unpaid_suspension_burden_multiplier")
+    vacancy = assumptions.get("c5_vacancy_salary_burden_multiplier")
+    assert suspension.id != vacancy.id
+    assert suspension.value == vacancy.value
+
+
+def test_the_civilian_loss_factor_records_its_net_interpretation(assumptions):
+    """Civilian vacancies get no salary offset, which is only correct if the factor is a NET
+    figure. That reading has to be written down where the number lives."""
+    for profile in ("civilian_skilled", "civilian_standard"):
+        notes = assumptions.get(f"c5_vacancy_productivity_loss_factor_{profile}").notes
+        assert "NET figure" in notes
+        assert "CONFIRM THE INTERPRETATION" in notes
+
+
 def test_every_role_family_has_a_benefits_multiplier(org, assumptions):
     for role in org.role_families.values():
         assert role.benefits_group in {"civilian", "sworn_public_safety"}

@@ -449,6 +449,25 @@ assumptions:
   notes: 'The county does NOT save the full loaded cost of an unpaid suspension - it keeps paying health
     and OPEB. It saves the wage plus only the burdens that scale with the wage. Raise the value if
     pension contributions are also suspended with the pay, which is plan-specific. See OPEN ITEM 3.'
+- id: c5_vacancy_salary_burden_multiplier
+  value: 1.0765
+  low: 1.0765
+  high: 1.35
+  unit: ratio
+  applies_to:
+    scope: vacancy_salary_offset
+  source: 'Employer FICA that is not paid on wages the employee does not earn: 6.2% OASDI + 1.45% HI
+    = 7.65% (26 U.S.C. 3111). Health insurance and OPEB for the vacant seat are not counted as saved.'
+  confidence: medium
+  owner: Mike Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-09-17'
+  notes: 'Copied from c3_unpaid_suspension_burden_multiplier and given its own id so the two can
+    diverge - a vacancy and a suspension are not the same event, and the employer may stop different
+    things in each case. Applied to the removed employee''s own base rate across the vacancy period.
+    The county does NOT save the full loaded cost - health and OPEB obligations attached to the
+    position do not vanish on the separation date. Raise the value if pension contributions also
+    stop, which is plan-specific. See OPEN ITEM 3.'
 - id: c4_hr_hours_arbitration
   value: 40
   low: 25
@@ -2197,6 +2216,12 @@ assumptions:
   notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
     is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
     roles, where the vacancy is covered by overtime instead. (sworn deputy)
+    CONFIRM THE INTERPRETATION, MIKE - this factor is treated as a NET figure, the value of the work
+    nobody did over and above the salary the county already stopped paying. That is why a civilian
+    vacancy gets no separate salary offset, while a minimum-staffing vacancy does (it is charged gross
+    overtime, so the salary saving must be credited back separately). If you would rather read this
+    factor as gross lost output, the engine needs a civilian salary offset too and this value should
+    come down.
 - id: c5_vacancy_productivity_loss_factor_corrections
   value: 0
   low: 0
@@ -2212,6 +2237,12 @@ assumptions:
   notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
     is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
     roles, where the vacancy is covered by overtime instead. (corrections officer)
+    CONFIRM THE INTERPRETATION, MIKE - this factor is treated as a NET figure, the value of the work
+    nobody did over and above the salary the county already stopped paying. That is why a civilian
+    vacancy gets no separate salary offset, while a minimum-staffing vacancy does (it is charged gross
+    overtime, so the salary saving must be credited back separately). If you would rather read this
+    factor as gross lost output, the engine needs a civilian salary offset too and this value should
+    come down.
 - id: c5_vacancy_productivity_loss_factor_dispatch
   value: 0
   low: 0
@@ -2227,6 +2258,12 @@ assumptions:
   notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
     is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
     roles, where the vacancy is covered by overtime instead. (telecommunicator)
+    CONFIRM THE INTERPRETATION, MIKE - this factor is treated as a NET figure, the value of the work
+    nobody did over and above the salary the county already stopped paying. That is why a civilian
+    vacancy gets no separate salary offset, while a minimum-staffing vacancy does (it is charged gross
+    overtime, so the salary saving must be credited back separately). If you would rather read this
+    factor as gross lost output, the engine needs a civilian salary offset too and this value should
+    come down.
 - id: c5_vacancy_productivity_loss_factor_fire_ems
   value: 0
   low: 0
@@ -2242,6 +2279,12 @@ assumptions:
   notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
     is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
     roles, where the vacancy is covered by overtime instead. (firefighter/EMT)
+    CONFIRM THE INTERPRETATION, MIKE - this factor is treated as a NET figure, the value of the work
+    nobody did over and above the salary the county already stopped paying. That is why a civilian
+    vacancy gets no separate salary offset, while a minimum-staffing vacancy does (it is charged gross
+    overtime, so the salary saving must be credited back separately). If you would rather read this
+    factor as gross lost output, the engine needs a civilian salary offset too and this value should
+    come down.
 - id: c5_vacancy_productivity_loss_factor_civilian_skilled
   value: 0.5
   low: 0.25
@@ -2257,6 +2300,12 @@ assumptions:
   notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
     is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
     roles, where the vacancy is covered by overtime instead. (skilled civilian)
+    CONFIRM THE INTERPRETATION, MIKE - this factor is treated as a NET figure, the value of the work
+    nobody did over and above the salary the county already stopped paying. That is why a civilian
+    vacancy gets no separate salary offset, while a minimum-staffing vacancy does (it is charged gross
+    overtime, so the salary saving must be credited back separately). If you would rather read this
+    factor as gross lost output, the engine needs a civilian salary offset too and this value should
+    come down.
 - id: c5_vacancy_productivity_loss_factor_civilian_standard
   value: 0.5
   low: 0.25
@@ -2272,6 +2321,12 @@ assumptions:
   notes: OPEN ITEM 5. For roles with no minimum staffing requirement the seat simply sits empty; this
     is the share of that position's daily loaded cost treated as lost output. Not used for minimum-staffing
     roles, where the vacancy is covered by overtime instead. (standard civilian)
+    CONFIRM THE INTERPRETATION, MIKE - this factor is treated as a NET figure, the value of the work
+    nobody did over and above the salary the county already stopped paying. That is why a civilian
+    vacancy gets no separate salary offset, while a minimum-staffing vacancy does (it is charged gross
+    overtime, so the salary saving must be credited back separately). If you would rather read this
+    factor as gross lost output, the engine needs a civilian salary offset too and this value should
+    come down.
 - id: c5_expected_vacancy_days_sworn_deputy
   value: 150
   low: 90

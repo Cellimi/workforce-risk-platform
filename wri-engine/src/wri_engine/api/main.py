@@ -549,6 +549,7 @@ def _summary_markdown(s: dict[str, Any]) -> str:
         "C3-offset": "C3-offset Unpaid suspension savings",
         "C4": "C4 Appeals and grievances",
         "C5": "C5 Removal turnover",
+        "C5-offset": "C5-offset Vacancy salary savings",
     }
     for key, label in labels.items():
         lines.append(f"| {label} | {money(s['component_totals'].get(key, '0'))} |")
