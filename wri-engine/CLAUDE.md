@@ -4,6 +4,9 @@ This project computes the **fully loaded cost of discipline** for a fictional co
 government. It is a production foundation, not a throwaway demo. Only the Streamlit UI
 layer is disposable.
 
+**Before starting any work, read `docs/WORKPLAN.md`.** It says which branch to start from,
+which branch a pull request targets, and which session has claimed which item.
+
 ## Hard rules
 
 1. **Never hardcode a cost coefficient in Python.** Every coefficient lives in
