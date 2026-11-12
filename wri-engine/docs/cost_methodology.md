@@ -72,13 +72,18 @@ loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
 | Assumption | Value | Status |
 |---|---|---|
 | `benefits_multiplier_civilian` | **1.627** | researched |
-| `benefits_multiplier_sworn` | **1.75** | `TBD-MIKE` |
+| `benefits_multiplier_sworn` | **1.75** | confirmed, but low confidence and unsourced |
 
 The civilian multiplier is the ratio of total compensation to wages for state and local
 government workers in the BLS **Employer Costs for Employee Compensation** release for March
 2026 (USDL-26-0827, released 2026-06-12), Table 1 "By ownership": total compensation
 $66.41 per hour worked against wages and salaries of $40.82 per hour worked, giving
 66.41 / 40.82 = **1.627**.
+
+**A note on status before the caveats.** As of 2026-11-12 the owner has signed off on every
+assumption in the registry, so none is marked `TBD-MIKE`. Sign-off settles *who stands
+behind a number*; it does not change *where the number came from*. The `source` and
+`confidence` fields still carry that, and the caveats below are unaffected by the sign-off.
 
 **Two caveats a reader should know about.**
 
@@ -92,8 +97,9 @@ $66.41 per hour worked against wages and salaries of $40.82 per hour worked, giv
    base value is higher. The figure to confirm it against is ECEC Table 3 (state and local
    government by occupational group, "protective service"); `bls.gov` was unreachable from
    the build environment, so 1.75 is an owner estimate with **low** confidence and its low
-   bound deliberately set to the all-occupations figure. **This is open item 1 for external
-   showing.**
+   bound deliberately set to the all-occupations figure. The owner has approved 1.75 as the
+   working value, so the engine runs on it — but it remains an estimate rather than a cited
+   figure, and it scales every public-safety number in the model. **This is open item 1.**
 
 ### Rates for people who are not in the extract
 
@@ -114,7 +120,7 @@ Every action consumes staff time before it produces any other cost.
 line item = hours x that person's loaded hourly rate
 ```
 
-Hours by action type (`c1_hours_<action>_<actor>`, all `TBD-MIKE` starting defaults):
+Hours by action type (`c1_hours_<action>_<actor>`, owner-approved professional estimates):
 
 | Action type | Supervisor | HR / LR | Deciding official |
 |---|---:|---:|---:|
@@ -238,7 +244,7 @@ Counted only when an appeal or grievance record exists. Up to six line items per
 
 Internal hours by forum: grievance step 10, civil service board 30, arbitration 40, court 60.
 The outside counsel rate ($325), the arbitration flat cost ($7,500) and the interest rate
-(5%) are all `TBD-MIKE` -- **open item 2**.
+(5%) are all owner estimates carrying low confidence -- **open item 2**.
 
 ### Incomplete cost
 
@@ -255,7 +261,7 @@ The window used is the longest one available to that employee -- a grievance ste
 or arbitration (30 days) for represented employees, the civil service board (20 days) for
 non-represented ones. **Court is deliberately excluded**: its window runs months, and
 including it would flag half a year of actions as incomplete without telling anyone anything.
-Window lengths are `TBD-MIKE`; in practice they come from the collective bargaining agreement
+Window lengths are owner estimates; in practice they come from the collective bargaining agreement
 or civil service rule.
 
 ---
@@ -321,7 +327,7 @@ For every other role the seat simply sits empty:
 vacancy productivity loss = vacancy work days x loaded daily rate x productivity_loss_factor
 ```
 
-The factor defaults to **0.5** and is `TBD-MIKE` -- **open item 5**.
+The factor defaults to **0.5**, at low confidence -- **open item 5**.
 
 **Civilian vacancies get no salary offset, and that is only correct under one reading of this
 factor.** It is defined as a **net** figure: the value of the work nobody did, over and above
@@ -371,7 +377,7 @@ adjusted = raw / (1 - washout_rate)
 
 because filling one seat means hiring more than one person. The multiplier appears in each
 affected line item's `formula` and `inputs`, so it is never buried in a total. Washout rates
-run from 0.10 (standard civilian) to 0.40 (dispatch), all `TBD-MIKE` -- **open item 4**.
+run from 0.10 (standard civilian) to 0.40 (dispatch), all owner estimates -- **open item 4**.
 
 The **productivity ramp is not** washout-adjusted: only the person who stays ramps up.
 
@@ -465,8 +471,10 @@ Phase 1 is the cost baseline and nothing else.
   `src/wri_engine/generator/README.md`, precisely so nobody mistakes it for a discovery.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
-- **No claim that any figure is a measured agency cost.** 151 of the 166 assumptions are
-  still owner placeholders. The Assumptions page tints every one of them.
+- **No claim that any figure is a measured agency cost.** The owner has approved all 167
+  assumptions, which clears the engine to run but does not make the numbers measurements.
+  Only 13 carry a cited source; 86 remain low confidence. The Assumptions page tints the
+  low-confidence rows and shows the source beside each value.
 
 ---
 

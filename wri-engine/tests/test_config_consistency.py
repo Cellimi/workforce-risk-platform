@@ -44,8 +44,51 @@ def test_the_vacancy_salary_burden_assumption_exists(assumptions):
     assumption = assumptions.get("c5_vacancy_salary_burden_multiplier")
     assert assumption.unit == "ratio"
     assert assumption.value >= 1, "a burden multiplier below 1 would credit less than the wage"
-    assert assumption.status == "TBD-MIKE"
+    assert assumption.status == "confirmed"
     assert "OPEN ITEM 3" in assumption.notes
+
+
+def test_the_registry_is_fully_signed_off(assumptions):
+    """The owner approved the whole registry on 2026-11-12, so nothing is left pending."""
+    pending = sorted(a.id for a in assumptions.placeholders)
+    assert not pending, f"{len(pending)} assumptions still awaiting sign-off: {pending[:5]}"
+
+
+def test_sign_off_did_not_inflate_confidence(assumptions):
+    """Approving a number is not the same as verifying it.
+
+    Most values are still the owner's professional estimates. `status` records who signed
+    off; `confidence` records how much weight the figure bears, and sign-off must not quietly
+    raise it. If this ever fails, someone has conflated the two and the registry has stopped
+    telling the truth about where its numbers come from.
+    """
+    low = [a for a in assumptions.assumptions.values() if a.confidence == "low"]
+    assert len(low) >= 80, (
+        f"only {len(low)} low-confidence assumptions remain; confidence should not have "
+        f"moved when the owner signed off on the values"
+    )
+    owner_estimates = [
+        a for a in assumptions.assumptions.values() if "Owner professional estimate" in a.source
+    ]
+    assert len(owner_estimates) >= 100
+    for assumption in owner_estimates:
+        assert assumption.status != "researched", (
+            f"{assumption.id} is an owner estimate but claims 'researched', which asserts a "
+            f"cited source it does not have"
+        )
+
+
+def test_researched_assumptions_were_not_downgraded(assumptions):
+    """`researched` is a stronger claim than `confirmed` -- it names a source. A blanket
+    sign-off must not flatten it away."""
+    researched = {a.id for a in assumptions.assumptions.values() if a.status == "researched"}
+    assert "benefits_multiplier_civilian" in researched
+    assert len(researched) >= 13
+
+
+def test_every_assumption_names_the_owner_who_signed_it_off(assumptions):
+    for assumption in assumptions.assumptions.values():
+        assert assumption.owner == "Michael V. Celli", assumption.id
 
 
 def test_the_two_wage_burden_assumptions_are_separate_ids(assumptions):

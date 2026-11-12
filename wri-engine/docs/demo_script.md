@@ -141,10 +141,15 @@ Then scroll to the C5 block.
 
 > "Here's the part that decides whether this is a consulting deliverable or a product.
 >
-> 166 coefficients. Every one carries its source, its confidence, and who owns it. The amber
-> rows — 151 of them — are still my estimates, and they're marked as mine until a customer
-> confirms them. The benefits multiplier isn't: that's BLS Employer Costs for Employee
-> Compensation, March 2026, with the table and release date in the file."
+> 167 coefficients. Every one carries its source, its confidence, and who signed it off.
+> I've approved all of them, so the engine runs — but look at what approval does and doesn't
+> mean. Thirteen are backed by a citation: the civilian benefits multiplier is BLS Employer
+> Costs for Employee Compensation, March 2026, with the table and the release date in the
+> file. The other hundred and fifty-four are my professional judgement, and the amber rows —
+> eighty-six of them — are the ones I'd still call low confidence.
+>
+> I'm showing you that on purpose. A vendor who tells you every number is solid is telling
+> you they haven't looked."
 
 Drag `c5_washout_rate_sworn_deputy` from 0.25 toward 0.40 and hit **Run scenario**.
 
@@ -187,10 +192,11 @@ Close on the thing that actually matters:
 ## Questions you should expect, and honest answers
 
 **"Are these real numbers?"**
-No. Synthetic data, fictional county, and 151 of 166 coefficients are my estimates awaiting
-confirmation. The engine, the schema and the assumptions layer are production foundations;
-the values are not. The one sourced figure is the benefits multiplier, and it carries its
-citation.
+No. Synthetic data, fictional county. I've approved all 167 coefficients as the working
+values, but only 13 carry a citation and 86 are still low confidence — they're my
+professional estimates, not measurements. The engine, the schema and the assumptions layer
+are production foundations; the values are a starting point for a conversation with your HR
+director.
 
 **"Isn't paying twice for administrative leave double counting?"**
 No — it's two different payments. The employee is paid not to work, and a second employee is
@@ -222,9 +228,10 @@ overstates backfill for law enforcement, corrections and fire. Fixing it needs h
 data by work period, which a discipline extract doesn't carry.
 
 **"Why is the sworn benefits multiplier a guess when the civilian one is sourced?"**
-Because I could reach ECEC Table 1 and not Table 3. The public-safety figure is in Table 3,
-protective service occupations. It's flagged low confidence, its low bound is the
-all-occupations number, and it's open item 1 before this is shown to a customer.
+Because ECEC Table 1 was reachable and Table 3 wasn't. The public-safety figure is in Table
+3, protective service occupations. I've approved 1.75 so the model runs, but it's flagged
+low confidence, its low bound is deliberately the all-occupations number, and it scales
+every public-safety figure here. It's the first thing I'd verify against your actuals.
 
 **"Can I see one employee's record?"**
 Depends who you are, and the engine decides, not the screen. Executive: no. HR analyst:
@@ -233,4 +240,6 @@ pseudonymized. Admin: yes. Every request is written to an append-only audit log 
 **"How long to point this at our data?"**
 One adapter plus a mapping file. The canonical schema doesn't move, the cost engine doesn't
 move, and the validation rules come along for free. The longer job isn't the integration —
-it's sitting down with your HR director and turning 151 amber rows green.
+it's sitting down with your HR director and replacing my eighty-six low-confidence estimates
+with your actual numbers. That's the work that turns this from a credible model into your
+cost baseline.

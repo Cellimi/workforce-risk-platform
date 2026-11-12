@@ -583,8 +583,10 @@ def _summary_markdown(s: dict[str, Any]) -> str:
         "---",
         "",
         "Every figure above decomposes into line items that name their formula, their inputs "
-        "and the assumptions they used. Assumptions still marked `TBD-MIKE` are owner "
-        "placeholders and must be confirmed before this is shown externally.",
+        "and the assumptions they used. The owner has signed off on every assumption in the "
+        "registry, but sign-off is not verification: most values are still professional "
+        "estimates carrying low or medium confidence, and the Assumptions view shows the "
+        "source and confidence behind each one.",
         "",
     ]
     return "\n".join(lines)

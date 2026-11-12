@@ -103,10 +103,28 @@ def test_yaml_floats_survive_as_exact_decimals(assumptions):
     assert assumptions.value("benefits_multiplier_civilian") == Decimal("1.627")
 
 
-def test_placeholders_are_listed(assumptions):
-    ids = {a.id for a in assumptions.placeholders}
-    assert "benefits_multiplier_sworn" in ids
-    assert "benefits_multiplier_civilian" not in ids
+def test_placeholders_are_listed(tmp_path):
+    """The placeholder mechanism, tested against a fixture rather than the live registry.
+
+    The live file has no placeholders left -- the owner signed it off -- so asserting on it
+    would test the data, not the code. The mechanism still has to work for the next customer,
+    whose registry will start out full of them.
+    """
+    loaded = load_assumptions(
+        write(
+            tmp_path,
+            [
+                {**BASE, "id": "pending", "status": "TBD-MIKE"},
+                {**BASE, "id": "signed_off", "status": "confirmed"},
+                {**BASE, "id": "sourced", "status": "researched"},
+            ],
+        )
+    )
+    assert {a.id for a in loaded.placeholders} == {"pending"}
+
+
+def test_the_live_registry_has_no_placeholders_left(assumptions):
+    assert assumptions.placeholders == []
 
 
 def test_records_expose_the_effective_value(assumptions):

@@ -10,8 +10,9 @@ items that each name their own formula, the values used, and the assumption behi
 > **Harlow County does not exist.** The data is generated from public distributional shapes
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
-> assumptions, **not measured agency costs** — 151 of the 166 assumptions are still owner
-> placeholders, and the demo marks every one of them.
+> assumptions, **not measured agency costs**. The owner has approved all 167 assumptions,
+> but approval is not verification: 86 are still low-confidence professional estimates, and
+> the demo tints every one of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
 > rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
@@ -98,7 +99,13 @@ average base rate for deputy at North District)
 **Puts every coefficient in a file, not in code.** 166 assumptions in
 `config/assumptions.yaml`, each with a source, a confidence level, low/base/high bounds, an
 owner and a status. Asking for an assumption that is not there is a hard error, never a
-silent default. 151 are still owner placeholders and are marked `TBD-MIKE`.
+silent default.
+
+The owner signed off on the whole registry on 2026-11-12, so nothing is left marked
+`TBD-MIKE`. That is a sign-off, not a measurement: 13 entries carry a cited source, the
+other 154 are professional estimates the owner stands behind, and 86 of those remain **low
+confidence**. `status` says who approved a value; `confidence` says how much weight it
+bears, and the two moved independently.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -192,10 +199,15 @@ make lint     # ruff
 
 ## Before this is shown externally
 
-`config/assumptions.yaml` marks 151 values `TBD-MIKE`. The ones that move the headline most:
+The owner has approved every value in `config/assumptions.yaml`, so the engine is cleared
+to run. What approval does **not** do is turn an estimate into a measurement. These are the
+ones most worth replacing with the customer's own figures, because they move the headline
+most and are the least grounded:
 
-1. The **sworn benefits multiplier** (currently an owner estimate; confirm against BLS ECEC
-   Table 3, protective service occupations).
+1. The **sworn benefits multiplier**, 1.75. Approved, but still unsourced and marked low
+   confidence — the civilian figure beside it comes from BLS ECEC and this one does not.
+   Verify against ECEC Table 3, protective service occupations. It scales every
+   public-safety figure in the model, so it is the single value most worth getting right.
 2. **C1 processing and investigation hours**.
 3. **Outside counsel rate and the county's arbitration cost share**.
 4. **Whether overtime is pensionable**, which drives the C3 overtime burden.
@@ -203,9 +215,11 @@ make lint     # ruff
    length and cost, field training length, washout rates, civilian ramp weeks.
 6. The **civilian vacancy productivity-loss factor**.
 7. The **minimum cell size** for suppression (default 5).
-8. The **final fictional county name** — "Harlow County" is a placeholder.
+8. The **final fictional county name** — "Harlow County" is still marked a placeholder in
+   `config/org_county.yaml`, which is a separate file from the assumptions registry.
 
-Every one of them is visible, tinted, on the Assumptions page of the demo.
+Every low-confidence value is visible, tinted, on the Assumptions page of the demo, with
+its source beside it.
 
 ---
 
