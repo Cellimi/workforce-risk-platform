@@ -49,11 +49,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from wri_engine.costing.components.c3_backfill import vacancy_period_shifts
+from wri_engine.costing.components.c3_backfill import _coverage_rate, vacancy_period_shifts
 from wri_engine.costing.context import CostContext, money
 from wri_engine.schema import CostComponent, CostLineItem, DisciplineAction, Employee
 
 _WEEKS_PER_YEAR = Decimal("52")
+
+
+#: Component codes this module can emit. Read by `SectorPack.component_codes`.
+PRODUCES = ("C5", "C5-offset")
 
 
 def compute(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:
@@ -131,8 +135,10 @@ class _Builder:
         hours = shifts * self.employee.standard_shift_hours
         if hours <= 0:
             return []
-        base = self.ctx.rates.backfill_base_rate(self.employee)
-        ot_rate, ot_ids, ot_note = self.ctx.rates.overtime_rate(base)
+        # Covered the same way an absence is: a peer on overtime, or an agency temp at a
+        # marked-up rate. Pricing the vacancy differently from the suspension would be
+        # indefensible -- it is the same empty post.
+        ot_rate, ot_ids, ot_note, noun = _coverage_rate(self.employee, self.ctx)
         burden_id = "c5_vacancy_salary_burden_multiplier"
         burden = self.ctx.value(burden_id)
         saved = hours * self.employee.hourly_base_rate * burden
@@ -144,12 +150,13 @@ class _Builder:
                     f"Minimum-staffing post covered by overtime for {self.vacancy_days} "
                     f"days ({self.vacancy_basis}): {shifts} shifts x "
                     f"{self.employee.standard_shift_hours} hrs x ${ot_rate:,.2f}/hr "
-                    f"overtime ({ot_note}; {base.basis})"
+                    f"{noun} ({ot_note})"
                 ),
                 inputs={
                     "vacancy_days": self.vacancy_days,
                     "scheduled_shifts": str(shifts),
                     "overtime_hours": str(hours),
+                    "coverage_method": str(self.employee.coverage_method),
                     "overtime_rate": str(money(ot_rate)),
                     "basis": self.vacancy_basis,
                 },

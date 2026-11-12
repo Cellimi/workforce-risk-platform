@@ -48,10 +48,61 @@ def test_the_vacancy_salary_burden_assumption_exists(assumptions):
     assert "OPEN ITEM 3" in assumption.notes
 
 
-def test_the_registry_is_fully_signed_off(assumptions):
-    """The owner approved the whole registry on 2026-11-12, so nothing is left pending."""
-    pending = sorted(a.id for a in assumptions.placeholders)
-    assert not pending, f"{len(pending)} assumptions still awaiting sign-off: {pending[:5]}"
+#: Values added for the private-sector cost model that the owner has not reviewed yet.
+#: This is the review checklist. As each one is approved, delete it from here -- the test
+#: below then fails if the registry still calls it pending, and passes once it does not.
+AWAITING_OWNER_REVIEW = {
+    "c1_outside_investigator_hourly_rate",
+    "c3_temp_agency_markup",
+    "c4_filing_window_days_demand_letter",
+    "c4_filing_window_days_mediation",
+    "c4_hr_hours_agency_charge",
+    "c4_hr_hours_demand_letter",
+    "c4_hr_hours_mediation",
+    "c6_separation_agreement_counsel_hours",
+    "c6_separation_agreement_hr_hours",
+    "c6_unemployment_experience_rating_multiplier",
+}
+
+
+def test_nothing_the_owner_approved_has_gone_back_to_pending(assumptions):
+    """The owner signed off the whole registry on 2026-11-12.
+
+    New work may add values he has not seen -- those belong in AWAITING_OWNER_REVIEW above.
+    What must not happen is an already-approved value quietly reverting to a placeholder, or
+    a new one being added without landing on the review list.
+    """
+    pending = {a.id for a in assumptions.placeholders}
+    unexpected = sorted(pending - AWAITING_OWNER_REVIEW)
+    assert not unexpected, (
+        f"{len(unexpected)} assumptions are pending that are not on the review checklist: "
+        f"{unexpected}. Either the owner's sign-off was undone, or a new value was added "
+        f"without being listed for him to review."
+    )
+
+
+def test_the_review_checklist_is_not_stale(assumptions):
+    """Once the owner approves one, it has to come off the list."""
+    pending = {a.id for a in assumptions.placeholders}
+    approved = sorted(AWAITING_OWNER_REVIEW - pending)
+    assert not approved, (
+        f"{approved} are no longer pending, so remove them from AWAITING_OWNER_REVIEW."
+    )
+
+
+def test_every_pending_value_says_why_it_is_not_researched(assumptions):
+    """A pending value must explain itself, so the owner can review it without digging.
+
+    The owner asked for every new value to carry a citation. Where no authoritative figure
+    exists, the honest answer is to say so rather than dress a vendor page up as research --
+    so each pending entry has to state that it is not researched and what would settle it.
+    """
+    for assumption in assumptions.placeholders:
+        assert assumption.source.strip(), assumption.id
+        assert (
+            "NOT marked researched" in assumption.notes
+            or "Owner professional estimate" in assumption.source
+        ), f"{assumption.id} is pending but does not say why it is not researched"
 
 
 def test_sign_off_did_not_inflate_confidence(assumptions):

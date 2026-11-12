@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
+from typing import TYPE_CHECKING
 
 from wri_engine.costing.assumptions import AssumptionSet
 from wri_engine.costing.rates import RateBook
@@ -21,6 +22,9 @@ from wri_engine.schema import (
     Employee,
     Separation,
 )
+
+if TYPE_CHECKING:  # a pack names component modules, and those import this module
+    from wri_engine.sectors import SectorPack
 
 CENTS = Decimal("0.01")
 
@@ -35,6 +39,7 @@ class CostContext:
     org: OrgConfig
     assumptions: AssumptionSet
     rates: RateBook
+    pack: SectorPack
     as_of: date
     employees: dict[str, Employee]
     leave_by_action: dict[str, list[AdminLeavePeriod]]
@@ -48,11 +53,16 @@ class CostContext:
         org: OrgConfig,
         assumptions: AssumptionSet,
         as_of: date,
+        pack: SectorPack | None = None,
     ) -> CostContext:
+        from wri_engine.sectors import get_pack
+
+        pack = pack or get_pack()
         return cls(
             org=org,
             assumptions=assumptions,
-            rates=RateBook(data, org, assumptions),
+            rates=RateBook(data, org, assumptions, pack),
+            pack=pack,
             as_of=as_of,
             employees=data.employees_by_id(),
             leave_by_action=data.leave_by_action(),

@@ -1,0 +1,231 @@
+name: "Private-sector removal: agency cover, severance and an unemployment claim"
+description: >
+  A warehouse associate on a post that has to be staffed. The employer covers the absence
+  with an agency temp rather than a peer on overtime, and the removal ends in a signed
+  separation agreement with an unemployment claim behind it. Exercises the private benefits
+  multiplier, agency cover in both C3 and C5, and the whole of C6.
+sector: private_sector
+as_of: 2026-11-12
+action_under_test: A1
+
+# The client's own job families, as the intake adapter would build them from an employee
+# file: the "pay grade" is the family and step 1 is the entry salary a replacement is hired
+# on. There is no step/grade ladder in a private employer's file.
+org:
+  departments:
+    - id: distribution
+      name: "Distribution"
+      locations: ["Riverside Distribution Centre"]
+      role_families:
+        - id: warehouse_associate
+          name: "Warehouse Associate"
+          job_titles: ["Warehouse Associate"]
+          job_class_code: "DC-100"
+          pay_grade: warehouse_associate
+          headcount: 2
+          is_sworn: false
+          minimum_staffing_role: true
+          flsa_status: non_exempt
+          schedule: civilian_5x8
+          benefits_group: private_all
+          turnover_profile: civilian_standard
+          is_supervisory: false
+        - id: shift_supervisor
+          name: "Shift Supervisor"
+          job_titles: ["Shift Supervisor"]
+          job_class_code: "DC-300"
+          pay_grade: shift_supervisor
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: non_exempt
+          schedule: civilian_5x8
+          benefits_group: private_all
+          turnover_profile: civilian_skilled
+          is_supervisory: true
+  entry_salaries:
+    warehouse_associate: 37440
+    shift_supervisor: 58240
+
+employees:
+  - employee_id: E1
+    department: "Distribution"
+    role_family: warehouse_associate
+    job_title: "Warehouse Associate"
+    job_class_code: "DC-100"
+    pay_grade: "H3"
+    pay_step: 4
+    annual_base_salary: 41600
+    hourly_base_rate: 20.00
+    flsa_status: non_exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: true
+    coverage_method: temp_agency
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_standard
+    work_location: "Riverside Distribution Centre"
+    supervisor_id: E2
+    hire_date: 2021-04-05
+    separation_date: 2026-03-13
+    separation_reason: removal_for_cause
+  - employee_id: E2
+    department: "Distribution"
+    role_family: shift_supervisor
+    job_title: "Shift Supervisor"
+    job_class_code: "DC-300"
+    pay_grade: "H6"
+    pay_step: 3
+    annual_base_salary: 62400
+    hourly_base_rate: 30.00
+    flsa_status: non_exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_skilled
+    work_location: "Riverside Distribution Centre"
+    hire_date: 2016-09-19
+  - employee_id: E3
+    department: "Distribution"
+    role_family: warehouse_associate
+    job_title: "Warehouse Associate"
+    job_class_code: "DC-100"
+    pay_grade: "H3"
+    pay_step: 2
+    annual_base_salary: 41600
+    hourly_base_rate: 20.00
+    flsa_status: non_exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: true
+    coverage_method: temp_agency
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_standard
+    work_location: "Riverside Distribution Centre"
+    hire_date: 2023-02-13
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-02-14
+    proposal_date: 2026-02-20
+    decision_date: 2026-03-10
+    misconduct_category: time_falsification
+    misconduct_subtype: "Timesheet falsification"
+    action_type: removal
+    suspension_days: 0
+    was_investigated: true
+    investigation_type: hr
+    deciding_official_level: department_head
+    written_conduct_policy: true
+
+admin_leave:
+  - leave_id: L1
+    employee_id: E1
+    action_id: A1
+    start_date: 2026-02-16
+    end_date: 2026-03-10
+    paid: true
+
+separations:
+  - employee_id: E1
+    separation_date: 2026-03-13
+    separation_reason: removal_for_cause
+    linked_action_id: A1
+    position_refilled: true
+    refill_date: 2026-05-12
+    separation_agreement: true
+    severance_amount: 12000
+    unemployment_claim_filed: true
+    unemployment_benefits_charged: 6500
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# PRIVATE-SECTOR RATES. The multiplier is 1.4287 (BLS ECEC June 2026, private industry:
+#   $46.89 total compensation / $32.82 wages per hour worked), NOT the 1.627 a government
+#   employer carries. That single difference runs through every line below.
+#   Associate E1:  $41,600 / 2,080 = $20.00/hr base -> $28.574/hr loaded.
+#   Supervisor E2: $62,400 / 2,080 = $30.00/hr base -> $42.861/hr loaded.
+#   HR reference:  $78,000 / 2,080 = $37.50/hr      -> $53.57625/hr loaded.
+#   Department head: $135,000 x 1.4287 / 2,080 = $92.728125/hr.
+#   Associate E3 is the only ACTIVE associate, so peer cover is priced off his $20.00 base.
+#
+# C1 supervisor     30 hrs x $42.861    = $1,285.83
+# C1 HR             20 hrs x $53.57625  = $1,071.525 -> $1,071.53
+# C1 deciding        8 hrs x $92.728125 = $741.825 at four decimals, but the exact product
+#                    of 135000/1.4287/2080 is a shade under that, so it rounds to $741.82
+# C1 investigation  16 hrs x $53.57625  = $857.22   (HR investigation)
+#
+# THE ABSENCE, COVERED BY AN AGENCY
+#   Suspended on pay 2026-02-16 to 2026-03-10 = 23 calendar days. Monday to Friday only:
+#   17 weekdays, less the 19 February holiday, = 16 working days x 8 hrs = 128 hours.
+#   C2 paid leave     128 hrs x $28.574 loaded = $3,657.472 -> $3,657.47
+#   C3 cover          128 hrs x ($20.00 peer base x 1.50 agency markup = $30.00) = $3,840.00
+#   No FLSA premium and no overtime burden: the temp is not working overtime, and the
+#   markup already carries the agency's taxes, insurance and margin.
+#
+# THE VACANCY, 2026-03-14 to 2026-05-12 = 60 calendar days, 42 working days = 336 hours.
+#   C5 cover          336 hrs x $30.00 agency = $10,080.00  (same method as the absence)
+#   C5-offset         336 hrs x $20.00 base x 1.0765 burden = $7,234.08, credited back
+#
+# C5, civilian_standard profile, washout 0.12 -> recruiting and training items x 1/0.88
+#   Replacement rate: entry salary $37,440 / 2,080 = $18.00 x 1.4287 = $25.7166/hr
+#   advertising     $600 -> $681.82        background $250 -> $284.09
+#   recruiter       12 hrs x $53.57625 = $642.915 -> $730.59
+#   panel           2 x 1 hr x $42.861 = $85.722 -> $97.41
+#   drug screen     $65 -> $73.86          equipment  $300 -> $340.91
+#   orientation     12 hrs x $25.7166 = $308.60 -> $350.68
+#   ramp            6 wks x 40 hrs = 240 hrs x $25.7166 = $6,171.98 x 0.30 = $1,851.60
+#                   (not washout-adjusted: only the person who stays ramps up)
+#   No testing, no medical, no academy, no field training for this profile.
+#
+# C6, the costs that follow the removal out of the door
+#   severance       $12,000.00 from the record. Never estimated: an agreement with no
+#                   amount recorded would be reported, not guessed at.
+#   HR time          8 hrs x $53.57625 = $428.61
+#   counsel          4 hrs x $325.00    = $1,300.00
+#   unemployment    $6,500.00 charged to the employer's account x 1.0, which counts the
+#                   actual charge and claims no experience-rating amplification
+#
+# C1 $3,956.40 + C2 $3,657.47 + C3 $3,840.00 + C5 $14,490.96 + C6 $20,228.61
+# Gross   $46,173.44
+# Offset  -$7,234.08
+# Net     $38,939.36
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '741.82'}
+    - {component: C1, subcomponent: hr_hours, amount: '1071.53'}
+    - {component: C1, subcomponent: investigation_hr, amount: '857.22'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '1285.83'}
+    - {component: C2, subcomponent: paid_admin_leave, amount: '3657.47'}
+    - {component: C3, subcomponent: backfill_admin_leave, amount: '3840.00'}
+    - {component: C5, subcomponent: advertising, amount: '681.82'}
+    - {component: C5, subcomponent: background_investigation, amount: '284.09'}
+    - {component: C5, subcomponent: drug_screen, amount: '73.86'}
+    - {component: C5, subcomponent: equipment_and_uniform, amount: '340.91'}
+    - {component: C5, subcomponent: hr_recruiter_hours, amount: '730.59'}
+    - {component: C5, subcomponent: interview_panel, amount: '97.41'}
+    - {component: C5, subcomponent: orientation, amount: '350.68'}
+    - {component: C5, subcomponent: productivity_ramp, amount: '1851.60'}
+    - {component: C5, subcomponent: vacancy_coverage_overtime, amount: '10080.00'}
+    - {component: C5-offset, subcomponent: vacancy_salary_saved, amount: '-7234.08'}
+    - {component: C6, subcomponent: agreement_counsel, amount: '1300.00'}
+    - {component: C6, subcomponent: agreement_hr_hours, amount: '428.61'}
+    - {component: C6, subcomponent: severance_paid, amount: '12000.00'}
+    - {component: C6, subcomponent: unemployment_benefits_charged, amount: '6500.00'}
+  gross: '46173.44'
+  offset: '-7234.08'
+  net: '38939.36'
+  cost_incomplete: false

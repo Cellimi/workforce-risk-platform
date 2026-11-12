@@ -1,0 +1,146 @@
+name: "Exempt manager suspended without pay, with no written conduct policy"
+description: >
+  The saving that is not there. An operations manager is suspended for five days without
+  pay, but the employer has no written workplace conduct policy applying to all employees.
+  The FLSA salary-basis rule does not permit the deduction, so the manager is paid in full
+  and there is no wage saving to credit. The engine says so in a zero-valued offset line
+  rather than silently omitting it.
+sector: private_sector
+as_of: 2026-11-12
+action_under_test: A1
+
+org:
+  departments:
+    - id: operations
+      name: "Operations"
+      locations: ["Head Office"]
+      role_families:
+        - id: operations_manager
+          name: "Operations Manager"
+          job_titles: ["Operations Manager"]
+          job_class_code: "OP-700"
+          pay_grade: operations_manager
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: exempt
+          schedule: civilian_5x8
+          benefits_group: private_all
+          turnover_profile: civilian_skilled
+          is_supervisory: true
+        - id: operations_director
+          name: "Operations Director"
+          job_titles: ["Operations Director"]
+          job_class_code: "OP-900"
+          pay_grade: operations_director
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: exempt
+          schedule: civilian_5x8
+          benefits_group: private_all
+          turnover_profile: civilian_skilled
+          is_supervisory: true
+  entry_salaries:
+    operations_manager: 104000
+    operations_director: 145600
+
+employees:
+  - employee_id: E1
+    department: "Operations"
+    role_family: operations_manager
+    job_title: "Operations Manager"
+    job_class_code: "OP-700"
+    pay_grade: operations_manager
+    pay_step: 1
+    annual_base_salary: 124800
+    hourly_base_rate: 60.00
+    flsa_status: exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    coverage_method: none
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_skilled
+    work_location: "Head Office"
+    supervisor_id: E2
+    hire_date: 2019-07-08
+  - employee_id: E2
+    department: "Operations"
+    role_family: operations_director
+    job_title: "Operations Director"
+    job_class_code: "OP-900"
+    pay_grade: operations_director
+    pay_step: 1
+    annual_base_salary: 166400
+    hourly_base_rate: 80.00
+    flsa_status: exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    coverage_method: none
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_skilled
+    work_location: "Head Office"
+    hire_date: 2014-01-20
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-08-03
+    proposal_date: 2026-08-14
+    decision_date: 2026-09-01
+    misconduct_category: insubordination
+    misconduct_subtype: "Refusal of direct order"
+    action_type: suspension_4_14
+    suspension_days: 5
+    suspension_start_date: 2026-09-14
+    was_investigated: false
+    deciding_official_level: division_head
+    written_conduct_policy: false
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Manager E1:  $124,800 / 2,080 = $60.00/hr base x 1.4287 = $85.722/hr loaded.
+# Director E2: $166,400 / 2,080 = $80.00/hr base x 1.4287 = $114.296/hr loaded.
+# HR reference $53.57625/hr; division head $105,000 x 1.4287 / 2,080 = $72.121875/hr.
+#
+# C1 supervisor  12 hrs x $114.296   = $1,371.552 -> $1,371.55
+# C1 HR          10 hrs x $53.57625  = $535.7625  -> $535.76
+# C1 deciding     4 hrs x $72.121875 = $288.4875  -> $288.49
+# Not investigated, so no investigation hours.
+#
+# C3 COVER: none. The post has no staffing requirement, so nobody is called in and nothing
+#   is billed. A manager's absence is absorbed, not covered.
+#
+# C3-OFFSET: $0.00, AND THAT IS THE POINT OF THIS CASE.
+#   A five-day unpaid suspension looks like it saves five days of a $124,800 salary, about
+#   $2,400. It does not. The FLSA salary-basis rule permits an unpaid disciplinary
+#   suspension of an exempt employee only in full-day increments, in good faith, for
+#   infractions of workplace conduct rules, and only under a written policy applicable to
+#   all employees (29 CFR 541.602(b)(5)). This employer has no such policy, so the
+#   deduction cannot lawfully be made: the manager serves the suspension on full pay and
+#   there is no wage saving to credit.
+#   The engine emits a zero-valued offset line saying so, rather than omitting it. A missing
+#   line reads as a bug; a zero line with a reason reads as an answer. Set
+#   written_conduct_policy to true and the saving appears.
+#
+# Gross = Net = $2,195.80, offset $0.00
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '288.49'}
+    - {component: C1, subcomponent: hr_hours, amount: '535.76'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '1371.55'}
+    - {component: C3-offset, subcomponent: unpaid_suspension_not_available, amount: '0.00'}
+  gross: '2195.80'
+  offset: '0.00'
+  net: '2195.80'
+  cost_incomplete: false

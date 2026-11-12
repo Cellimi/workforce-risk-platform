@@ -123,8 +123,14 @@ def test_placeholders_are_listed(tmp_path):
     assert {a.id for a in loaded.placeholders} == {"pending"}
 
 
-def test_the_live_registry_has_no_placeholders_left(assumptions):
-    assert assumptions.placeholders == []
+def test_the_live_registry_only_holds_reviewed_or_listed_placeholders(assumptions):
+    """Everything the owner approved stays approved; anything pending is new work awaiting
+    his review. `tests/test_config_consistency.py` holds the checklist."""
+    pending = {a.id for a in assumptions.placeholders}
+    assert pending, "expected the private-sector additions to be awaiting review"
+    assert all(a.status == "TBD-MIKE" for a in assumptions.placeholders)
+    assert "benefits_multiplier_civilian" not in pending
+    assert "private_benefits_multiplier_all" not in pending
 
 
 def test_records_expose_the_effective_value(assumptions):

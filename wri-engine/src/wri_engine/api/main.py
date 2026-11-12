@@ -916,10 +916,30 @@ def export_summary(
     _audit(ctx, "/exports/summary.md")
     state.ensure_loaded()
     s = _summary(ctx, state.run(mode=mode))
-    return Response(_summary_markdown(s, _agency(ctx), _caption(ctx)), media_type="text/markdown")
+    standing = _assumption_standing(state.effective_assumptions)
+    return Response(
+        _summary_markdown(s, _agency(ctx), _caption(ctx), standing),
+        media_type="text/markdown",
+    )
 
 
-def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
+def _assumption_standing(assumptions) -> str:
+    """One sentence on where the registry stands, read from the registry itself.
+
+    Written this way so an export can never claim a blanket sign-off that has since been
+    reopened by new work, or by an engagement's own overrides.
+    """
+    records = assumptions.as_records()
+    pending = sum(1 for r in records if r["status"] == "TBD-MIKE")
+    if not pending:
+        return "The owner has signed off on every assumption in the registry."
+    return (
+        f"The owner has signed off on {len(records) - pending} of {len(records)} "
+        f"assumptions; {pending} are newer values awaiting his review."
+    )
+
+
+def _summary_markdown(s: dict[str, Any], agency: str, caption: str, standing: str) -> str:
     def money(text: str | None) -> str:
         return f"${Decimal(text):,.0f}" if text else "n/a"
 
@@ -987,10 +1007,10 @@ def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
         "---",
         "",
         "Every figure above decomposes into line items that name their formula, their inputs "
-        "and the assumptions they used. The owner has signed off on every assumption in the "
-        "registry, but sign-off is not verification: most values are still professional "
-        "estimates carrying low or medium confidence, and the Assumptions view shows the "
-        "source and confidence behind each one.",
+        "and the assumptions they used. " + standing + " Sign-off is not verification "
+        "either way: most values are professional estimates carrying low or medium "
+        "confidence, and the Assumptions view shows the source and confidence behind each "
+        "one.",
         "",
     ]
     return "\n".join(lines)

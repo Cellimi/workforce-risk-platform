@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -34,10 +35,61 @@ def test_offset_components_are_the_only_ones_excluded_from_gross(run):
     assert run.gross + run.offset == everything
 
 
-def test_both_offsets_actually_occur_in_the_dataset(run):
-    """If one stopped being emitted, the tests above would pass vacuously."""
+def test_every_offset_the_public_pack_can_emit_actually_occurs(run):
+    """If one stopped being emitted, the tests above would pass vacuously.
+
+    Scoped to what the public-sector pack produces. C7-offset is an insurer credit, which a
+    county dataset has no record of; golden case 13 covers it.
+    """
+    from wri_engine.sectors import get_pack
+
+    emitted = {code for module in get_pack("public_sector").components for code in module.PRODUCES}
+    expected = {c for c in OFFSET_COMPONENTS if str(c) in emitted}
     seen = {i.component for i in run.line_items if i.component in OFFSET_COMPONENTS}
-    assert seen == set(OFFSET_COMPONENTS), f"only saw {seen}"
+    assert seen == expected, f"only saw {seen}, expected {expected}"
+
+
+def test_public_sector_is_the_default_and_is_unchanged(loaded, org, assumptions):
+    """The sector seam must not have moved a single public figure.
+
+    Naming the sector explicitly and leaving it to the default have to give identical
+    results, to the cent, line item for line item.
+    """
+    from datetime import date
+
+    data, report = loaded
+    kwargs = dict(
+        as_of=date(2026, 9, 17),
+        org=org,
+        assumptions=assumptions,
+        excluded_action_ids=report.blocked_action_ids,
+    )
+    implicit = run_costing(data, **kwargs)
+    explicit = run_costing(data, sector="public_sector", **kwargs)
+    assert implicit.net == explicit.net
+    assert implicit.gross == explicit.gross
+    assert len(implicit.line_items) == len(explicit.line_items)
+    assert [(i.component, i.subcomponent, i.amount) for i in implicit.line_items] == [
+        (i.component, i.subcomponent, i.amount) for i in explicit.line_items
+    ]
+
+
+def test_an_unknown_sector_is_refused(loaded, org, assumptions):
+    """A cost model that quietly falls back to the wrong sector is worse than one that
+    refuses to start."""
+    from datetime import date
+
+    from wri_engine.sectors import UnknownSectorError
+
+    data, _ = loaded
+    with pytest.raises(UnknownSectorError, match="no cost model is installed"):
+        run_costing(
+            data,
+            as_of=date(2026, 9, 17),
+            org=org,
+            assumptions=assumptions,
+            sector="nonprofit_sector",
+        )
 
 
 def test_vacancy_charge_and_credit_cover_the_same_shifts(run):

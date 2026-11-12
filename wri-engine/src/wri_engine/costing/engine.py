@@ -22,13 +22,6 @@ from datetime import date
 from decimal import Decimal
 
 from wri_engine.costing.assumptions import AssumptionSet, Mode, default_assumptions
-from wri_engine.costing.components import (
-    c1_processing,
-    c2_admin_leave,
-    c3_backfill,
-    c4_appeals,
-    c5_turnover,
-)
 from wri_engine.costing.context import CostContext
 from wri_engine.orgconfig import OrgConfig, default_org_config
 from wri_engine.schema import (
@@ -38,17 +31,8 @@ from wri_engine.schema import (
     CostLineItem,
     DisciplineAction,
 )
+from wri_engine.sectors import SectorPack, get_pack
 
-COMPONENTS = (c1_processing, c2_admin_leave, c3_backfill, c4_appeals, c5_turnover)
-
-_TURNOVER_PROFILES = (
-    "sworn_deputy",
-    "corrections",
-    "dispatch",
-    "fire_ems",
-    "civilian_skilled",
-    "civilian_standard",
-)
 _C5_KEYS = (
     "advertising_cost",
     "hr_recruiter_hours",
@@ -74,25 +58,30 @@ _C5_KEYS = (
 )
 
 
-def expected_assumption_ids(org: OrgConfig) -> list[str]:
-    """Every assumption id the engine can ask for, given this organization.
+def expected_assumption_ids(org: OrgConfig, pack: SectorPack | None = None) -> list[str]:
+    """Every assumption id the engine can ask for, given this organization and sector.
 
     Used as a preflight check so a missing coefficient fails at load time with a list of
     names, rather than halfway through a run with a KeyError.
+
+    The set is sector-scoped. A public-sector run does not require the private-sector
+    benefits multiplier or the agency-charge hours, and a private-sector run does not
+    require an academy. Both draw from one registry, so an id shared by the two sectors is
+    one number to confirm, not two.
     """
+    pack = pack or get_pack()
     ids = [
-        "benefits_multiplier_civilian",
-        "benefits_multiplier_sworn",
         "c1_reference_annual_hours",
         "c1_hr_reference_annual_salary",
         "c3_ot_premium_multiplier",
         "c3_ot_burden_multiplier",
         "c3_unpaid_suspension_burden_multiplier",
-        "c5_vacancy_salary_burden_multiplier",
         "c4_outside_counsel_hourly_rate",
         "c4_arbitration_flat_cost",
         "c4_back_pay_interest_annual_rate",
+        "c5_vacancy_salary_burden_multiplier",
     ]
+    ids.extend(sorted(set(pack.benefits_assumption_by_group.values())))
     for level in org.raw["taxonomies"]["deciding_official_levels"]:
         ids.append(f"c1_deciding_annual_salary_{level}")
     for action_key in ("counseling", "reprimand", "suspension", "demotion", "removal"):
@@ -100,12 +89,14 @@ def expected_assumption_ids(org: OrgConfig) -> list[str]:
             ids.append(f"c1_hours_{action_key}_{actor}")
     for investigation in org.raw["taxonomies"]["investigation_types"]:
         ids.append(f"c1_investigation_hours_{investigation}")
-    for forum in org.appeal_forums:
+    for forum in pack.challenge_forums:
         ids.append(f"c4_hr_hours_{forum}")
         ids.append(f"c4_filing_window_days_{forum}")
-    for profile in _TURNOVER_PROFILES:
+    for profile in pack.turnover_profiles:
         for key in _C5_KEYS:
             ids.append(f"c5_{key}_{profile}")
+    for module in pack.components:
+        ids.extend(getattr(module, "REQUIRES_ASSUMPTIONS", ()))
     return sorted(set(ids))
 
 
@@ -158,6 +149,7 @@ class CostRun:
     mode: Mode = "base"
     overrides: dict = field(default_factory=dict)
     as_of: date | None = None
+    sector: str = "public_sector"
 
     @property
     def line_items(self) -> list[CostLineItem]:
@@ -214,24 +206,27 @@ def run_costing(
     mode: Mode = "base",
     overrides: dict | None = None,
     excluded_action_ids: Iterable[str] = (),
+    sector: str | None = None,
 ) -> CostRun:
-    """Cost every action in `data` that is not excluded."""
+    """Cost every action in `data` that is not excluded, using `sector`'s cost model."""
+    pack = get_pack(sector)
     org = org or default_org_config()
     assumptions = assumptions or default_assumptions(mode)
     if assumptions.mode != mode:
         assumptions = assumptions.with_mode(mode)
     if overrides:
         assumptions = assumptions.with_overrides(overrides)
-    assumptions.require_all(expected_assumption_ids(org))
+    assumptions.require_all(expected_assumption_ids(org, pack))
 
     excluded = set(excluded_action_ids)
-    ctx = CostContext.build(data, org, assumptions, as_of)
+    ctx = CostContext.build(data, org, assumptions, as_of, pack)
 
     run = CostRun(
         excluded_action_ids=excluded,
         mode=mode,
         overrides=dict(overrides or {}),
         as_of=as_of,
+        sector=pack.id,
     )
     for action in data.actions:
         if action.action_id in excluded:
@@ -239,7 +234,7 @@ def run_costing(
         if ctx.employee_for(action) is None:
             continue
         items: list[CostLineItem] = []
-        for component in COMPONENTS:
+        for component in pack.components:
             items.extend(component.compute(action, ctx))
         run.action_costs.append(
             ActionCost(
@@ -261,10 +256,17 @@ def cost_one(
     assumptions: AssumptionSet | None = None,
     mode: Mode = "base",
     overrides: dict | None = None,
+    sector: str | None = None,
 ) -> ActionCost | None:
     """Cost a single action. Used by the drill-down endpoint and by the golden tests."""
     run = run_costing(
-        data, as_of=as_of, org=org, assumptions=assumptions, mode=mode, overrides=overrides
+        data,
+        as_of=as_of,
+        org=org,
+        assumptions=assumptions,
+        mode=mode,
+        overrides=overrides,
+        sector=sector,
     )
     return run.by_action().get(action_id)
 

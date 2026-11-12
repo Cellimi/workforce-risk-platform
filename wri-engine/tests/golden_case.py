@@ -11,6 +11,7 @@ what the answer is supposed to be.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -66,17 +67,30 @@ class GoldenCase:
             )
             for e in self.raw["employees"]
         ]
-        actions = [DisciplineAction(**a) for a in self.raw.get("actions", [])]
+        actions = [
+            DisciplineAction(**_decimalize(a, ("outside_investigator_hours",)))
+            for a in self.raw.get("actions", [])
+        ]
         leave = [AdminLeavePeriod(**lv) for lv in self.raw.get("admin_leave", [])]
         appeals = [
             AppealOrGrievance(
                 **_decimalize(
-                    ap, ("back_pay_awarded", "settlement_amount", "outside_counsel_hours")
+                    ap,
+                    (
+                        "back_pay_awarded",
+                        "settlement_amount",
+                        "outside_counsel_hours",
+                        "insurer_paid_amount",
+                        "insurance_retention_paid",
+                    ),
                 )
             )
             for ap in self.raw.get("appeals", [])
         ]
-        separations = [Separation(**s) for s in self.raw.get("separations", [])]
+        separations = [
+            Separation(**_decimalize(sep, ("severance_amount", "unemployment_benefits_charged")))
+            for sep in self.raw.get("separations", [])
+        ]
         return CanonicalDataset(
             employees=employees,
             actions=actions,
@@ -85,13 +99,49 @@ class GoldenCase:
             separations=separations,
         )
 
+    @property
+    def sector(self) -> str:
+        """Which cost model the case runs under. Cases written before sectors existed say
+        nothing, and get the public-sector pack, exactly as they did then."""
+        return self.raw.get("sector", "public_sector")
+
+    def org_for(self, org: OrgConfig) -> OrgConfig:
+        """The organization this case runs against.
+
+        A public case uses the county config as it stands. A private case has no county
+        behind it, so it declares its own job families and their entry salaries -- exactly
+        what the intake adapter builds from a client's employee file, where `pay_grade` is
+        the job family and step 1 is the entry salary that prices a replacement hire.
+        """
+        extra = self.raw.get("org")
+        if not extra:
+            return org
+        raw = copy.deepcopy(org.raw)
+        raw["departments"] = raw["departments"] + [
+            {
+                "id": d["id"],
+                "name": d["name"],
+                "bargaining_unit": d.get("bargaining_unit", "non_represented"),
+                "staffing_model": d.get("staffing_model", "standard"),
+                "flsa_basis": d.get("flsa_basis", "standard_40"),
+                "locations": d["locations"],
+                "role_families": d["role_families"],
+            }
+            for d in extra["departments"]
+        ]
+        for family_id, salary in extra.get("entry_salaries", {}).items():
+            raw["pay_plan"]["grades"][family_id] = {"step1_base": salary}
+        return OrgConfig(raw)
+
     def compute(self, org: OrgConfig, assumptions: AssumptionSet) -> ActionCost | None:
+        org = self.org_for(org)
         return cost_one(
             self.raw["action_under_test"],
             self.dataset(),
             as_of=self.as_of,
             org=org,
             assumptions=assumptions,
+            sector=self.sector,
         )
 
     @property

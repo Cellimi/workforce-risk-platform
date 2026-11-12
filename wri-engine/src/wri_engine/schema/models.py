@@ -19,6 +19,7 @@ from wri_engine.schema.enums import (
     AppealForum,
     AppealOutcome,
     CostComponent,
+    CoverageMethod,
     DecidingOfficialLevel,
     FLSAStatus,
     InvestigationType,
@@ -46,6 +47,9 @@ class Employee(CanonicalModel):
     bargaining_unit: str
     is_sworn: bool
     minimum_staffing_role: bool
+    #: How a post is covered when this employee is away. Defaults to overtime, which is what
+    #: every public-sector minimum-staffing post does, so existing data is unaffected.
+    coverage_method: CoverageMethod = CoverageMethod.OVERTIME
     standard_shift_hours: Decimal = Field(gt=0, le=24)
     annual_paid_hours: int = Field(default=_DEFAULT_ANNUAL_PAID_HOURS, gt=0)
     schedule_id: str = "civilian_5x8"
@@ -85,6 +89,19 @@ class DisciplineAction(CanonicalModel):
     deciding_official_level: DecidingOfficialLevel
     deciding_official_id: str | None = None
     position_abolished: bool = False
+    #: Hours billed by an outside investigator. Private employers often retain a law firm or
+    #: a specialist firm rather than use an internal investigator; public records normally
+    #: leave this at zero, in which case no line item is produced.
+    outside_investigator_hours: Decimal = Field(default=Decimal("0"), ge=0)
+    #: Whether the employer has a written workplace conduct policy applying to all employees.
+    #: 29 CFR 541.602(b)(5) allows an unpaid disciplinary suspension of an exempt employee
+    #: only when one exists, so the C3-offset turns on this.
+    #:
+    #: Defaults to True: nearly every employer has one, it is the lighter assumption under
+    #: rule 13 (it allows the saving, so it lowers net cost rather than inflating it), and it
+    #: leaves data loaded before this field existed costing exactly as it did. The private
+    #: intake template asks for it rather than relying on the default.
+    written_conduct_policy: bool = True
 
     @model_validator(mode="after")
     def _investigation_consistency(self) -> DisciplineAction:
@@ -122,6 +139,13 @@ class AppealOrGrievance(CanonicalModel):
     back_pay_awarded: Decimal = Decimal("0")
     settlement_amount: Decimal = Decimal("0")
     outside_counsel_hours: Decimal = Decimal("0")
+    #: The part of the award, settlement and defence cost an insurer paid. Recorded so the
+    #: employer's own burden can be separated from the total exposure; credited back as a
+    #: C7-offset rather than quietly netted off.
+    insurer_paid_amount: Decimal = Field(default=Decimal("0"), ge=0)
+    #: The retention or deductible the employer bore under a liability policy before the
+    #: insurer paid anything.
+    insurance_retention_paid: Decimal = Field(default=Decimal("0"), ge=0)
 
     @model_validator(mode="after")
     def _pending_has_no_resolution(self) -> AppealOrGrievance:
@@ -144,6 +168,15 @@ class Separation(CanonicalModel):
     position_refilled: bool = False
     refill_date: date | None = None
     position_abolished: bool = False
+    #: Whether a separation or severance agreement was signed.
+    separation_agreement: bool = False
+    #: What the employer actually paid under it. Counted only when present: an agreement
+    #: with no amount recorded is reported as a cost that cannot be counted, never estimated.
+    severance_amount: Decimal = Field(default=Decimal("0"), ge=0)
+    #: Whether the separated employee filed an unemployment claim.
+    unemployment_claim_filed: bool = False
+    #: Benefits actually charged to the employer's unemployment account.
+    unemployment_benefits_charged: Decimal = Field(default=Decimal("0"), ge=0)
 
     @model_validator(mode="after")
     def _refill_consistency(self) -> Separation:

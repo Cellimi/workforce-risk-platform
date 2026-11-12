@@ -2430,3 +2430,172 @@ assumptions:
   notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
     replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (standard
     civilian)'
+
+# ---------------------------------------------------------------------------
+# Private-sector cost model. Added 2026-11-12.
+#
+# Only genuinely new values live here. Where the two sectors do the same thing -- an HR
+# officer's hours on a written reprimand, the FLSA overtime premium -- they share the id
+# and the value above, so there is one number to confirm rather than two.
+#
+# Two entries are marked researched because a public source fixes the number. The rest
+# are marked TBD-MIKE: a citation is given where one exists for the mechanism or the
+# range, but no authoritative figure was found, and calling a vendor pricing page
+# 'researched' would devalue the status on the entries that earned it.
+# ---------------------------------------------------------------------------
+- id: private_benefits_multiplier_all
+  value: 1.4287
+  low: 1.38
+  high: 1.4835
+  unit: ratio
+  applies_to:
+    benefits_group: private_all
+  source: 'BLS Employer Costs for Employee Compensation, June 2026 reference period, private industry workers, all workers: total compensation $46.89 per hour worked, wages and salaries $32.82 per hour worked. 46.89 / 32.82 = 1.4287. Benefits are 30.0% of employer costs in private industry, against 38.5% in state and local government, which is why this multiplier sits well below benefits_multiplier_civilian.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-12'
+  notes: 'The private-sector counterpart to benefits_multiplier_civilian, and the single largest difference between the two sector packs. BOUNDS: the high bound 1.4835 is the management, professional and related group from the same release (total compensation $78.85 against wages $53.15), the most heavily loaded broad group found; the low bound is set the same distance below the base and is PROVISIONAL. Replace both by reading ECEC Table 4, private industry workers by occupational group, which also lets the pack carry a multiplier per group instead of one average. bls.gov was outside the session''s allowed hosts. Carries the same per-hour-worked against per-hour-paid caveat as the civilian figure; see docs/cost_methodology.md.'
+- id: c4_filing_window_days_agency_charge
+  value: 300
+  low: 180
+  high: 300
+  unit: days
+  applies_to:
+    forum: agency_charge
+  source: 'Title VII of the Civil Rights Act, 42 U.S.C. 2000e-5(e)(1): a charge must be filed within 180 days of the alleged unlawful employment practice, extended to 300 days where the person has initially instituted proceedings with a state or local agency with authority to grant relief.'
+  confidence: high
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-12'
+  notes: 'The base is 300 because most states have a fair employment practices agency, which triggers the longer window; the low bound 180 is the window where none does. Used by C4 to decide whether an action with no charge on file is still open to one, so its cost is reported as a floor rather than a settled figure. State fair employment statutes can run longer than either bound.'
+- id: c3_temp_agency_markup
+  value: 1.5
+  low: 1.25
+  high: 1.75
+  unit: ratio
+  applies_to:
+    coverage_method: temp_agency
+  source: 'Staffing industry markups over the worker''s pay rate are commonly quoted in the 25% to 75% range, varying by role and market; the American Staffing Association''s worked example marks a $17.00 average hourly pay rate up 51.5% to a $25.76 bill rate. These are trade and vendor sources, not an official statistic.'
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Multiplies the peer base rate to price agency cover, in place of the FLSA premium and overtime burden a peer on overtime would carry: the temp is not working overtime, and the markup already carries the agency''''s payroll taxes, insurance, recruiting and margin. NOT marked researched: no authoritative source was reachable, only vendor pricing pages. Confirm against the client''''s own staffing invoices, which is the one place the real number exists. Watch the basis - a 50% markup is a 33.3% margin on the bill rate, and quotes use both.'
+- id: c1_outside_investigator_hourly_rate
+  value: 325
+  low: 200
+  high: 600
+  unit: usd_per_hour
+  applies_to:
+    scope: processing
+  source: 'Owner professional estimate. Defaulted to the outside counsel rate, because a workplace investigation is usually run by employment counsel or a specialist firm billing on the same basis.'
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Applies only when the record shows outside investigator hours, so public-sector data produces no line item. Private employers routinely retain an outside investigator for harassment complaints precisely so the investigation is independent of the managers involved. Confirm from the client''''s invoices.'
+- id: c6_unemployment_experience_rating_multiplier
+  value: 1.0
+  low: 1.0
+  high: 2.0
+  unit: ratio
+  applies_to:
+    scope: unemployment
+  source: 'Mechanism: FUTA is 6.0% on the first $7,000 of each employee''''s wages with a credit of up to 5.4% for state unemployment tax paid, a net 0.6% and a maximum $42 per employee per year (IRS, Form 940). State unemployment tax is experience rated, so benefits charged to an employer''''s account raise its later state rate. The mechanism is documented; the size of the effect for any one employer is not.'
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Deliberately 1.0, which counts ONLY the benefits the record says were charged and claims no amplification. Raising it models the later tax increase an experience rated state imposes, which is real but depends on the state''''s formula, the employer''''s reserve ratio and its taxable payroll. NOT marked researched: 1.0 is a conservative choice rather than a measured figure. The honest way to size it for a client is their own state rate notices across a few years.'
+- id: c4_hr_hours_agency_charge
+  value: 25
+  low: 12
+  high: 50
+  unit: hours
+  applies_to:
+    forum: agency_charge
+  source: 'Owner professional estimate, following the same pattern as the public-sector forum hours in this registry.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Internal HR and employee relations time on a charge filed with an enforcement agency: gathering documents, drafting the position statement, responding to requests for information and preparing witnesses. More than a grievance step, less than defending a suit. NOT marked researched: no published benchmark for internal hours was found. Confirm against the client''''s own matter records.'
+- id: c4_hr_hours_demand_letter
+  value: 6
+  low: 2
+  high: 16
+  unit: hours
+  applies_to:
+    forum: demand_letter
+  source: 'Owner professional estimate, following the same pattern as the public-sector forum hours in this registry.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Internal time responding to a lawyer''''s demand letter before anything is filed: pulling the file, briefing counsel, deciding whether to settle early. NOT marked researched: no published benchmark for internal hours was found. Confirm against the client''''s own matter records.'
+- id: c4_hr_hours_mediation
+  value: 14
+  low: 6
+  high: 30
+  unit: hours
+  applies_to:
+    forum: mediation
+  source: 'Owner professional estimate, following the same pattern as the public-sector forum hours in this registry.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Internal time preparing for and attending mediation, whether the agency''''s own programme or a private mediator. NOT marked researched: no published benchmark for internal hours was found. Confirm against the client''''s own matter records.'
+- id: c4_filing_window_days_demand_letter
+  value: 90
+  low: 30
+  high: 180
+  unit: days
+  applies_to:
+    forum: demand_letter
+  source: 'Owner professional estimate. Unlike the agency charge window, no statute fixes this one.'
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'No statute sets this. It is a practical window: how long after a decision a demand letter still plausibly arrives, used only to decide whether an action''''s challenge cost is still open.'
+- id: c4_filing_window_days_mediation
+  value: 60
+  low: 30
+  high: 120
+  unit: days
+  applies_to:
+    forum: mediation
+  source: 'Owner professional estimate. Unlike the agency charge window, no statute fixes this one.'
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Mediation follows a charge or a demand rather than starting a clock of its own, so this is a practical window for how long after the decision a mediation may still be convened.'
+- id: c6_separation_agreement_hr_hours
+  value: 8
+  low: 3
+  high: 20
+  unit: hours
+  applies_to:
+    scope: separation_agreement
+  source: 'Owner professional estimate.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'HR time drafting, negotiating and administering a separation agreement. The timeline is longer than it looks for anyone aged 40 or over: a release of federal age claims is unenforceable unless the employee is given at least 21 days to consider it and 7 days to revoke after signing, and 45 days where the separation is part of a group programme (Older Workers Benefit Protection Act, 29 U.S.C. 626(f)(1)(F)-(G)). NOT marked researched: the statute fixes the waiting periods, not the hours.'
+- id: c6_separation_agreement_counsel_hours
+  value: 4
+  low: 1
+  high: 12
+  unit: hours
+  applies_to:
+    scope: separation_agreement
+  source: 'Owner professional estimate. Priced at c4_outside_counsel_hourly_rate.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-12'
+  notes: 'Counsel time settling the release language. Usually short where the employer has a template and longer where the employee is represented or the release has to survive the Older Workers Benefit Protection Act. NOT marked researched. Confirm from the client''''s legal invoices.'
