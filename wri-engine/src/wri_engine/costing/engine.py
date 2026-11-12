@@ -32,9 +32,9 @@ from wri_engine.costing.components import (
 from wri_engine.costing.context import CostContext
 from wri_engine.orgconfig import OrgConfig, default_org_config
 from wri_engine.schema import (
+    OFFSET_COMPONENTS,
     ActionType,
     CanonicalDataset,
-    CostComponent,
     CostLineItem,
     DisciplineAction,
 )
@@ -88,6 +88,7 @@ def expected_assumption_ids(org: OrgConfig) -> list[str]:
         "c3_ot_premium_multiplier",
         "c3_ot_burden_multiplier",
         "c3_unpaid_suspension_burden_multiplier",
+        "c5_vacancy_salary_burden_multiplier",
         "c4_outside_counsel_hourly_rate",
         "c4_arbitration_flat_cost",
         "c4_back_pay_interest_annual_rate",
@@ -119,15 +120,17 @@ class ActionCost:
 
     @property
     def gross(self) -> Decimal:
+        """Money spent. Excludes every offset component, not just C3-offset."""
         return sum(
-            (i.amount for i in self.line_items if i.component != CostComponent.C3_OFFSET),
+            (i.amount for i in self.line_items if i.component not in OFFSET_COMPONENTS),
             Decimal("0"),
         )
 
     @property
     def offset(self) -> Decimal:
+        """Money not spent, as a negative number. Sums every offset component."""
         return sum(
-            (i.amount for i in self.line_items if i.component == CostComponent.C3_OFFSET),
+            (i.amount for i in self.line_items if i.component in OFFSET_COMPONENTS),
             Decimal("0"),
         )
 

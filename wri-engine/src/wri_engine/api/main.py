@@ -951,6 +951,7 @@ def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
         "C3-offset": "C3-offset Unpaid suspension savings",
         "C4": "C4 Appeals and grievances",
         "C5": "C5 Removal turnover",
+        "C5-offset": "C5-offset Vacancy salary savings",
     }
     for key, label in labels.items():
         lines.append(f"| {label} | {money(s['component_totals'].get(key, '0'))} |")
@@ -984,8 +985,10 @@ def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
         "---",
         "",
         "Every figure above decomposes into line items that name their formula, their inputs "
-        "and the assumptions they used. Assumptions still marked `TBD-MIKE` are owner "
-        "placeholders and must be confirmed before this is shown externally.",
+        "and the assumptions they used. The owner has signed off on every assumption in the "
+        "registry, but sign-off is not verification: most values are still professional "
+        "estimates carrying low or medium confidence, and the Assumptions view shows the "
+        "source and confidence behind each one.",
         "",
     ]
     return "\n".join(lines)

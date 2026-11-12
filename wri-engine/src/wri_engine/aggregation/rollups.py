@@ -45,6 +45,7 @@ COMPONENTS = [
     CostComponent.C3_OFFSET,
     CostComponent.C4_APPEALS,
     CostComponent.C5_TURNOVER,
+    CostComponent.C5_OFFSET,
 ]
 ZERO = Decimal("0")
 

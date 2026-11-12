@@ -44,6 +44,7 @@ COMPONENT_LABELS = {
     "C3-offset": "C3-offset Unpaid suspension saved",
     "C4": "C4 Appeals & grievances",
     "C5": "C5 Removal turnover",
+    "C5-offset": "C5-offset Vacancy salary saved",
 }
 
 st.set_page_config(page_title="WRI - Cost of Discipline", page_icon="::", layout="wide")
@@ -221,9 +222,13 @@ nothing to do with turnover - does not inflate the percentage.
 Each bar is the sum of every line item carrying that component tag, across every costed
 action. Blue is money spent; red is money saved.
 
-C3-offset is shown as a negative bar on purpose. Unpaid suspensions do save the county the
-wage, and burying that inside a net total would hide it. Gross, offset and net are always
-reported separately.
+The two offset components are shown as negative bars on purpose. An unpaid suspension
+(C3-offset) and a vacant post after a removal (C5-offset) both genuinely stop the county
+paying that person's wage, and burying either inside a net total would hide it. Gross, offset
+and net are always reported separately.
+
+Only the wage and the burdens that scale with it are treated as saved. Health insurance and
+retiree health carry on, so they are not counted as savings in either case.
 """,
     )
 
@@ -631,11 +636,23 @@ def drill_down(api: EngineClient) -> None:
 # ---------------------------------------------------------------------------
 # page 4 - assumptions
 # ---------------------------------------------------------------------------
-def _highlight_placeholders(row) -> list[str]:
-    """Rows still marked TBD-MIKE are tinted, so an unconfirmed number is never quiet."""
+def _highlight_uncertain(row) -> list[str]:
+    """Tint the rows a reader should not lean on.
+
+    Two different things are worth flagging, and conflating them would be dishonest:
+
+    * `TBD-MIKE` -- nobody has signed off on this value yet. Amber.
+    * `confidence: low` -- the owner stands behind it, but it is still an estimate rather
+      than a measured or cited figure. Also amber, because for a reader deciding how much
+      weight to put on a number, "not signed off" and "signed off but a guess" deserve the
+      same caution.
+
+    The owner approved this registry on 2026-11-12, so no row is `TBD-MIKE` today. The
+    branch stays because the next customer's registry starts out full of them.
+    """
     tint = "#fff4d6" if theme() == "light" else "#3a3320"
     ink = "#0b0b0b" if theme() == "light" else "#ffffff"
-    if row["Status"] == "TBD-MIKE":
+    if row["Status"] == "TBD-MIKE" or row["Confidence"] == "low":
         return [f"background-color: {tint}; color: {ink}"] * len(row)
     return [""] * len(row)
 
@@ -646,21 +663,45 @@ def assumptions_page(api: EngineClient) -> None:
         "Every coefficient the engine uses, with its source and how much to trust it.",
     )
     data = api.assumptions(mode())
-    left, mid, right = st.columns(3)
+    all_rows = data["assumptions"]
+    low_confidence = sum(1 for a in all_rows if a["confidence"] == "low")
+    sourced = sum(1 for a in all_rows if a["status"] == "researched")
+
+    left, mid, right, far = st.columns(4)
     left.metric("Assumptions", data["count"])
     mid.metric(
-        "Awaiting owner confirmation",
+        "Awaiting sign-off",
         data["placeholder_count"],
-        help="Marked TBD-MIKE. These must be confirmed before the demo is shown externally.",
+        help=(
+            "Marked TBD-MIKE. The owner signed off on the whole registry on 2026-11-12, so "
+            "none are pending. A new customer's registry starts out full of them."
+        ),
     )
-    right.metric("Editable here", "yes" if data["editable"] else "no (admin only)")
+    right.metric(
+        "Backed by a cited source",
+        f"{sourced} of {data['count']}",
+        help=(
+            "Sign-off is not verification. These carry a citation; the rest are the owner's "
+            "professional estimates, approved as the working figures."
+        ),
+    )
+    far.metric("Editable here", "yes" if data["editable"] else "no (admin only)")
 
-    show_placeholders = st.checkbox("Show only rows awaiting confirmation", value=False)
+    st.caption(
+        f"Every value is owner-approved, but **{low_confidence} of {data['count']} are still "
+        f"low confidence** and are tinted below. Approving a number is not the same as "
+        f"measuring it - the Source column says which is which."
+    )
+
+    only_uncertain = st.checkbox(
+        "Show only the rows to treat with caution (low confidence, or not signed off)",
+        value=False,
+    )
     search = st.text_input("Filter by id", "")
     rows = [
         a
-        for a in data["assumptions"]
-        if (not show_placeholders or a["status"] == "TBD-MIKE")
+        for a in all_rows
+        if (not only_uncertain or a["confidence"] == "low" or a["status"] == "TBD-MIKE")
         and search.lower() in a["id"].lower()
     ]
     table = pd.DataFrame(
@@ -682,7 +723,7 @@ def assumptions_page(api: EngineClient) -> None:
         st.info("Nothing matches that filter.")
         return
     st.dataframe(
-        table.style.apply(_highlight_placeholders, axis=1),
+        table.style.apply(_highlight_uncertain, axis=1),
         hide_index=True,
         use_container_width=True,
         height=420,

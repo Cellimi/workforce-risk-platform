@@ -1,35 +1,65 @@
-# WRI Engine — Phase 1: the fully loaded cost of discipline
+# Cost of Discipline — WRI Engine, Phase 1
 
-The first working slice of the Workforce Risk Intelligence engine. It joins HR records to
-discipline records for a fictional county government and reports **what discipline actually
-costs**, broken down by employee type and misconduct type — with every dollar traceable back
-to its formula, its inputs, and the assumption it used.
+**Every agency tracks discipline as paperwork. Nobody can say what it costs.** This tool
+answers that question: it joins HR records to discipline records and reports the fully loaded
+cost of discipline for a county government — broken down by employee type and misconduct
+type, and **traceable to the last dollar**. Click any figure and it decomposes into line
+items that each name their own formula, the values used, and the assumption behind them.
 
-> **Synthetic data for a fictional county. Cost figures reflect documented assumptions, not
-> measured agency costs.** Harlow County does not exist. The data is generated from public
-> distributional shapes and documented judgement; nothing in this repository is derived from
-> any real agency's records, and no real county, agency, union or person is represented.
+> ### All data here is synthetic
+> **Harlow County does not exist.** The data is generated from public distributional shapes
+> and documented judgement. Nothing is derived from any real agency's records, and no real
+> county, agency, union, employer or person is represented. Cost figures reflect documented
+> assumptions, **not measured agency costs**. The owner has approved all 167 assumptions,
+> but approval is not verification: 86 are still low-confidence professional estimates, and
+> the demo tints every one of them.
 
-This project is self-contained. It shares no code with the Streamlit MVP at the root of this
-repository.
+> **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
+> rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
+> modify or distribute it.
 
 ---
 
-## Run the demo in under ten minutes
+## Run it — five commands
 
 ```bash
-cd wri-engine
-make install          # venv + dependencies (Python 3.11+)
-make generate         # write the synthetic county HR export to data/synthetic/
-make test             # 228 tests, coverage gate on costing/ and aggregation/
-make api              # terminal one: http://localhost:8000  (docs at /docs)
-make ui               # terminal two: http://localhost:8501
+make install          # create the virtual environment and install dependencies
+make generate         # build the synthetic county dataset
+make test             # 249 tests, coverage gate
+make api              # terminal one: the engine in demo mode (http://localhost:8000/docs)
+make ui               # terminal two: the demo (http://localhost:8501)
 ```
 
-A trimmed sample export is committed at `data/synthetic/sample/`, so the API and tests run
-without `make generate`. Use `make generate` for the full 2,500-employee dataset.
+Needs Python 3.11 or newer, and nothing else. `make api` and `make ui` run at the same time,
+in two terminals. Then open <http://localhost:8501>.
 
-Then read `docs/demo_script.md` and walk the five pages in order.
+`make generate` is optional the first time — a small sample dataset is committed, so the
+engine and the tests run on a fresh clone without it. Run it for the full
+2,500-employee county.
+
+## What you'll see
+
+Five pages, and a role selector in the sidebar that changes what each role is allowed to see:
+
+1. **Executive summary** — what discipline costs per year and per employee, where the money
+   goes, and a "How this number was calculated" panel beside every headline figure.
+2. **Cost matrix** — employee type against misconduct type. Small groups are suppressed to
+   protect individuals, and the totals still reconcile.
+3. **Drill-down** — one action, every line item, back to the assumption behind it.
+4. **Assumptions** — all 166 coefficients with their source and confidence. Move a slider and
+   the whole model recomputes.
+5. **Data quality** — what failed validation and what that excluded from the totals.
+
+`docs/demo_script.md` walks the five pages as a five-minute presentation.
+`docs/cost_methodology.md` explains every formula, including the judgement calls.
+
+---
+
+## Everything below is detail
+
+`make test` runs 146 tests with a coverage gate on the cost and aggregation code.
+This project is self-contained and shares no code with the earlier MVP at the root of this
+repository.
 
 ---
 
@@ -115,9 +145,15 @@ its full field mapping in `src/wri_engine/adapters/nfc.py`.
 | C1 | Processing labor | Supervisor, HR/labor relations, deciding official and investigator hours |
 | C2 | Paid administrative leave | Scheduled shifts of leave × the employee's loaded rate |
 | C3 | Backfill overtime | Overtime covering minimum-staffing posts, at the peer's rate and the overtime burden — not the full benefits multiplier |
-| C3-offset | Unpaid suspension savings | The wage not paid, as a **negative** line item, so net never hides it |
+| C3-offset | Unpaid suspension savings | The wage not paid during the suspension, as a **negative** line item, so net never hides it |
 | C4 | Appeals and grievances | Internal hours, outside counsel, arbitration fees, back pay, interest, settlements — only where a record exists |
 | C5 | Removal turnover | Vacancy coverage, recruiting, screening, academy, field training, ramp-up, equipment, adjusted for recruit washout |
+| C5-offset | Vacancy salary savings | The removed employee's salary, which stops on the separation date, credited back over the same shifts the vacancy overtime was charged for |
+
+The two offsets exist because the engine charges **gross**: it bills the overtime that covers
+a suspended or vacant post at the rate of whoever works the shift, then credits back the wage
+the county stopped paying, at that person's own rate. Only the wage and the payroll taxes on
+it are treated as saved — health insurance and retiree health continue either way.
 
 **Explains every dollar.** Each line item stores its formula in plain English, the values it
 used, and the ids of the assumptions it consumed:
@@ -131,7 +167,13 @@ average base rate for deputy at North District)
 **Puts every coefficient in a file, not in code.** 166 assumptions in
 `config/assumptions.yaml`, each with a source, a confidence level, low/base/high bounds, an
 owner and a status. Asking for an assumption that is not there is a hard error, never a
-silent default. The owner signed off on all 151 former placeholders on 2026-11-12.
+silent default.
+
+The owner signed off on the whole registry on 2026-11-12, so nothing is left marked
+`TBD-MIKE`. That is a sign-off, not a measurement: 13 entries carry a cited source, the
+other 154 are professional estimates the owner stands behind, and 86 of those remain **low
+confidence**. `status` says who approved a value; `confidence` says how much weight it
+bears, and the two moved independently.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -227,11 +269,15 @@ make lint     # ruff
 
 ## Before this is shown externally
 
-The owner signed off on every value in `config/assumptions.yaml` on 2026-11-12. The ones that
-move the headline most, and that a customer's own figures should replace first:
+The owner has approved every value in `config/assumptions.yaml`, so the engine is cleared
+to run. What approval does **not** do is turn an estimate into a measurement. These are the
+ones most worth replacing with the customer's own figures, because they move the headline
+most and are the least grounded:
 
-1. The **sworn benefits multiplier** (currently an owner estimate; confirm against BLS ECEC
-   Table 3, protective service occupations).
+1. The **sworn benefits multiplier**, 1.75. Approved, but still unsourced and marked low
+   confidence — the civilian figure beside it comes from BLS ECEC and this one does not.
+   Verify against ECEC Table 3, protective service occupations. It scales every
+   public-safety figure in the model, so it is the single value most worth getting right.
 2. **C1 processing and investigation hours**.
 3. **Outside counsel rate and the county's arbitration cost share**.
 4. **Whether overtime is pensionable**, which drives the C3 overtime burden.
@@ -239,6 +285,26 @@ move the headline most, and that a customer's own figures should replace first:
    length and cost, field training length, washout rates, civilian ramp weeks.
 6. The **civilian vacancy productivity-loss factor**.
 7. The **minimum cell size** for suppression (default 5).
-8. The **final fictional county name** — "Harlow County" is a placeholder.
 
-Every one of them is visible, tinted, on the Assumptions page of the demo.
+The fictional county name is settled: **Harlow County**, confirmed by the owner on
+2026-11-12 in `config/org_county.yaml`. It is invented, and
+`tests/test_config_consistency.py` fails the build if the agency is ever marked non-fictional
+or if a name from its banned list of real unions and agencies turns up in the configuration.
+
+Every low-confidence value is visible, tinted, on the Assumptions page of the demo, with
+its source beside it.
+
+---
+
+## License
+
+**Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
+rights reserved. See [`LICENSE`](LICENSE).
+
+Publication is not a license. No right to use, copy, modify or distribute is granted, and
+cloning this repository does not confer one. Third-party dependencies keep their own terms;
+see `pyproject.toml` for the list.
+
+The license also records what this software is not: it produces cost estimates from
+configurable assumptions, and those are neither measured agency costs nor legal, actuarial,
+financial or HR advice.

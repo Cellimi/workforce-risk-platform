@@ -12,6 +12,15 @@ items should be enough to find out why without reading any Python.
 
 ## 1. The rules the model holds itself to
 
+**Gross is charged, and savings are credited back separately.** Where the county keeps paying
+someone for shifts they do not work, or pays overtime to cover a post, the engine charges the
+full amount — then records what the county stopped paying as a **negative line item** in its
+own offset component. Totals always report gross, offset and net separately, so a saving can
+never be quietly used to shrink a cost. There are two offsets: `C3-offset` for an unpaid
+suspension and `C5-offset` for the salary of a vacant post after a removal. Both are defined
+once, in `OFFSET_COMPONENTS`, and everything that needs to know "is this a saving?" asks that
+set.
+
 **Every dollar is explainable.** Each `CostLineItem` stores the amount, a human-readable
 `formula`, the actual `inputs` used, and the ids of every assumption consumed. Nothing is
 aggregated without those travelling with it.
@@ -63,13 +72,18 @@ loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
 | Assumption | Value | Status |
 |---|---|---|
 | `benefits_multiplier_civilian` | **1.627** | researched |
-| `benefits_multiplier_sworn` | **1.75** | `TBD-MIKE` |
+| `benefits_multiplier_sworn` | **1.75** | confirmed, but low confidence and unsourced |
 
 The civilian multiplier is the ratio of total compensation to wages for state and local
 government workers in the BLS **Employer Costs for Employee Compensation** release for March
 2026 (USDL-26-0827, released 2026-06-12), Table 1 "By ownership": total compensation
 $66.41 per hour worked against wages and salaries of $40.82 per hour worked, giving
 66.41 / 40.82 = **1.627**.
+
+**A note on status before the caveats.** As of 2026-11-12 the owner has signed off on every
+assumption in the registry, so none is marked `TBD-MIKE`. Sign-off settles *who stands
+behind a number*; it does not change *where the number came from*. The `source` and
+`confidence` fields still carry that, and the caveats below are unaffected by the sign-off.
 
 **Two caveats a reader should know about.**
 
@@ -83,8 +97,9 @@ $66.41 per hour worked against wages and salaries of $40.82 per hour worked, giv
    base value is higher. The figure to confirm it against is ECEC Table 3 (state and local
    government by occupational group, "protective service"); `bls.gov` was unreachable from
    the build environment, so 1.75 is an owner estimate with **low** confidence and its low
-   bound deliberately set to the all-occupations figure. **This is open item 1 for external
-   showing.**
+   bound deliberately set to the all-occupations figure. The owner has approved 1.75 as the
+   working value, so the engine runs on it — but it remains an estimate rather than a cited
+   figure, and it scales every public-safety number in the model. **This is open item 1.**
 
 ### Rates for people who are not in the extract
 
@@ -105,7 +120,7 @@ Every action consumes staff time before it produces any other cost.
 line item = hours x that person's loaded hourly rate
 ```
 
-Hours by action type (`c1_hours_<action>_<actor>`, all `TBD-MIKE` starting defaults):
+Hours by action type (`c1_hours_<action>_<actor>`, owner-approved professional estimates):
 
 | Action type | Supervisor | HR / LR | Deciding official |
 |---|---:|---:|---:|
@@ -185,7 +200,9 @@ most counter-intuitive number in the model. The C3 line item says so in its own 
 
 ### The C3-offset
 
-An unpaid suspension saves the county the wage the employee does not earn. That saving is
+An unpaid suspension saves the county the wage the employee does not earn. (Its sibling,
+`C5-offset` in section 7, does the same job for the salary of a post left vacant by a
+removal.) That saving is
 recorded as a **negative line item** so the net effect is visible and the headline can never
 quietly hide it. Totals always report gross, offset and net separately.
 
@@ -227,7 +244,7 @@ Counted only when an appeal or grievance record exists. Up to six line items per
 
 Internal hours by forum: grievance step 10, civil service board 30, arbitration 40, court 60.
 The outside counsel rate ($325), the arbitration flat cost ($7,500) and the interest rate
-(5%) are all `TBD-MIKE` -- **open item 2**.
+(5%) are all owner estimates carrying low confidence -- **open item 2**.
 
 ### Incomplete cost
 
@@ -244,7 +261,7 @@ The window used is the longest one available to that employee -- a grievance ste
 or arbitration (30 days) for represented employees, the civil service board (20 days) for
 non-represented ones. **Court is deliberately excluded**: its window runs months, and
 including it would flag half a year of actions as incomplete without telling anyone anything.
-Window lengths are `TBD-MIKE`; in practice they come from the collective bargaining agreement
+Window lengths are owner estimates; in practice they come from the collective bargaining agreement
 or civil service rule.
 
 ---
@@ -255,10 +272,13 @@ Usually the largest component, and the one agencies never put on the discipline 
 Removing someone does not end the cost; it starts a second one.
 
 Applies when a **discipline-driven separation** is linked to the action -- a removal for
-cause, or a resignation in lieu of removal. Three rules bound it:
+cause, or a resignation in lieu of removal. A resignation in lieu follows exactly the same
+path as a removal, offset included. Three rules bound it:
 
-- **Position abolished -> no turnover cost.** Nobody is hired, so nothing is spent. The engine
-  returns no C5 line items at all, not a reduced figure.
+- **Position abolished -> no turnover cost, and no offset either.** Nobody is hired, so
+  nothing is spent, and no overtime is worked to cover a post that no longer exists. The
+  engine returns no C5 or C5-offset line items at all, not a reduced figure. The salary the
+  county stops paying belongs to the abolished position, not to the discipline action.
 - **Not yet refilled -> expected costs, flagged incomplete.** The vacancy is costed at
   `c5_expected_vacancy_days_<profile>` and every C5 line carries `cost_incomplete`. This is
   the one place the engine looks forward, and it says so.
@@ -272,15 +292,52 @@ it.
 ### Vacancy period
 
 For a **minimum-staffing** post, the seat is covered by overtime from the separation until
-the replacement reaches solo duty, at the same overtime rate as C3. For every other role the
-seat simply sits empty:
+the replacement reaches solo duty, at the same overtime rate as C3 — **and the removed
+employee's own salary stops, which is credited back as a C5-offset line item.**
+
+```
+vacancy overtime = scheduled shifts x shift hours x PEER base rate x 1.5 x ot burden
+vacancy offset   = -(same shifts   x shift hours x REMOVED employee base rate x vacancy burden)
+```
+
+Two different rates, on purpose. The overtime is worked by whoever covers the post, so it is
+priced at the role family's average base rate at that location. The saving is the removed
+employee's pay stopping, so it is priced at *their* rate — not the peer average, and not the
+replacement's step-1 rate. Both lines read the same `shifts` value by construction, so the
+credit covers exactly the period that was charged; a property test asserts it per action.
+
+The burden is `c5_vacancy_salary_burden_multiplier`, which starts equal to the
+unpaid-suspension burden (FICA only, 1.0765) but has **its own assumption id** because a
+vacancy and a suspension are different events and an employer may stop different things in
+each. Health and OPEB obligations attached to the position do not vanish on the separation
+date, so they are not counted as saved.
+
+**A structural bound worth knowing.** Since both sides carry the same burden at base values,
+`offset / overtime = own_base / (avg_base x 1.5)`. The 1.5x FLSA premium therefore caps the
+ratio, and within one pay grade the widest step spread is `1.025^9 = 1.2489` — so the credit
+can reach at most **83%** of the charge and can never overtake it at base assumptions. It
+only overtakes once the two burdens diverge, for example the vacancy burden at its 1.35 high
+bound while the overtime burden stays at base: `1.2489 x 1.35 / (1.5 x 1.0765) = 1.044`.
+Golden case 10 sits exactly at the base-mode ceiling, and `tests/test_properties.py` pins
+down both halves.
+
+For every other role the seat simply sits empty:
 
 ```
 vacancy productivity loss = vacancy work days x loaded daily rate x productivity_loss_factor
 ```
 
-The factor defaults to **0.5** and is `TBD-MIKE` -- **open item 5**. It is the share of that
-position's output nobody delivers. Vacancy cost is *not* washout-adjusted: it is not a
+The factor defaults to **0.5**, at low confidence -- **open item 5**.
+
+**Civilian vacancies get no salary offset, and that is only correct under one reading of this
+factor.** It is defined as a **net** figure: the value of the work nobody did, over and above
+the salary the county already stopped paying. Minimum-staffing posts need a separate credit
+because they are charged *gross* overtime; a civilian post is charged only the shortfall, so
+crediting the salary again would double-count it. The assumption's notes ask the owner to
+confirm that reading — if the factor is meant as gross lost output, the engine needs a
+civilian offset too and the value should come down.
+
+Vacancy cost, charge and credit alike, is *not* washout-adjusted: covering a post is not a
 recruiting cost.
 
 ### Recruiting and selection
@@ -320,7 +377,7 @@ adjusted = raw / (1 - washout_rate)
 
 because filling one seat means hiring more than one person. The multiplier appears in each
 affected line item's `formula` and `inputs`, so it is never buried in a total. Washout rates
-run from 0.10 (standard civilian) to 0.40 (dispatch), all `TBD-MIKE` -- **open item 4**.
+run from 0.10 (standard civilian) to 0.40 (dispatch), all owner estimates -- **open item 4**.
 
 The **productivity ramp is not** washout-adjusted: only the person who stays ramps up.
 
@@ -414,8 +471,10 @@ Phase 1 is the cost baseline and nothing else.
   `src/wri_engine/generator/README.md`, precisely so nobody mistakes it for a discovery.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
-- **No claim that any figure is a measured agency cost.** 151 of the 166 assumptions are
-  still owner placeholders. The Assumptions page tints every one of them.
+- **No claim that any figure is a measured agency cost.** The owner has approved all 167
+  assumptions, which clears the engine to run but does not make the numbers measurements.
+  Only 13 carry a cited source; 86 remain low confidence. The Assumptions page tints the
+  low-confidence rows and shows the source beside each value.
 
 ---
 
@@ -430,11 +489,13 @@ From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:
 | Actions still accruing cost | 13 |
 | Window | 2.91 years |
 | Gross cost | $5,596,426 |
-| Unpaid suspension offset | -$486,772 |
-| **Net cost** | **$5,109,655** |
-| **Net cost per year** | **$1,755,895** |
+| Unpaid suspension offset (C3-offset) | -$486,772 |
+| Vacancy salary offset (C5-offset) | -$466,671 |
+| **Total offsets** | **-$953,442** |
+| **Net cost** | **$4,642,984** |
+| **Net cost per year** | **$1,595,527** |
 | Active headcount | 2,515 |
-| **Net cost per employee per year** | **$698** |
+| **Net cost per employee per year** | **$634** |
 | Share of gross from turnover (C5) | 44% |
 
 | Component | Total | Share of gross |
@@ -445,6 +506,11 @@ From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:
 | C4 Appeals and grievances | $704,532 | 13% |
 | C5 Removal turnover | $2,484,822 | 44% |
 | C3-offset Unpaid suspension savings | -$486,772 | |
+| C5-offset Vacancy salary savings | -$466,671 | |
+
+Within C5, the vacancy period charges **$705,525** of overtime across 17 minimum-staffing
+vacancies and credits back **$466,671** of salary, a net vacancy cost of **$238,855**.
+Charging the overtime without the credit would overstate the vacancy by a factor of three.
 
 These figures move with the assumptions. That is the point: change a coefficient on the
 Assumptions page and the whole model recomputes from the line items up.

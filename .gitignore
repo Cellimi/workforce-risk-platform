@@ -1,0 +1,50 @@
+# Repository-wide ignores. wri-engine/.gitignore adds rules specific to that project.
+
+# macOS
+.DS_Store
+._*
+
+# Python bytecode and build output
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test and lint caches
+.pytest_cache/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Local environment
+.env
+.env.local
+
+# Generated analytics stores
+*.duckdb
+
+# Generated synthetic data, in any project in this repo. The committed sample under
+# data/synthetic/sample/ is kept so the repo is browsable without running a generator.
+**/data/synthetic/**
+!**/data/synthetic/sample/
+!**/data/synthetic/sample/**
+
+# Runtime artifact: the API appends one line per request. Never source.
+**/data/audit_log.jsonl

@@ -126,6 +126,21 @@ Appeal probability: 12% (1–3 day suspension) rising to 60% (removal); suspensi
 land near 18%, inside the 15–25% target. Removals go to arbitration or a civil service board
 70% of the time; lesser actions stop at a grievance step 55% of the time.
 
+> **Do not judge the removal appeal rate from one seed.** There are only about 30 removals in
+> a seed, so the standard deviation on that rate is roughly 9 percentage points. Pooled over
+> five fixed seeds (163 removals, filing windows closed) the realized rate is **55.8%**
+> against the configured 60% — within noise. But the demo seed **20260917 on its own sits at
+> 36%**, about 2.6 sigma low, which looks like a bug and is not one: the draw was audited
+> (31 draws, 12 yes) and every other path ruled out. The filing-date cutoff accounts for at
+> most one removal, and pruning removed two matched action/appeal pairs, which leaves the
+> ratio unchanged.
+>
+> The consequence is real even though the code is correct: **C4 is genuinely understated on
+> seed 20260917**, by roughly seven removal appeals. If the demo needs a representative C4,
+> pick a seed whose removal rate is nearer the parameter — that is a presentation choice, not
+> a code fix. `tests/test_generator.py::test_appeal_rates_pooled_across_seeds` is the guard
+> that would catch an actual regression.
+
 Outcomes: sustained 50, mitigated 20, settled 20, overturned 10. Back pay is a share of the
 pay actually lost (mitigated 45%, overturned 100%, settled 35%), capped at two years.
 
