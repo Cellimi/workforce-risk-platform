@@ -168,8 +168,21 @@ def test_headcount_is_around_the_configured_target(org):
 
 
 def test_no_real_agency_names_appear_in_config(org):
-    """Guardrail for the 'fictional agency only' rule."""
+    """Guardrail for the 'fictional agency only' rule (CLAUDE.md rule 4).
+
+    A banned list is a floor, not a proof: it catches the names most likely to be pasted in
+    by accident, and the `fictional` flag has to stay true whatever else changes.
+    """
     text = str(org.raw).lower()
     for banned in ("fraternal order of police", "teamsters", "afscme", "seiu", "county of "):
         assert banned not in text, f"config mentions {banned!r}"
     assert org.raw["agency"]["fictional"] is True
+
+
+def test_the_agency_name_is_settled(org):
+    """Harlow County was confirmed by the owner on 2026-11-12. If the name is ever reopened,
+    the docs that quote it have to be reopened with it."""
+    agency = org.raw["agency"]
+    assert agency["name"] == "Harlow County"
+    assert agency["name_status"] == "confirmed"
+    assert agency["fictional"] is True

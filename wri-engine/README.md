@@ -215,8 +215,11 @@ most and are the least grounded:
    length and cost, field training length, washout rates, civilian ramp weeks.
 6. The **civilian vacancy productivity-loss factor**.
 7. The **minimum cell size** for suppression (default 5).
-8. The **final fictional county name** — "Harlow County" is still marked a placeholder in
-   `config/org_county.yaml`, which is a separate file from the assumptions registry.
+
+The fictional county name is settled: **Harlow County**, confirmed by the owner on
+2026-11-12 in `config/org_county.yaml`. It is invented, and
+`tests/test_config_consistency.py` fails the build if the agency is ever marked non-fictional
+or if a name from its banned list of real unions and agencies turns up in the configuration.
 
 Every low-confidence value is visible, tinted, on the Assumptions page of the demo, with
 its source beside it.
