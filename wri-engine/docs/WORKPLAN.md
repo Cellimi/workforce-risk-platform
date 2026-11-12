@@ -35,7 +35,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Item | Claimed by | Status |
 |---|---|---|
 | Screen for the licensed product | Chat session | Done, PR #5 |
-| Private-sector cost model | Claude Code session | Not started |
+| Private-sector cost model | Claude Code session | In progress, `claude/private-sector-cost-model` |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
