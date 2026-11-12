@@ -6,10 +6,15 @@ cost logic.
 
 Access control
 --------------
-The caller's role arrives in the `X-WRI-Role` header. There is no authentication behind it
-yet: the demo lets the UI choose. Enforcement is real -- an `executive` asking for a record
-drill-down gets 403 from this layer, not a hidden button. `X-WRI-Session` scopes the
-disclosure ledger that blocks differencing attacks; it defaults to the role.
+Every data endpoint receives a `Ctx` (see `wri_engine.api.context`) that says who is calling,
+in which engagement, and with what role. In a licensed installation that comes from the
+caller's sign-in and their membership of the engagement in the URL
+(`/engagements/{engagement_id}/...`). Enforcement happens here -- an `executive` asking for a
+record drill-down gets 403 from this layer, not a hidden button.
+
+In demo mode (`WRI_AUTH_MODE=demo`) the same endpoints are also served without the
+engagement prefix, the role comes from the `X-WRI-Role` header, and the only data is the
+synthetic county.
 
 Every request is written to the append-only audit log before its response is built.
 """
@@ -17,10 +22,23 @@ Every request is written to the append-only audit log before its response is bui
 from __future__ import annotations
 
 import json
+import re
+import shutil
 from decimal import Decimal
-from typing import Annotated, Any
+from pathlib import Path
+from typing import Any
 
-from fastapi import Body, FastAPI, Header, HTTPException, Query, Response
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from pydantic import BaseModel, Field
 
 from wri_engine.access.audit import AuditLog
@@ -28,8 +46,7 @@ from wri_engine.access.roles import (
     CAPABILITIES,
     AccessDenied,
     Capability,
-    Role,
-    parse_role,
+    allows,
     project_identifier,
     require,
 )
@@ -39,37 +56,45 @@ from wri_engine.aggregation.rollups import (
     fte_denominators,
     summarize,
 )
-from wri_engine.api.state import STATE
+from wri_engine.api.context import Ctx, Runtime, get_ctx
+from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces
 from wri_engine.costing.assumptions import MissingAssumptionError
+from wri_engine.paths import SYNTHETIC_DIR
+from wri_engine.settings import Settings
+from wri_engine.store import Store
 
 CAPTION = (
     "Synthetic data for a fictional county. Cost figures reflect documented assumptions, "
     "not measured agency costs."
 )
 
-app = FastAPI(
-    title="WRI Engine - Discipline Cost Baseline",
-    version="0.1.0",
-    description=(
-        "Phase 1 of the Workforce Risk Intelligence engine: the fully loaded cost of "
-        "discipline for a fictional county. Every figure is traceable to the line items "
-        "and assumptions that produced it.\n\n" + CAPTION
-    ),
+router = APIRouter()
+ENGAGEMENT_CAPTION = (
+    "Cost figures reflect the data supplied for this engagement and its documented "
+    "assumptions. Review the assumptions and overrides before relying on a figure."
 )
 AUDIT = AuditLog()
+
+
+def _caption(ctx: Ctx) -> str:
+    return ENGAGEMENT_CAPTION if ctx.engagement else CAPTION
+
+
+def _summary(ctx: Ctx, run) -> dict:
+    """The headline figures, labelled for what they are: synthetic in the demo, the client's
+    own data in an engagement."""
+    out = summarize(run, ctx.state.dataset, min_cell_size=ctx.state.min_cell_size)
+    out["agency_note"] = _caption(ctx)
+    return out
+
+
+def _agency(ctx: Ctx) -> str:
+    return ctx.engagement.client_name if ctx.engagement else ctx.state.agency_name
 
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
-def _role(raw: str | None) -> Role:
-    return parse_role(raw)
-
-
-def _session(role: Role, raw: str | None) -> str:
-    return f"{role}:{raw}" if raw else str(role)
-
-
 def _filters(raw: str | None) -> dict[str, list[str]]:
     if not raw:
         return {}
@@ -89,13 +114,23 @@ def _filters(raw: str | None) -> dict[str, list[str]]:
     return out
 
 
-def _guard(role: Role, capability: Capability, endpoint: str, filters: dict | None = None) -> None:
+def _audit(ctx: Ctx, endpoint: str, **fields) -> None:
+    AUDIT.record(
+        role=str(ctx.role),
+        user=ctx.user_label,
+        engagement=ctx.engagement_id,
+        endpoint=endpoint,
+        **fields,
+    )
+
+
+def _guard(ctx: Ctx, capability: Capability, endpoint: str, filters: dict | None = None) -> None:
     try:
-        require(role, capability)
+        require(ctx.role, capability)
     except AccessDenied as exc:
-        AUDIT.record(
-            role=str(role),
-            endpoint=endpoint,
+        _audit(
+            ctx,
+            endpoint,
             outcome="denied",
             filters=filters or {},
             detail={"capability": str(capability)},
@@ -103,34 +138,35 @@ def _guard(role: Role, capability: Capability, endpoint: str, filters: dict | No
         raise HTTPException(403, str(exc)) from None
 
 
-RoleHeader = Annotated[str | None, Header(alias="X-WRI-Role")]
-SessionHeader = Annotated[str | None, Header(alias="X-WRI-Session")]
-
-
 # ---------------------------------------------------------------------------
 # meta
 # ---------------------------------------------------------------------------
-@app.get("/health", tags=["meta"])
-def health() -> dict:
-    return {"status": "ok"}
-
-
-@app.get("/meta", tags=["meta"])
-def meta(x_wri_role: RoleHeader = None) -> dict:
-    role = _role(x_wri_role)
-    STATE.ensure_loaded()
-    AUDIT.record(role=str(role), endpoint="/meta")
+@router.get("/meta", tags=["meta"])
+def meta(ctx: Ctx = Depends(get_ctx)) -> dict:
+    role, state = ctx.role, ctx.state
+    state.ensure_loaded()
+    _audit(ctx, "/meta")
     return {
-        "agency": STATE.agency_name,
-        "synthetic": True,
-        "caption": CAPTION,
-        "as_of": STATE.as_of.isoformat() if STATE.as_of else None,
-        "source_id": STATE.source_id,
-        "min_cell_size": STATE.min_cell_size,
+        "agency": _agency(ctx),
+        "synthetic": ctx.engagement is None,
+        "engagement": (
+            {
+                "id": ctx.engagement.id,
+                "name": ctx.engagement.name,
+                "sector": ctx.engagement.sector,
+                "status": ctx.engagement.status,
+            }
+            if ctx.engagement
+            else None
+        ),
+        "caption": _caption(ctx),
+        "as_of": state.as_of.isoformat() if state.as_of else None,
+        "source_id": state.source_id,
+        "min_cell_size": state.min_cell_size,
         "role": str(role),
         "capabilities": sorted(str(c) for c in CAPABILITIES[role]),
         "dimensions": DIMENSIONS,
-        "manifest": STATE.manifest,
+        "manifest": state.manifest,
     }
 
 
@@ -138,125 +174,235 @@ def meta(x_wri_role: RoleHeader = None) -> dict:
 # datasets
 # ---------------------------------------------------------------------------
 class LoadRequest(BaseModel):
-    path: str | None = Field(None, description="Directory holding the source export")
+    path: str | None = Field(
+        None, description="Demo mode only: a folder inside the synthetic data directory"
+    )
     source: str = Field("county_hr_csv", description="Adapter id")
 
 
-@app.post("/datasets/load", tags=["datasets"])
-def load_dataset(
-    body: LoadRequest = Body(default=LoadRequest()), x_wri_role: RoleHeader = None
-) -> dict:
-    """Run the adapter and its validation rules. Returns the full validation report."""
-    role = _role(x_wri_role)
-    AUDIT.record(role=str(role), endpoint="/datasets/load", detail=body.model_dump())
-    report = STATE.load(body.path, body.source)
+#: Upload names are restricted to plain file names with these extensions.
+_UPLOAD_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}\.(csv|json)$")
+
+
+def _demo_path(raw: str | None) -> Path | None:
+    """Demo mode may point the loader at a folder, but only inside the synthetic data
+    directory. Anything else on the server's disk is off limits."""
+    if raw is None:
+        return None
+    path = Path(raw).expanduser().resolve()
+    root = SYNTHETIC_DIR.resolve()
+    if path != root and root not in path.parents:
+        raise HTTPException(400, "path must be inside the synthetic data directory")
+    return path
+
+
+def _load_response(ctx: Ctx, report) -> dict:
+    state = ctx.state
     return {
-        "source_id": STATE.source_id,
-        "path": str(STATE.source_path),
-        "as_of": STATE.as_of.isoformat(),
+        "source_id": state.source_id,
+        "path": str(state.source_path),
+        "as_of": state.as_of.isoformat(),
         "counts": {
-            "employees": len(STATE.dataset.employees),
-            "actions": len(STATE.dataset.actions),
-            "admin_leave_periods": len(STATE.dataset.leave_periods),
-            "appeals": len(STATE.dataset.appeals),
-            "separations": len(STATE.dataset.separations),
+            "employees": len(state.dataset.employees),
+            "actions": len(state.dataset.actions),
+            "admin_leave_periods": len(state.dataset.leave_periods),
+            "appeals": len(state.dataset.appeals),
+            "separations": len(state.dataset.separations),
         },
         "validation": report.as_dict(),
     }
 
 
-@app.get("/datasets/validation", tags=["datasets"])
-def validation(x_wri_role: RoleHeader = None) -> dict:
+@router.post("/datasets/load", tags=["datasets"])
+def load_dataset(
+    body: LoadRequest = Body(default=LoadRequest()), ctx: Ctx = Depends(get_ctx)
+) -> dict:
+    """Run the adapter and its validation rules on the files already in this workspace.
+    Returns the full validation report."""
+    state = ctx.state
+    _guard(ctx, Capability.MANAGE_DATA, "/datasets/load")
+    _audit(ctx, "/datasets/load", detail=body.model_dump())
+    if body.source not in ADAPTERS:
+        raise HTTPException(400, f"unknown source {body.source!r}. Available: {sorted(ADAPTERS)}")
+    if ctx.engagement is not None:
+        if body.path is not None:
+            raise HTTPException(
+                400, "an engagement loads its own uploaded files; `path` is not accepted"
+            )
+        path = None
+    else:
+        path = _demo_path(body.path)
+    try:
+        report = state.load(path, body.source)
+    except FileNotFoundError as exc:
+        raise HTTPException(409, f"source files are missing or incomplete: {exc}") from None
+    return _load_response(ctx, report)
+
+
+@router.post("/datasets/upload", tags=["datasets"])
+async def upload_dataset(
+    files: list[UploadFile] = File(..., description="The source export files"),
+    source: str = Query("county_hr_csv"),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """Replace this engagement's source files with the uploaded ones, then load them."""
+    _guard(ctx, Capability.MANAGE_DATA, "/datasets/upload")
+    if ctx.engagement is None:
+        raise HTTPException(400, "uploads belong to an engagement; demo mode has none")
+    if source not in ADAPTERS:
+        raise HTTPException(400, f"unknown source {source!r}. Available: {sorted(ADAPTERS)}")
+    names = [f.filename or "" for f in files]
+    bad = [n for n in names if not _UPLOAD_NAME.match(n)]
+    if bad or len(set(names)) != len(names):
+        raise HTTPException(
+            400,
+            "file names must be unique plain names ending in .csv or .json; rejected: "
+            + ", ".join(repr(n) for n in bad or names),
+        )
+    limit = ctx.max_upload_bytes
+    payloads: dict[str, bytes] = {}
+    for upload in files:
+        data = await upload.read(limit + 1)
+        if len(data) > limit:
+            raise HTTPException(413, f"{upload.filename} is larger than the upload limit")
+        payloads[upload.filename] = data
+    _audit(
+        ctx,
+        "/datasets/upload",
+        detail={"files": {n: len(d) for n, d in payloads.items()}, "source": source},
+    )
+    # Stage the new files and prove the adapter can read them before the engagement's
+    # current files are touched, so a bad upload never destroys a good dataset.
+    target = ctx.state.default_source
+    staging = target.parent / "incoming"
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True)
+    try:
+        for name, data in payloads.items():
+            (staging / name).write_bytes(data)
+        adapter = ADAPTERS[source](org=ctx.state.org)
+        try:
+            staged = adapter.load(staging)
+        except Exception as exc:  # whatever the adapter could not read
+            raise HTTPException(
+                422, f"the uploaded files could not be read; nothing was changed: {exc}"
+            ) from None
+        if not staged.employees or not staged.actions:
+            # The adapter reports problems rather than raising, so an upload with no usable
+            # employee or discipline records is refused here, with its reasons.
+            raise HTTPException(
+                422,
+                {
+                    "message": (
+                        "the upload has no usable employee or discipline records; "
+                        "nothing was changed"
+                    ),
+                    "counts_by_rule": adapter.report.as_dict()["counts_by_rule"],
+                },
+            )
+        for old in target.iterdir():
+            if old.is_file():
+                old.unlink()
+        for new in staging.iterdir():
+            new.replace(target / new.name)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    report = ctx.state.load(None, source)
+    return _load_response(ctx, report)
+
+
+@router.get("/datasets/validation", tags=["datasets"])
+def validation(ctx: Ctx = Depends(get_ctx)) -> dict:
     """The data quality panel: what failed validation and how many actions it excluded."""
-    role = _role(x_wri_role)
-    STATE.ensure_loaded()
-    AUDIT.record(role=str(role), endpoint="/datasets/validation")
-    run = STATE.run()
-    report = STATE.report.as_dict()
+    state = ctx.state
+    state.ensure_loaded()
+    _audit(ctx, "/datasets/validation")
+    run = state.run()
+    report = state.report.as_dict()
     report["actions_costed"] = len(run.action_costs)
     report["actions_incomplete_cost"] = run.incomplete_count
-    report["injected_issues_note"] = (
-        "The synthetic generator deliberately seeds malformed rows so these rules have "
-        "something to catch. See src/wri_engine/generator/README.md."
-    )
+    if ctx.engagement is None:
+        report["injected_issues_note"] = (
+            "The synthetic generator deliberately seeds malformed rows so these rules have "
+            "something to catch. See src/wri_engine/generator/README.md."
+        )
     return report
 
 
 # ---------------------------------------------------------------------------
 # costs
 # ---------------------------------------------------------------------------
-@app.get("/costs/matrix", tags=["costs"])
+@router.get("/costs/matrix", tags=["costs"])
 def cost_matrix(
     rows: str = Query("role_family"),
     cols: str = Query("misconduct_category"),
     filters: str | None = Query(None, description='JSON object, e.g. {"year": ["2025"]}'),
     mode: str = Query("base", pattern="^(low|base|high)$"),
-    x_wri_role: RoleHeader = None,
-    x_wri_session: SessionHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> dict:
     """The cost matrix, with suppression already applied. Suppressed cells carry no money."""
-    role = _role(x_wri_role)
+    state = ctx.state
     parsed = _filters(filters)
-    _guard(role, Capability.VIEW_AGGREGATES, "/costs/matrix", parsed)
-    AUDIT.record(
-        role=str(role),
-        endpoint="/costs/matrix",
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/costs/matrix", parsed)
+    _audit(
+        ctx,
+        "/costs/matrix",
         filters=parsed,
         detail={"rows": rows, "cols": cols, "mode": mode},
     )
-    STATE.ensure_loaded()
-    run = STATE.run(mode=mode)
+    state.ensure_loaded()
+    run = state.run(mode=mode)
     try:
         matrix = build_matrix(
             run,
             rows=rows,
             cols=cols,
             filters=parsed,
-            min_cell_size=STATE.min_cell_size,
-            ledger=STATE.ledger(_session(role, x_wri_session)),
-            fte_by_row=fte_denominators(STATE.dataset, rows),
+            min_cell_size=state.min_cell_size,
+            ledger=ctx.ledger(),
+            fte_by_row=fte_denominators(state.dataset, rows),
         )
     except KeyError as exc:
         raise HTTPException(400, str(exc)) from None
-    return {"caption": CAPTION, **matrix.as_dict()}
+    return {"caption": _caption(ctx), **matrix.as_dict()}
 
 
-@app.get("/costs/summary", tags=["costs"])
+@router.get("/costs/summary", tags=["costs"])
 def cost_summary(
     mode: str = Query("base", pattern="^(low|base|high)$"),
-    x_wri_role: RoleHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> dict:
     """Headline figures for the executive summary page."""
-    role = _role(x_wri_role)
-    _guard(role, Capability.VIEW_AGGREGATES, "/costs/summary")
-    AUDIT.record(role=str(role), endpoint="/costs/summary", detail={"mode": mode})
-    STATE.ensure_loaded()
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/costs/summary")
+    _audit(ctx, "/costs/summary", detail={"mode": mode})
+    state.ensure_loaded()
     return {
-        "caption": CAPTION,
-        **summarize(STATE.run(mode=mode), STATE.dataset, min_cell_size=STATE.min_cell_size),
+        "caption": _caption(ctx),
+        **_summary(ctx, state.run(mode=mode)),
     }
 
 
-@app.get("/costs/actions", tags=["costs"])
+@router.get("/costs/actions", tags=["costs"])
 def list_actions(
     filters: str | None = Query(None),
     mode: str = Query("base", pattern="^(low|base|high)$"),
     limit: int = Query(200, ge=1, le=2000),
-    x_wri_role: RoleHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> dict:
     """Actions matching a filter, for the drill-down list. Role-gated."""
-    role = _role(x_wri_role)
+    role, state = ctx.role, ctx.state
     parsed = _filters(filters)
-    _guard(role, Capability.VIEW_RECORDS, "/costs/actions", parsed)
-    AUDIT.record(role=str(role), endpoint="/costs/actions", filters=parsed)
-    STATE.ensure_loaded()
+    _guard(ctx, Capability.VIEW_RECORDS, "/costs/actions", parsed)
+    _audit(ctx, "/costs/actions", filters=parsed)
+    state.ensure_loaded()
     from wri_engine.aggregation.rollups import matches
 
-    run = STATE.run(mode=mode)
+    run = state.run(mode=mode)
     selected = [ac for ac in run.action_costs if matches(ac, parsed)]
     selected.sort(key=lambda ac: ac.net, reverse=True)
     return {
-        "caption": CAPTION,
+        "caption": _caption(ctx),
         "count": len(selected),
         "actions": [
             {
@@ -273,28 +419,28 @@ def list_actions(
     }
 
 
-@app.get("/costs/actions/{action_id}", tags=["costs"])
+@router.get("/costs/actions/{action_id}", tags=["costs"])
 def action_detail(
     action_id: str,
     mode: str = Query("base", pattern="^(low|base|high)$"),
-    x_wri_role: RoleHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> dict:
     """Every line item behind one action, with its formula and the assumptions it used."""
-    role = _role(x_wri_role)
-    _guard(role, Capability.VIEW_RECORDS, f"/costs/actions/{action_id}")
-    AUDIT.record(
-        role=str(role),
-        endpoint="/costs/actions/{action_id}",
+    role, state = ctx.role, ctx.state
+    _guard(ctx, Capability.VIEW_RECORDS, f"/costs/actions/{action_id}")
+    _audit(
+        ctx,
+        "/costs/actions/{action_id}",
         detail={"action_id": action_id, "mode": mode},
     )
-    STATE.ensure_loaded()
-    action = STATE.run(mode=mode).by_action().get(action_id)
+    state.ensure_loaded()
+    action = state.run(mode=mode).by_action().get(action_id)
     if action is None:
         raise HTTPException(404, f"action {action_id!r} was not costed (unknown or excluded)")
-    assumptions = STATE.assumptions.with_mode(mode)
+    assumptions = state.effective_assumptions.with_mode(mode)
     used = sorted({a for item in action.line_items for a in item.assumption_ids})
     return {
-        "caption": CAPTION,
+        "caption": _caption(ctx),
         "action_id": action.action_id,
         "employee": project_identifier(role, action.employee_id),
         "dimensions": {k: v for k, v in action.dimensions.items() if k != "employee_id"},
@@ -327,23 +473,98 @@ def action_detail(
 # ---------------------------------------------------------------------------
 # assumptions and scenarios
 # ---------------------------------------------------------------------------
-@app.get("/assumptions", tags=["assumptions"])
+@router.get("/assumptions", tags=["assumptions"])
 def list_assumptions(
     mode: str = Query("base", pattern="^(low|base|high)$"),
-    x_wri_role: RoleHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> dict:
-    role = _role(x_wri_role)
-    _guard(role, Capability.VIEW_AGGREGATES, "/assumptions")
-    AUDIT.record(role=str(role), endpoint="/assumptions", detail={"mode": mode})
-    assumptions = STATE.assumptions.with_mode(mode)
+    role, state = ctx.role, ctx.state
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/assumptions")
+    _audit(ctx, "/assumptions", detail={"mode": mode})
+    assumptions = state.effective_assumptions.with_mode(mode)
     records = assumptions.as_records()
     return {
         "mode": mode,
         "count": len(records),
         "placeholder_count": sum(1 for r in records if r["status"] == "TBD-MIKE"),
-        "editable": role == Role.ADMIN,
+        "override_count": sum(1 for r in records if r["overridden"]),
+        "editable": allows(role, Capability.EDIT_ASSUMPTIONS),
         "assumptions": records,
     }
+
+
+class OverrideRequest(BaseModel):
+    value: Decimal
+    reason: str = Field(
+        ..., min_length=3, max_length=500, description="Where the figure comes from"
+    )
+
+
+@router.get("/assumptions/overrides", tags=["assumptions"])
+def list_overrides(ctx: Ctx = Depends(get_ctx)) -> dict:
+    """The client-specific values this engagement uses in place of the defaults."""
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/assumptions/overrides")
+    _audit(ctx, "/assumptions/overrides")
+    store = _engagement_store(ctx)
+    defaults = ctx.state.assumptions
+    return {
+        "overrides": [
+            {
+                "assumption_id": o.assumption_id,
+                "value": str(o.value),
+                "default_value": str(defaults.get(o.assumption_id).value),
+                "unit": defaults.get(o.assumption_id).unit,
+                "reason": o.reason,
+                "set_by": o.set_by,
+                "set_at": o.set_at.isoformat(),
+            }
+            for o in store.overrides(ctx.engagement.id)
+        ]
+    }
+
+
+@router.put("/assumptions/{assumption_id}/override", tags=["assumptions"])
+def set_override(assumption_id: str, body: OverrideRequest, ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Use the client's own figure for one assumption in this engagement. The default in the
+    registry is untouched, and the change is recorded with who made it and why."""
+    _guard(ctx, Capability.EDIT_ASSUMPTIONS, "/assumptions/{assumption_id}/override")
+    store = _engagement_store(ctx)
+    if assumption_id not in ctx.state.assumptions:
+        raise HTTPException(404, f"assumption {assumption_id!r} is not in the registry")
+    if not body.value.is_finite() or body.value < 0:
+        raise HTTPException(400, "an assumption value must be a non-negative number")
+    _audit(
+        ctx,
+        "/assumptions/{assumption_id}/override",
+        detail={"assumption_id": assumption_id, "value": str(body.value), "reason": body.reason},
+    )
+    store.set_override(
+        ctx.engagement.id, assumption_id, body.value, reason=body.reason, set_by=ctx.user.id
+    )
+    ctx.workspaces.refresh_overrides(ctx.engagement.id)
+    return {"assumption_id": assumption_id, "value": str(body.value), "overridden": True}
+
+
+@router.delete("/assumptions/{assumption_id}/override", tags=["assumptions"])
+def clear_override(assumption_id: str, ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Go back to the default value for one assumption."""
+    _guard(ctx, Capability.EDIT_ASSUMPTIONS, "/assumptions/{assumption_id}/override")
+    store = _engagement_store(ctx)
+    _audit(
+        ctx,
+        "/assumptions/{assumption_id}/override",
+        detail={"assumption_id": assumption_id, "cleared": True},
+    )
+    if not store.clear_override(ctx.engagement.id, assumption_id):
+        raise HTTPException(404, f"no override is set for {assumption_id!r}")
+    ctx.workspaces.refresh_overrides(ctx.engagement.id)
+    return {"assumption_id": assumption_id, "overridden": False}
+
+
+def _engagement_store(ctx: Ctx):
+    if ctx.engagement is None or ctx.store is None:
+        raise HTTPException(400, "overrides belong to an engagement; demo mode has none")
+    return ctx.store
 
 
 class ScenarioRequest(BaseModel):
@@ -355,21 +576,21 @@ class ScenarioRequest(BaseModel):
     cols: str = "misconduct_category"
 
 
-@app.post("/scenarios/run", tags=["assumptions"])
-def run_scenario(body: ScenarioRequest, x_wri_role: RoleHeader = None) -> dict:
+@router.post("/scenarios/run", tags=["assumptions"])
+def run_scenario(body: ScenarioRequest, ctx: Ctx = Depends(get_ctx)) -> dict:
     """Re-run the engine with overridden assumptions. Nothing on disk changes."""
-    role = _role(x_wri_role)
-    _guard(role, Capability.RUN_SCENARIOS, "/scenarios/run")
-    AUDIT.record(role=str(role), endpoint="/scenarios/run", detail=body.model_dump())
-    STATE.ensure_loaded()
+    state = ctx.state
+    _guard(ctx, Capability.RUN_SCENARIOS, "/scenarios/run")
+    _audit(ctx, "/scenarios/run", detail=body.model_dump())
+    state.ensure_loaded()
     try:
-        scenario = STATE.run(mode=body.mode, overrides=body.overrides)
+        scenario = state.run(mode=body.mode, overrides=body.overrides)
     except MissingAssumptionError as exc:
         raise HTTPException(400, str(exc)) from None
-    baseline = STATE.run(mode=body.mode)
+    baseline = state.run(mode=body.mode)
     delta = scenario.net - baseline.net
     return {
-        "caption": CAPTION,
+        "caption": _caption(ctx),
         "mode": body.mode,
         "overrides": body.overrides,
         "baseline_net": str(baseline.net),
@@ -380,40 +601,41 @@ def run_scenario(body: ScenarioRequest, x_wri_role: RoleHeader = None) -> dict:
             if baseline.net
             else None
         ),
-        "summary": summarize(scenario, STATE.dataset, min_cell_size=STATE.min_cell_size),
+        "summary": _summary(ctx, scenario),
     }
 
 
 # ---------------------------------------------------------------------------
 # exports
 # ---------------------------------------------------------------------------
-@app.get("/exports/matrix.csv", tags=["exports"])
+@router.get("/exports/matrix.csv", tags=["exports"])
 def export_matrix(
     rows: str = Query("role_family"),
     cols: str = Query("misconduct_category"),
     filters: str | None = Query(None),
     mode: str = Query("base", pattern="^(low|base|high)$"),
-    x_wri_role: RoleHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> Response:
-    role = _role(x_wri_role)
+    state = ctx.state
     parsed = _filters(filters)
-    _guard(role, Capability.VIEW_AGGREGATES, "/exports/matrix.csv", parsed)
-    AUDIT.record(role=str(role), endpoint="/exports/matrix.csv", filters=parsed)
-    STATE.ensure_loaded()
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/matrix.csv", parsed)
+    _audit(ctx, "/exports/matrix.csv", filters=parsed)
+    state.ensure_loaded()
     matrix = build_matrix(
-        STATE.run(mode=mode),
+        state.run(mode=mode),
         rows=rows,
         cols=cols,
         filters=parsed,
-        min_cell_size=STATE.min_cell_size,
-        fte_by_row=fte_denominators(STATE.dataset, rows),
+        min_cell_size=state.min_cell_size,
+        ledger=ctx.ledger(),
+        fte_by_row=fte_denominators(state.dataset, rows),
     )
     import csv
     import io
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow([f"# {CAPTION}"])
+    writer.writerow([f"# {_caption(ctx)}"])
     writer.writerow([f"# mode={mode} min_cell_size={matrix.min_cell_size}"])
     writer.writerow(
         [
@@ -502,27 +724,27 @@ def export_matrix(
     )
 
 
-@app.get("/exports/summary.md", tags=["exports"])
+@router.get("/exports/summary.md", tags=["exports"])
 def export_summary(
     mode: str = Query("base", pattern="^(low|base|high)$"),
-    x_wri_role: RoleHeader = None,
+    ctx: Ctx = Depends(get_ctx),
 ) -> Response:
-    role = _role(x_wri_role)
-    _guard(role, Capability.VIEW_AGGREGATES, "/exports/summary.md")
-    AUDIT.record(role=str(role), endpoint="/exports/summary.md")
-    STATE.ensure_loaded()
-    s = summarize(STATE.run(mode=mode), STATE.dataset, min_cell_size=STATE.min_cell_size)
-    return Response(_summary_markdown(s), media_type="text/markdown")
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/summary.md")
+    _audit(ctx, "/exports/summary.md")
+    state.ensure_loaded()
+    s = _summary(ctx, state.run(mode=mode))
+    return Response(_summary_markdown(s, _agency(ctx), _caption(ctx)), media_type="text/markdown")
 
 
-def _summary_markdown(s: dict[str, Any]) -> str:
+def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
     def money(text: str | None) -> str:
         return f"${Decimal(text):,.0f}" if text else "n/a"
 
     lines = [
-        f"# {STATE.agency_name} - Cost of Discipline",
+        f"# {agency} - Cost of Discipline",
         "",
-        f"*{CAPTION}*",
+        f"*{caption}*",
         "",
         f"Window: {s['window_years']} years of decided actions, as of {s['as_of']}. "
         f"Sensitivity mode: **{s['mode']}**.",
@@ -587,3 +809,66 @@ def _summary_markdown(s: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# application
+# ---------------------------------------------------------------------------
+def _installation_salt(settings: Settings) -> str:
+    """Pseudonyms must not be guessable from the source code, so each installation gets its
+    own salt the first time it starts. `WRI_PSEUDONYM_SALT` overrides it."""
+    import os
+    import secrets
+
+    if os.environ.get("WRI_PSEUDONYM_SALT"):
+        return os.environ["WRI_PSEUDONYM_SALT"]
+    path = Path(settings.data_dir) / "pseudonym.salt"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(secrets.token_hex(32))
+        path.chmod(0o600)
+    return path.read_text().strip()
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings.from_env()
+    demo = settings.auth_mode == "demo"
+    app = FastAPI(
+        title="WRI Engine - Discipline Cost Baseline",
+        version="0.2.0",
+        description=(
+            "Phase 1 of the Workforce Risk Intelligence engine: the fully loaded cost of "
+            "discipline. Every figure is traceable to the line items and assumptions that "
+            "produced it." + ("\n\n" + CAPTION if demo else "")
+        ),
+    )
+    runtime = Runtime(settings=settings)
+    app.state.runtime = runtime
+
+    @app.get("/health", tags=["meta"])
+    def health() -> dict:
+        return {"status": "ok", "auth_mode": settings.auth_mode}
+
+    @app.exception_handler(NoDataset)
+    def no_dataset(_request, exc: NoDataset):
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse({"detail": str(exc)}, status_code=409)
+
+    if demo:
+        # The synthetic walkthrough: header-chosen roles, one built-in dataset, old paths.
+        app.include_router(router)
+        return app
+
+    from wri_engine.access.roles import set_pseudonym_salt
+    from wri_engine.api.accounts import router as accounts_router
+
+    set_pseudonym_salt(_installation_salt(settings))
+    runtime.store = Store(settings.database_url)
+    runtime.workspaces = Workspaces(settings.engagements_dir, runtime.store)
+    app.include_router(accounts_router)
+    app.include_router(router, prefix="/engagements/{engagement_id}")
+    return app
+
+
+app = create_app()

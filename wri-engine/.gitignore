@@ -17,3 +17,8 @@ data/synthetic/*
 
 # Runtime artifact: the API appends a line here per request. Never source.
 data/audit_log.jsonl
+
+# A licensed installation's own records. Never source.
+data/wri.db
+data/pseudonym.salt
+data/engagements/
