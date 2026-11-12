@@ -103,10 +103,16 @@ def test_yaml_floats_survive_as_exact_decimals(assumptions):
     assert assumptions.value("benefits_multiplier_civilian") == Decimal("1.627")
 
 
-def test_placeholders_are_listed(assumptions):
-    ids = {a.id for a in assumptions.placeholders}
-    assert "benefits_multiplier_sworn" in ids
-    assert "benefits_multiplier_civilian" not in ids
+def test_placeholders_are_listed(tmp_path):
+    """A TBD-MIKE entry is reported as a placeholder; a confirmed one is not. Uses its own
+    registry so the test does not depend on how many placeholders the live file holds."""
+    loaded = load_assumptions(write(tmp_path, [BASE, {**BASE, "id": "y", "status": "confirmed"}]))
+    assert {a.id for a in loaded.placeholders} == {"x"}
+
+
+def test_live_registry_has_no_placeholders(assumptions):
+    """Every coefficient was signed off by the owner on 2026-11-12."""
+    assert assumptions.placeholders == []
 
 
 def test_records_expose_the_effective_value(assumptions):

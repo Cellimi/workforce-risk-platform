@@ -148,7 +148,7 @@ def test_scenario_rejects_an_unknown_assumption(client):
 
 def test_assumptions_endpoint_flags_placeholders(client):
     body = client.get("/assumptions", headers=headers("admin")).json()
-    assert body["placeholder_count"] > 0
+    assert body["placeholder_count"] == 0
     assert body["editable"] is True
     assert client.get("/assumptions", headers=headers("executive")).json()["editable"] is False
     sample = next(a for a in body["assumptions"] if a["id"] == "benefits_multiplier_civilian")
