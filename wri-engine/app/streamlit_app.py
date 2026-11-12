@@ -1,17 +1,24 @@
 """WRI Phase 1 demo UI.
 
-Five pages over the FastAPI service. This module talks HTTP and nothing else -- it must
-never import `wri_engine`. If a page needs something the API does not expose, the answer is
-a new endpoint, not a shortcut.
+Pages over the FastAPI service. This module talks HTTP and nothing else -- it must never
+import `wri_engine`. If a page needs something the API does not expose, the answer is a new
+endpoint, not a shortcut.
+
+It works against either kind of server, and asks the server which it is:
+
+* **demo** (`make api`): the synthetic county, a role picker, no sign-in;
+* **licensed** (`make serve`): sign-in, engagements, loading a client's data and
+  client-specific values. Those screens live in `licensed.py`.
 
 Run it with the API already up:
 
-    make api    # terminal one
-    make ui     # terminal two
+    make api    # or: make serve
+    make ui
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -22,6 +29,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import licensed  # noqa: E402
 from api_client import ApiError, EngineClient  # noqa: E402
 from theme import colorscale, palette, style  # noqa: E402
 
@@ -46,6 +54,8 @@ COMPONENT_LABELS = {
     "C5": "C5 Removal turnover",
     "C5-offset": "C5-offset Vacancy salary saved",
 }
+
+DEFAULT_API_URL = os.environ.get("WRI_API_URL", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="WRI - Cost of Discipline", page_icon="::", layout="wide")
 
@@ -73,7 +83,18 @@ def client() -> EngineClient:
         base_url=st.session_state["api_url"],
         role=st.session_state["role"],
         session=st.session_state.get("session_id", "streamlit"),
+        token=st.session_state.get("token"),
+        engagement_id=st.session_state.get("engagement_id") if licensed.is_licensed() else None,
     )
+
+
+def current_role() -> str:
+    return licensed.role() if licensed.is_licensed() else st.session_state["role"]
+
+
+def agency() -> str:
+    current = licensed.engagement() if licensed.is_licensed() else None
+    return current["client_name"] if current else "Harlow County"
 
 
 def how_calculated(title: str, body: str) -> None:
@@ -86,7 +107,7 @@ def page_header(title: str, subtitle: str = "") -> None:
     st.title(title)
     if subtitle:
         st.markdown(subtitle)
-    st.caption(CAPTION)
+    st.caption(licensed.ENGAGEMENT_CAPTION if licensed.is_licensed() else CAPTION)
 
 
 def mode() -> str:
@@ -100,14 +121,31 @@ def theme() -> str:
 # ---------------------------------------------------------------------------
 # sidebar
 # ---------------------------------------------------------------------------
-def sidebar() -> str:
-    st.sidebar.markdown("### Harlow County")
-    st.sidebar.caption("Workforce Risk Intelligence - Phase 1")
-
-    st.session_state.setdefault("api_url", "http://127.0.0.1:8000")
+def defaults() -> None:
+    st.session_state.setdefault("api_url", DEFAULT_API_URL)
     st.session_state.setdefault("role", "executive")
     st.session_state.setdefault("mode", "base")
     st.session_state.setdefault("chart_theme", "light")
+
+
+def display_controls() -> None:
+    st.session_state["mode"] = st.sidebar.select_slider(
+        "Sensitivity",
+        options=["low", "base", "high"],
+        value=st.session_state["mode"],
+        help="Runs the whole engine on the low, base or high value of every assumption.",
+    )
+    st.session_state["chart_theme"] = st.sidebar.radio(
+        "Chart theme",
+        ["light", "dark"],
+        horizontal=True,
+        index=["light", "dark"].index(st.session_state["chart_theme"]),
+    )
+
+
+def sidebar() -> str:
+    st.sidebar.markdown("### Harlow County")
+    st.sidebar.caption("Workforce Risk Intelligence - Phase 1")
 
     page = st.sidebar.radio("Page", PAGES, label_visibility="collapsed")
     st.sidebar.divider()
@@ -121,18 +159,7 @@ def sidebar() -> str:
             "No authentication yet - this is the seam where SSO goes."
         ),
     )
-    st.session_state["mode"] = st.sidebar.select_slider(
-        "Sensitivity",
-        options=["low", "base", "high"],
-        value=st.session_state["mode"],
-        help="Runs the whole engine on the low, base or high value of every assumption.",
-    )
-    st.session_state["chart_theme"] = st.sidebar.radio(
-        "Chart theme",
-        ["light", "dark"],
-        horizontal=True,
-        index=["light", "dark"].index(st.session_state["chart_theme"]),
-    )
+    display_controls()
 
     with st.sidebar.expander("Connection"):
         st.session_state["api_url"] = st.text_input("API URL", st.session_state["api_url"])
@@ -150,14 +177,14 @@ def sidebar() -> str:
 # ---------------------------------------------------------------------------
 def executive_summary(api: EngineClient) -> None:
     page_header(
-        "What discipline costs Harlow County",
+        f"What discipline costs {agency()}",
         "Every figure here decomposes into line items that name their own formula.",
     )
     data = api.summary(mode())
 
     takeaway = (
         f"**{data['agency_note'].split('.')[0]}.** Over the last "
-        f"{data['window_years']} years Harlow County spent "
+        f"{data['window_years']} years {agency()} spent "
         f"**{md_money(data['total_net'])}** on discipline - about "
         f"**{md_money(data['annual_net'])} a year**, or "
         f"**{md_money(data['net_per_fte_per_year'], 0)} per employee per year** across "
@@ -248,7 +275,7 @@ retiree health carry on, so they are not counted as savings in either case.
                 for c in data["top_cells"]
             ],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
     with right:
         st.subheader("Cost per employee per year")
@@ -305,7 +332,7 @@ def component_chart(data: dict) -> None:
         range=[low - (span * 0.10 if low < 0 else 0), high + span * 0.14],
     )
     fig.update_yaxes(showgrid=False, autorange="reversed")
-    st.plotly_chart(style(fig, theme(), height=340, showlegend=True), use_container_width=True)
+    st.plotly_chart(style(fig, theme(), height=340, showlegend=True), width="stretch")
 
 
 def department_chart(data: dict) -> None:
@@ -335,7 +362,7 @@ def department_chart(data: dict) -> None:
         range=[0, high * 1.25],
     )
     fig.update_yaxes(showgrid=False, autorange="reversed")
-    st.plotly_chart(style(fig, theme(), height=340), use_container_width=True)
+    st.plotly_chart(style(fig, theme(), height=340), width="stretch")
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +467,7 @@ withheld.
                 if not c["suppressed"]
             ],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
     st.download_button(
@@ -518,7 +545,7 @@ def heatmap(data: dict, metric: str) -> None:
     fig.update_yaxes(showgrid=False, autorange="reversed")
     st.plotly_chart(
         style(fig, theme(), height=max(360, 30 * len(row_keys) + 190)),
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -527,11 +554,11 @@ def heatmap(data: dict, metric: str) -> None:
 # ---------------------------------------------------------------------------
 def drill_down(api: EngineClient) -> None:
     page_header("Drill-down", "One action, every line item, back to its assumption.")
-    if st.session_state["role"] == "executive":
+    if current_role() == "executive":
         st.warning(
             "The executive role sees aggregates only. The API returns 403 for record-level "
-            "requests - this is enforced in the engine, not hidden in the UI. Switch role "
-            "in the sidebar to continue."
+            "requests - this is enforced in the engine, not hidden in the UI."
+            + ("" if licensed.is_licensed() else " Switch role in the sidebar to continue.")
         )
         return
 
@@ -571,7 +598,7 @@ def drill_down(api: EngineClient) -> None:
                 for a in actions
             ],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             height=min(460, 40 + 35 * len(actions)),
         )
     with right:
@@ -628,7 +655,7 @@ def drill_down(api: EngineClient) -> None:
                 for a in detail["assumptions_used"]
             ],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
     _ = dimensions
 
@@ -715,6 +742,11 @@ def assumptions_page(api: EngineClient) -> None:
                 "Unit": a["unit"],
                 "Confidence": a["confidence"],
                 "Source": a["source"],
+                **(
+                    {"Client value": "yes" if a.get("overridden") else ""}
+                    if licensed.is_licensed()
+                    else {}
+                ),
             }
             for a in rows
         ]
@@ -725,7 +757,7 @@ def assumptions_page(api: EngineClient) -> None:
     st.dataframe(
         table.style.apply(_highlight_uncertain, axis=1),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         height=420,
     )
 
@@ -735,6 +767,9 @@ def assumptions_page(api: EngineClient) -> None:
             "this; the sliders below appear for admins only."
         )
         return
+
+    if licensed.is_licensed():
+        licensed.overrides_section(api, data["assumptions"])
 
     st.divider()
     st.subheader("Scenario: change an assumption and rerun")
@@ -811,13 +846,14 @@ def data_quality(api: EngineClient) -> None:
         help="Costed at their current actual figure and flagged, not estimated forward.",
     )
 
-    st.caption(report["injected_issues_note"])
+    if report.get("injected_issues_note"):
+        st.caption(report["injected_issues_note"])
 
     st.subheader("By rule")
     st.dataframe(
         [{"Rule": k, "Records": v} for k, v in report["counts_by_rule"].items()],
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
 
     st.subheader("Every issue")
@@ -835,7 +871,7 @@ def data_quality(api: EngineClient) -> None:
             for i in report["issues"]
         ],
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         height=420,
     )
     how_calculated(
@@ -859,28 +895,58 @@ PAGE_FUNCTIONS = {
     "Drill-down": drill_down,
     "Assumptions": assumptions_page,
     "Data quality": data_quality,
+    "Load data": licensed.load_data_page,
+    "Engagement": licensed.engagement_page,
 }
 
 
+def unreachable() -> None:
+    st.error(
+        f"The engine API is not reachable at {st.session_state['api_url']}.\n\n"
+        "Start it with `make api` (demo) or `make serve` (licensed), then reload this page. "
+        "The UI talks to the engine over HTTP only - it has no way to compute anything itself."
+    )
+    with st.expander("Connection"):
+        st.session_state["api_url"] = st.text_input("API URL", st.session_state["api_url"])
+
+
 def main() -> None:
-    page = sidebar()
-    api = client()
+    defaults()
     try:
-        api.health()
+        health = EngineClient(base_url=st.session_state["api_url"]).health()
     except Exception:  # noqa: BLE001
-        st.error(
-            f"The engine API is not reachable at {st.session_state['api_url']}.\n\n"
-            "Start it with `make api`, then reload this page. The UI talks to the engine "
-            "over HTTP only - it has no way to compute anything itself."
-        )
+        unreachable()
         return
+    st.session_state["auth_mode"] = health.get("auth_mode", "demo")
+
+    if licensed.is_licensed():
+        if not licensed.signed_in():
+            licensed.sign_in_page(st.session_state["api_url"])
+            return
+        page = licensed.sidebar(st.session_state["api_url"])
+        display_controls()
+    else:
+        page = sidebar()
+
+    api = client()
     try:
         PAGE_FUNCTIONS[page](api)
     except ApiError as exc:
-        if exc.status == 403:
-            st.error(
-                f"The `{st.session_state['role']}` role is not permitted to see this. {exc.detail}"
+        if exc.status == 401 and licensed.is_licensed():
+            licensed.sign_out()
+            st.warning("Your session has ended. Sign in again.")
+            st.rerun()
+        elif exc.status == 409 and licensed.is_licensed():
+            st.info(
+                "No data has been loaded for this engagement yet."
+                + (
+                    " Open **Load data** in the sidebar to bring in the client's export."
+                    if licensed.can("manage_data")
+                    else " The engagement lead loads it."
+                )
             )
+        elif exc.status == 403:
+            st.error(f"The `{current_role()}` role is not permitted to see this. {exc.detail}")
         else:
             st.error(str(exc))
 

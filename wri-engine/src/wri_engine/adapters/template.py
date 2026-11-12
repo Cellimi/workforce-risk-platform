@@ -978,6 +978,44 @@ def _guess_date_format(samples: list[str]) -> tuple[str | None, bool]:
     return fits[0], ambiguous
 
 
+def codes_to_translate(directory: Path, mapping: dict | Mapping) -> dict[str, dict]:
+    """For a mapping as it stands now: every value in a mapped yes/no or choice column (and
+    every non-standard misconduct code) that the mapping does not yet translate, with its
+    count. Used by the preview so the list follows the mapping as a person edits it."""
+    parsed = mapping if isinstance(mapping, Mapping) else parse_mapping(mapping)
+    out: dict[str, dict] = {}
+    for table in TEMPLATE:
+        tm = parsed.tables.get(table.name) or TableMapping(file=table.file)
+        path = Path(directory) / tm.file
+        if not path.exists():
+            continue
+        columns = _read_columns(path)
+        found: dict[str, dict[str, int]] = {}
+        for spec in table.fields:
+            if spec.kind not in ("yes_no", "choice") and spec.name != "misconduct_category":
+                continue
+            if spec.name in tm.constants:
+                continue
+            column = tm.columns.get(spec.name, spec.name)
+            if column not in columns:
+                continue
+            codes = tm.values.get(spec.name, {})
+            odd = Counter(
+                v
+                for v in columns[column]
+                if v and not _valid(spec, codes.get(v, v)) and not codes.get(v)
+            )
+            if odd:
+                found[spec.name] = {
+                    "column": column,
+                    "allowed": list(spec.choices) or ["Y", "N"],
+                    "codes": dict(odd.most_common(100)),
+                }
+        if found:
+            out[table.name] = found
+    return out
+
+
 def suggest_mapping(directory: Path) -> dict:
     """A first-draft mapping from the uploaded files, for a person to check.
 

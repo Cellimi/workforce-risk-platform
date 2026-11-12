@@ -56,6 +56,7 @@ from wri_engine.adapters.template import (
 )
 from wri_engine.adapters.template import (
     MappingError,
+    codes_to_translate,
     parse_mapping,
     suggest_mapping,
     template_spec,
@@ -455,6 +456,7 @@ def _preview(ctx: Ctx, mapping: dict) -> tuple[dict, bool]:
                 "separations": len(staged.separations),
             },
             "actions_that_would_be_excluded": report["excluded_actions"],
+            "codes_to_translate": codes_to_translate(directory, mapping),
             "validation": {**report, "issues": report["issues"][:200]},
         },
         usable,
