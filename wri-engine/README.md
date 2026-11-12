@@ -21,7 +21,7 @@ repository.
 cd wri-engine
 make install          # venv + dependencies (Python 3.11+)
 make generate         # write the synthetic county HR export to data/synthetic/
-make test             # 180 tests, coverage gate on costing/ and aggregation/
+make test             # 228 tests, coverage gate on costing/ and aggregation/
 make api              # terminal one: http://localhost:8000  (docs at /docs)
 make ui               # terminal two: http://localhost:8501
 ```
@@ -57,7 +57,7 @@ Then, over the API (`/docs` lists everything):
 | Create consultant and client accounts (firm administrator) | `POST /users` |
 | Open an engagement (firm administrator) | `POST /engagements` |
 | Add members as `admin`, `hr_analyst` or `executive` | `PUT /engagements/{id}/members` |
-| Upload the client's export; it is validated before it replaces anything | `POST /engagements/{id}/datasets/upload` |
+| Load the client's data (see "Loading a client's data" below) | `/engagements/{id}/intake/...` |
 | Use the client's own figure for an assumption, with a reason | `PUT /engagements/{id}/assumptions/{assumption_id}/override` |
 | Everything in the table under "The API" below | `/engagements/{id}/...` |
 
@@ -67,9 +67,36 @@ engagement's source files in `data/engagements/<id>/source/`. Nothing is kept on
 so a restart loses no work. Passwords are stored as scrypt hashes and session tokens as
 SHA-256 hashes.
 
+### Loading a client's data
+
+A client's export arrives in its own layout. It is never edited by hand; a **mapping** says
+how to read it, and the mapping is saved with the engagement.
+
+| Step | Endpoint | What happens |
+|---|---|---|
+| 1. Send the client the template, if they have no clean export | `GET .../intake/template.zip` | Blank CSVs and a plain-language field guide |
+| 2. Upload what the client sent | `POST .../intake/files` | Held apart from the engagement's data. The reply is a draft mapping |
+| 3. Finish the mapping and preview | `PUT .../intake/mapping` | Shows what would load and every problem. Repeat until right |
+| 4. Commit | `POST .../intake/commit` | Becomes the engagement's dataset |
+
+The draft mapping in step 2 does most of the work:
+
+- matches columns by name, synonym and abbreviation (`Worker #`, `Start Dt`, `Case No`);
+- guesses the date format, and says when day and month could be swapped;
+- lists every code that needs translating, with counts (`Pay Type: E 9, N 31`);
+- sets up the fields an export rarely holds -- sworn, minimum staffing, schedule, turnover
+  profile -- to be decided **once per job family**, with every job family listed.
+
+Files already in the template layout can skip the mapping:
+`POST .../datasets/upload?source=wri_template`.
+
+The load report is designed to keep a total honest. When a detail is missing the engine
+takes the lighter assumption and says so (an investigation of unknown type is costed as a
+supervisory inquiry), and when a cost cannot be counted it says which cases and why (a
+removal with no recorded separation carries no replacement cost).
+
 Not built yet: a screen for the licensed mode (the Streamlit app talks to demo mode only),
-single sign-on, column mapping for a client's own export layout (uploads must currently be in
-the Harlow County layout), the private-sector cost model, and engagement license keys.
+single sign-on, the private-sector cost model, and engagement license keys.
 
 ---
 

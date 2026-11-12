@@ -54,3 +54,22 @@ def run(loaded, org, assumptions):
         assumptions=assumptions,
         excluded_action_ids=report.blocked_action_ids,
     )
+
+
+@pytest.fixture(autouse=True)
+def _close_databases(monkeypatch):
+    """Every installation a test builds opens a database. Close them all afterwards, as the
+    API does on shutdown, so no connection is left for the garbage collector."""
+    from wri_engine.store import db
+
+    opened: list = []
+    original = db.Store.__init__
+
+    def tracking_init(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        opened.append(self)
+
+    monkeypatch.setattr(db.Store, "__init__", tracking_init)
+    yield
+    for store in opened:
+        store.close()

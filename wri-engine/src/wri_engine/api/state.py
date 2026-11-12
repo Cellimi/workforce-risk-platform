@@ -21,10 +21,12 @@ from pathlib import Path
 
 from wri_engine.adapters.base import SourceAdapter, ValidationReport
 from wri_engine.adapters.county_hr_csv import CountyHrCsvAdapter
+from wri_engine.adapters.template import SOURCE_ID as TEMPLATE_SOURCE
+from wri_engine.adapters.template import TemplateAdapter
 from wri_engine.aggregation.suppression import DEFAULT_MIN_CELL_SIZE, DisclosureLedger
 from wri_engine.costing.assumptions import AssumptionSet, Mode, load_assumptions
 from wri_engine.costing.engine import CostRun, run_costing
-from wri_engine.orgconfig import OrgConfig, load_org_config
+from wri_engine.orgconfig import OrgConfig, default_org_config, load_org_config
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.schema import CanonicalDataset
 from wri_engine.store import Store
@@ -34,7 +36,37 @@ class NoDataset(RuntimeError):
     """The engagement has no source files yet. The API turns this into a 409."""
 
 
-ADAPTERS: dict[str, type[SourceAdapter]] = {"county_hr_csv": CountyHrCsvAdapter}
+ADAPTERS: dict[str, type[SourceAdapter]] = {
+    "county_hr_csv": CountyHrCsvAdapter,
+    TEMPLATE_SOURCE: TemplateAdapter,
+}
+#: Written beside an engagement's source files: which adapter reads them, and with what
+#: mapping. The leading underscore keeps it out of reach of uploads, whose names must start
+#: with a letter or digit.
+SOURCE_MARKER = "_wri_source.json"
+
+
+def make_adapter(source: str, *, mapping: dict | None = None, client_name: str = "Client"):
+    """Build the adapter for a source. The county adapter always describes Harlow County;
+    the template adapter builds the organization from the client's own data."""
+    if source == TEMPLATE_SOURCE:
+        return TemplateAdapter(mapping=mapping, agency_name=client_name)
+    if source == "county_hr_csv":
+        return CountyHrCsvAdapter(org=default_org_config())
+    raise KeyError(source)
+
+
+def read_marker(directory: Path) -> dict:
+    marker = Path(directory) / SOURCE_MARKER
+    if marker.exists():
+        return json.loads(marker.read_text())
+    return {}
+
+
+def write_marker(directory: Path, source: str, mapping: dict | None) -> None:
+    (Path(directory) / SOURCE_MARKER).write_text(
+        json.dumps({"source": source, "mapping": mapping}, indent=2, sort_keys=True)
+    )
 
 
 @dataclass
@@ -50,6 +82,8 @@ class EngineState:
     manifest: dict = field(default_factory=dict)
     #: Where this engagement's source files live. None means the built-in synthetic demo.
     default_source: Path | None = None
+    #: The client's name, used to label an organization built from template data.
+    client_name: str = "Client"
     #: Engagement-level assumption values (the client's own figures). They apply to every
     #: run, including the baseline a scenario is compared against.
     engagement_overrides: dict = field(default_factory=dict)
@@ -58,11 +92,21 @@ class EngineState:
 
     # -- loading -----------------------------------------------------------
     def load(
-        self, path: Path | str | None = None, source: str = "county_hr_csv"
+        self,
+        path: Path | str | None = None,
+        source: str | None = None,
+        mapping: dict | None = None,
     ) -> ValidationReport:
+        """Read source files into this workspace. With no `source`, the choice recorded
+        beside the files is used, so a restart reloads them the way they were loaded."""
         path = Path(path or self.default_source or SYNTHETIC_DIR)
-        adapter = ADAPTERS[source](org=self.org)
+        if source is None:
+            marker = read_marker(path)
+            source = marker.get("source", "county_hr_csv")
+            mapping = marker.get("mapping")
+        adapter = make_adapter(source, mapping=mapping, client_name=self.client_name)
         self.dataset = adapter.load(path)
+        self.org = adapter.org
         self.report = adapter.report
         self.source_id = source
         self.source_path = path
@@ -161,13 +205,24 @@ class Workspaces:
             raise ValueError("invalid engagement id")
         return path
 
+    def intake_dir(self, engagement_id: str) -> Path:
+        """Files a consultant has uploaded but not yet committed as the dataset."""
+        return self.source_dir(engagement_id).parent / "intake"
+
+    def draft_mapping_file(self, engagement_id: str) -> Path:
+        return self.source_dir(engagement_id).parent / "mapping_draft.json"
+
     def get(self, engagement_id: str) -> EngineState:
         with self._lock:
             state = self._states.get(engagement_id)
             if state is None:
                 source = self.source_dir(engagement_id)
                 source.mkdir(parents=True, exist_ok=True)
-                state = EngineState(default_source=source)
+                engagement = self.store.get_engagement(engagement_id)
+                state = EngineState(
+                    default_source=source,
+                    client_name=engagement.client_name if engagement else "Client",
+                )
                 state.engagement_overrides = {
                     o.assumption_id: o.value for o in self.store.overrides(engagement_id)
                 }

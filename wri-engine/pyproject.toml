@@ -38,7 +38,14 @@ pythonpath = ["src"]
 filterwarnings = ["error::DeprecationWarning:wri_engine.*"]
 
 [tool.coverage.run]
-source = ["wri_engine.costing", "wri_engine.aggregation"]
+source = [
+    "wri_engine.costing",
+    "wri_engine.aggregation",
+    "wri_engine.adapters",
+    "wri_engine.access",
+    "wri_engine.store",
+    "wri_engine.api",
+]
 
 [tool.ruff]
 line-length = 100
