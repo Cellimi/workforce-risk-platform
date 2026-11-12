@@ -60,6 +60,7 @@ def write_template(data: CanonicalDataset, org: OrgConfig, directory: Path) -> P
                 "work_schedule": _SCHEDULE_NAME[e.schedule_id],
                 "standard_shift_hours": e.standard_shift_hours,
                 "turnover_profile": e.turnover_profile,
+                "coverage_method": str(e.coverage_method),
                 "is_supervisor": _yn(role.is_supervisory),
                 "work_location": e.work_location,
                 "supervisor_id": e.supervisor_id or "",
@@ -88,6 +89,8 @@ def write_template(data: CanonicalDataset, org: OrgConfig, directory: Path) -> P
                 "deciding_official_level": str(a.deciding_official_level),
                 "deciding_official_id": a.deciding_official_id or "",
                 "position_abolished": _yn(a.position_abolished),
+                "outside_investigator_hours": a.outside_investigator_hours,
+                "written_conduct_policy": _yn(a.written_conduct_policy),
             }
             for a in data.actions
         ],
@@ -119,6 +122,8 @@ def write_template(data: CanonicalDataset, org: OrgConfig, directory: Path) -> P
                 "back_pay_awarded": x.back_pay_awarded,
                 "settlement_amount": x.settlement_amount,
                 "outside_counsel_hours": x.outside_counsel_hours,
+                "insurance_retention_paid": x.insurance_retention_paid,
+                "insurer_paid_amount": x.insurer_paid_amount,
             }
             for x in data.appeals
         ],
@@ -134,6 +139,10 @@ def write_template(data: CanonicalDataset, org: OrgConfig, directory: Path) -> P
                 "position_refilled": _yn(x.position_refilled),
                 "refill_date": _d(x.refill_date),
                 "position_abolished": _yn(x.position_abolished),
+                "separation_agreement": _yn(x.separation_agreement),
+                "severance_amount": x.severance_amount,
+                "unemployment_claim_filed": _yn(x.unemployment_claim_filed),
+                "unemployment_benefits_charged": x.unemployment_benefits_charged,
             }
             for x in data.separations
         ],

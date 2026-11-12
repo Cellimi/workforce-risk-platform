@@ -43,6 +43,10 @@ class SectorPack:
     default_benefits_group: str
     #: Turnover profiles whose C5 coefficients must exist for this sector.
     turnover_profiles: tuple[str, ...]
+    #: The profile intake falls back to when a client's file names one this sector does not
+    #: run. It must be the cheapest to replace of the sector's profiles, so a fallback can
+    #: never fill a gap upward (CLAUDE.md rule 13).
+    standard_turnover_profile: str
     #: Challenge routes this sector's data can contain, for the C4 preflight.
     challenge_forums: tuple[AppealForum, ...]
 

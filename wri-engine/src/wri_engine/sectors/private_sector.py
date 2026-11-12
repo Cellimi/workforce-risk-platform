@@ -68,6 +68,7 @@ PACK = SectorPack(
     },
     default_benefits_group="private_all",
     turnover_profiles=("civilian_skilled", "civilian_standard"),
+    standard_turnover_profile="civilian_standard",
     challenge_forums=(
         AppealForum.GRIEVANCE_STEP,
         AppealForum.ARBITRATION,

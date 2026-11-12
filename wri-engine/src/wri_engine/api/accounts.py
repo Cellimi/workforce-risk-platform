@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from wri_engine.access.roles import CAPABILITIES, Role
 from wri_engine.api.context import bearer_token, current_user, runtime_of
+from wri_engine.sectors import DEFAULT_SECTOR, get_pack
 from wri_engine.store import MIN_PASSWORD_LENGTH, AuthError, Store, UserRecord
 from wri_engine.store.db import SECTORS
 
@@ -170,7 +171,29 @@ def _engagement_view(engagement, role: Role) -> dict:
 class NewEngagement(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     client_name: str = Field(..., min_length=1, max_length=200)
-    sector: str = Field("public_sector", description=f"One of: {', '.join(SECTORS)}")
+    sector: str = Field(DEFAULT_SECTOR, description=f"One of: {', '.join(SECTORS)}")
+
+
+@router.get("/sectors", tags=["engagements"])
+def list_sectors(request: Request, user: User) -> dict:
+    """The cost models this installation can run.
+
+    The UI offers these and nothing else. It reads them from here rather than carrying its
+    own list, so a sector the engine cannot cost is never offered, and a sector it can is
+    never hidden.
+    """
+    return {
+        "sectors": [
+            {
+                "id": pack.id,
+                "label": pack.label,
+                "description": pack.description,
+                "components": list(pack.component_codes()),
+            }
+            for pack in (get_pack(sector) for sector in SECTORS)
+        ],
+        "default": DEFAULT_SECTOR,
+    }
 
 
 @router.post("/engagements", tags=["engagements"], status_code=201)

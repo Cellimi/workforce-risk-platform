@@ -273,17 +273,38 @@ def _members(api: EngineClient) -> None:
                     _error(exc)
 
 
+def _sector_choices(api: EngineClient) -> list[dict]:
+    """The sectors the server will accept. If the call fails, fall back to the public-sector
+    model alone rather than offering a sector the server would refuse."""
+    try:
+        return api.sectors()
+    except ApiError:
+        return [
+            {
+                "id": "public_sector",
+                "label": "Public sector",
+                "description": "County and municipal employers.",
+                "components": [],
+            }
+        ]
+
+
 def _new_engagement(api: EngineClient) -> None:
     st.subheader("Open a new engagement")
     with st.form("new_engagement", clear_on_submit=True):
         name = st.text_input("Engagement name", placeholder="FY26 discipline cost review")
         client_name = st.text_input("Client name", placeholder="Pine Valley County")
+        packs = _sector_choices(api)
+        labels = {p["id"]: p["label"] for p in packs}
         sector = st.selectbox(
             "Sector",
-            ["public_sector"],
-            format_func=lambda s: s.replace("_", " ").capitalize(),
-            help="The private-sector cost model is not available yet.",
+            list(labels),
+            format_func=lambda s: labels[s],
+            help="Which cost model the engagement runs. It cannot be changed afterwards.",
         )
+        chosen = next((p for p in packs if p["id"] == sector), None)
+        if chosen:
+            st.caption(f"{chosen['description']} Components: {', '.join(chosen['components'])}.")
         if st.form_submit_button("Open engagement", type="primary"):
             try:
                 created = api.create_engagement(name, client_name, sector)

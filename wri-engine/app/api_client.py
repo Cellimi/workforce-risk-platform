@@ -169,6 +169,10 @@ class EngineClient:
     def engagements(self) -> list[dict]:
         return self._request("GET", "/engagements", scoped=False).json()["engagements"]
 
+    def sectors(self) -> list[dict]:
+        """The cost models this installation can run, for the sector chooser."""
+        return self._request("GET", "/sectors", scoped=False).json()["sectors"]
+
     def create_engagement(self, name: str, client_name: str, sector: str = "public_sector") -> dict:
         return self._request(
             "POST",

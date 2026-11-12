@@ -172,6 +172,9 @@ def meta(ctx: Ctx = Depends(get_ctx)) -> dict:
             else None
         ),
         "caption": _caption(ctx),
+        #: Which cost model priced the figures in this workspace. It comes from the
+        #: engagement record, never from the caller.
+        "cost_model": state.sector,
         "as_of": state.as_of.isoformat() if state.as_of else None,
         "source_id": state.source_id,
         "min_cell_size": state.min_cell_size,
@@ -284,7 +287,12 @@ def _replace_files(directory: Path, payloads: dict[str, bytes]) -> None:
 def _dry_run(ctx: Ctx, directory: Path, source: str, mapping: dict | None):
     """Load a folder without touching the engagement's current dataset. Returns the adapter
     and what it read."""
-    adapter = make_adapter(source, mapping=mapping, client_name=ctx.state.client_name)
+    adapter = make_adapter(
+        source,
+        mapping=mapping,
+        client_name=ctx.state.client_name,
+        sector=ctx.state.sector,
+    )
     try:
         return adapter, adapter.load(directory)
     except MappingError:

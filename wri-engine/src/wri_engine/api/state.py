@@ -4,8 +4,8 @@ An `EngineState` holds a loaded dataset, the engagement's assumption overrides a
 of costing runs. Nothing in it is the system of record: the dataset is re-read from the
 engagement's folder and the overrides from the database, so a restart loses no work.
 
-A costing run is deterministic in (dataset, mode, overrides), so runs are memoized on that
-key. Scenario runs with overrides get their own cache entry and never disturb the base run.
+A costing run is deterministic in (dataset, sector, mode, overrides), so runs are memoized on
+that key. Scenario runs with overrides get their own cache entry and never disturb the base run.
 
 Disclosure ledgers are held per caller session, because the differencing guard only works if
 it remembers what that caller has already been shown.
@@ -29,6 +29,7 @@ from wri_engine.costing.engine import CostRun, run_costing
 from wri_engine.orgconfig import OrgConfig, default_org_config, load_org_config
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.schema import CanonicalDataset
+from wri_engine.sectors import DEFAULT_SECTOR
 from wri_engine.store import Store
 
 
@@ -46,11 +47,18 @@ ADAPTERS: dict[str, type[SourceAdapter]] = {
 SOURCE_MARKER = "_wri_source.json"
 
 
-def make_adapter(source: str, *, mapping: dict | None = None, client_name: str = "Client"):
+def make_adapter(
+    source: str,
+    *,
+    mapping: dict | None = None,
+    client_name: str = "Client",
+    sector: str | None = None,
+):
     """Build the adapter for a source. The county adapter always describes Harlow County;
-    the template adapter builds the organization from the client's own data."""
+    the template adapter builds the organization from the client's own data, under the
+    engagement's own sector."""
     if source == TEMPLATE_SOURCE:
-        return TemplateAdapter(mapping=mapping, agency_name=client_name)
+        return TemplateAdapter(mapping=mapping, agency_name=client_name, sector=sector)
     if source == "county_hr_csv":
         return CountyHrCsvAdapter(org=default_org_config())
     raise KeyError(source)
@@ -84,6 +92,10 @@ class EngineState:
     default_source: Path | None = None
     #: The client's name, used to label an organization built from template data.
     client_name: str = "Client"
+    #: Which cost model this engagement runs under. It comes from the engagement record and
+    #: never from anything the caller sends, so a client cannot price their own actions
+    #: under another sector's components or benefits multiplier.
+    sector: str = DEFAULT_SECTOR
     #: Engagement-level assumption values (the client's own figures). They apply to every
     #: run, including the baseline a scenario is compared against.
     engagement_overrides: dict = field(default_factory=dict)
@@ -104,7 +116,9 @@ class EngineState:
             marker = read_marker(path)
             source = marker.get("source", "county_hr_csv")
             mapping = marker.get("mapping")
-        adapter = make_adapter(source, mapping=mapping, client_name=self.client_name)
+        adapter = make_adapter(
+            source, mapping=mapping, client_name=self.client_name, sector=self.sector
+        )
         self.dataset = adapter.load(path)
         self.org = adapter.org
         self.report = adapter.report
@@ -153,7 +167,7 @@ class EngineState:
     def run(self, mode: Mode = "base", overrides: dict | None = None) -> CostRun:
         self.ensure_loaded()
         overrides = {**self.engagement_overrides, **(overrides or {})}
-        key = (mode, tuple(sorted((k, str(v)) for k, v in overrides.items())))
+        key = (self.sector, mode, tuple(sorted((k, str(v)) for k, v in overrides.items())))
         if key not in self._runs:
             self._runs[key] = run_costing(
                 self.dataset,
@@ -163,6 +177,7 @@ class EngineState:
                 mode=mode,
                 overrides=overrides,
                 excluded_action_ids=self.report.blocked_action_ids if self.report else (),
+                sector=self.sector,
             )
         return self._runs[key]
 
@@ -222,6 +237,7 @@ class Workspaces:
                 state = EngineState(
                     default_source=source,
                     client_name=engagement.client_name if engagement else "Client",
+                    sector=engagement.sector if engagement else DEFAULT_SECTOR,
                 )
                 state.engagement_overrides = {
                     o.assumption_id: o.value for o in self.store.overrides(engagement_id)

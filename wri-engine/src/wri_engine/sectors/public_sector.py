@@ -39,6 +39,7 @@ PACK = SectorPack(
         "civilian_skilled",
         "civilian_standard",
     ),
+    standard_turnover_profile="civilian_standard",
     challenge_forums=(
         AppealForum.GRIEVANCE_STEP,
         AppealForum.ARBITRATION,

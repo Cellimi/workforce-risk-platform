@@ -60,7 +60,8 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/schema/` | Canonical Pydantic models. Source formats never appear here. |
 | `src/wri_engine/adapters/` | One module per source system. Each returns a `CanonicalDataset`. |
 | `src/wri_engine/generator/` | Synthetic data generator, emits *source-format* CSV |
-| `src/wri_engine/costing/` | Assumptions loader, components C1-C5, engine orchestration |
+| `src/wri_engine/sectors/` | One pack per sector: which components run, which benefits multiplier, which coefficient ids must exist |
+| `src/wri_engine/costing/` | Assumptions loader, components C1-C7, engine orchestration |
 | `src/wri_engine/aggregation/` | Rollups + small-group suppression |
 | `src/wri_engine/access/` | Role definitions, enforcement, audit log |
 | `src/wri_engine/api/` | FastAPI app |

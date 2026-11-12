@@ -33,11 +33,15 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from wri_engine.access.roles import Role
+from wri_engine.sectors import sector_ids
 from wri_engine.store.passwords import DUMMY_HASH, hash_password, verify_password
 
 MAX_FAILED_LOGINS = 5
 LOCKOUT_MINUTES = 15
-SECTORS = ("public_sector",)
+#: The sectors an engagement may be opened for. Read from the installed cost models rather
+#: than listed here, so the server can never refuse a sector the engine can actually cost --
+#: or accept one it cannot.
+SECTORS = sector_ids()
 
 
 class AuthError(Exception):

@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 
 from template_fixture import write_template
 from test_accounts_engagements import ANALYST, CLIENT, LEAD, SAMPLE, Installation
+from wri_engine.adapters.base import Severity
 from wri_engine.adapters.county_hr_csv import DEFAULT_MAPPING
 from wri_engine.adapters.template import (
     NON_REPRESENTED,
@@ -36,6 +37,7 @@ from wri_engine.adapters.template import (
 from wri_engine.api.main import create_app
 from wri_engine.api.state import SOURCE_MARKER
 from wri_engine.costing.engine import run_costing
+from wri_engine.schema import CoverageMethod
 from wri_engine.settings import Settings
 
 AS_OF = date(2026, 9, 17)
@@ -282,10 +284,10 @@ def write(directory, table, rows, file=None):
         writer.writerows(rows)
 
 
-def load(tmp_path, employees, actions, mapping=None):
+def load(tmp_path, employees, actions, mapping=None, sector=None):
     write(tmp_path, "employees", employees)
     write(tmp_path, "actions", actions)
-    adapter = TemplateAdapter(mapping=mapping)
+    adapter = TemplateAdapter(mapping=mapping, sector=sector)
     return adapter, adapter.load(tmp_path)
 
 
@@ -920,3 +922,139 @@ def test_template_files_can_be_uploaded_in_one_step(site, loaded, org, run, tmp_
     )
     assert response.status_code == 200, response.text
     assert site.net(site.engagement, LEAD) == run.net
+
+
+# ---------------------------------------------------------------------------
+# the private-sector intake
+# ---------------------------------------------------------------------------
+PRIVATE_EMPLOYEE = {
+    **EMPLOYEE,
+    "coverage_method": "temp_agency",
+    "flsa_status": "exempt",
+}
+PRIVATE_ACTION = {
+    **ACTION,
+    "action_type": "suspension",
+    "suspension_days": "2",
+    "suspension_start_date": "2025-06-16",
+    "outside_investigator_hours": "9.5",
+    "written_conduct_policy": "N",
+}
+
+
+def test_a_private_engagement_loads_every_wage_under_the_private_multiplier(tmp_path):
+    """One private-industry multiplier covers everyone. A client file that marks someone
+    sworn -- a mapped code, or a column left over from another engagement -- must not pull a
+    state-government multiplier into a company's figures."""
+    sworn = {**EMPLOYEE, "employee_id": "E2", "is_sworn": "Y"}
+    adapter, data = load(tmp_path, [EMPLOYEE, sworn], [ACTION], sector="private_sector")
+    assert adapter.sector == "private_sector"
+    assert {e.benefits_group for e in data.employees} == {"private_all"}
+
+
+def test_a_public_engagement_still_splits_sworn_from_civilian(tmp_path):
+    """The seam must not have moved the public sector's own behaviour."""
+    sworn = {**EMPLOYEE, "employee_id": "E2", "is_sworn": "Y"}
+    _, data = load(tmp_path, [EMPLOYEE, sworn], [ACTION])
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {"E1": "civilian", "E2": "sworn_public_safety"}
+
+
+def test_a_turnover_profile_the_sector_does_not_run_is_reported_and_replaced(tmp_path):
+    """Pricing a warehouse hire at deputy recruitment cost would overstate the figure. The
+    profile falls back to the cheapest the sector runs, and the substitution is reported."""
+    row = {**EMPLOYEE, "turnover_profile": "sworn_deputy"}
+    adapter, data = load(tmp_path, [row], [ACTION], sector="private_sector")
+    assert data.employees[0].turnover_profile == "civilian_standard"
+    issue = next(i for i in adapter.report.issues if i.rule_id == "turnover_profile_not_in_sector")
+    assert issue.severity is not Severity.BLOCKING
+    assert issue.entity_id == "E1"
+    assert "sworn_deputy" in issue.message and "civilian_standard" in issue.message
+    assert adapter.report.blocking == []
+
+
+def test_the_same_profile_is_untouched_in_a_public_engagement(tmp_path):
+    row = {**EMPLOYEE, "turnover_profile": "sworn_deputy"}
+    adapter, data = load(tmp_path, [row], [ACTION])
+    assert data.employees[0].turnover_profile == "sworn_deputy"
+    assert "turnover_profile_not_in_sector" not in adapter.report.counts_by_rule()
+
+
+def test_the_private_columns_load_from_the_template(tmp_path):
+    """Everything the private components need comes off the template: how a post is covered,
+    an outside investigator's hours, whether a written policy backed an unpaid suspension,
+    what an insurer paid, and what a separation cost."""
+    write(
+        tmp_path,
+        "appeals",
+        [
+            {
+                "appeal_id": "AP1",
+                "action_id": "A1",
+                "forum": "agency_charge",
+                "filed_date": "2025-07-01",
+                "resolution_date": "2026-01-15",
+                "outcome": "settled",
+                "settlement_amount": "45000",
+                "outside_counsel_hours": "60",
+                "insurance_retention_paid": "25000",
+                "insurer_paid_amount": "30000",
+            }
+        ],
+    )
+    write(
+        tmp_path,
+        "separations",
+        [
+            {
+                "employee_id": "E1",
+                "separation_date": "2026-02-02",
+                "separation_reason": "removal_for_cause",
+                "linked_action_id": "A1",
+                "separation_agreement": "Y",
+                "severance_amount": "8000",
+                "unemployment_claim_filed": "Y",
+                "unemployment_benefits_charged": "6240",
+            }
+        ],
+    )
+    adapter, data = load(tmp_path, [PRIVATE_EMPLOYEE], [PRIVATE_ACTION], sector="private_sector")
+    assert adapter.report.blocking == []
+    employee, action = data.employees[0], data.actions[0]
+    assert employee.coverage_method == CoverageMethod.TEMP_AGENCY
+    assert action.outside_investigator_hours == Decimal("9.5")
+    assert action.written_conduct_policy is False
+    appeal = data.appeals[0]
+    assert (appeal.insurance_retention_paid, appeal.insurer_paid_amount) == (
+        Decimal(25000),
+        Decimal(30000),
+    )
+    separation = next(s for s in data.separations if s.linked_action_id == "A1")
+    assert separation.separation_agreement is True
+    assert separation.severance_amount == Decimal(8000)
+    assert separation.unemployment_claim_filed is True
+    assert separation.unemployment_benefits_charged == Decimal(6240)
+    # A retention recorded beside a settlement is ambiguous, and is reported rather than
+    # resolved by guessing which way the policy runs.
+    assert "retention_recorded_with_payout" in adapter.report.counts_by_rule()
+
+
+def test_blank_private_columns_leave_the_public_behaviour_exactly_as_it_was(tmp_path):
+    """Every new column is optional, and a file without them costs as it did before they
+    existed: a post covered by overtime, no outside investigator, and an unpaid suspension
+    treated as made under a written policy -- the case that keeps the employee's credit."""
+    _, data = load(tmp_path, [EMPLOYEE], [ACTION])
+    employee, action = data.employees[0], data.actions[0]
+    assert employee.coverage_method == CoverageMethod.OVERTIME
+    assert action.outside_investigator_hours == Decimal(0)
+    assert action.written_conduct_policy is True
+
+
+def test_an_unreadable_coverage_method_names_the_choices(tmp_path):
+    """A code the template does not know is a mapping gap, reported with what to map it to,
+    never guessed at."""
+    row = {**EMPLOYEE, "coverage_method": "agency_temp"}
+    adapter, data = load(tmp_path, [row], [ACTION], sector="private_sector")
+    assert data.employees == []
+    issue = next(i for i in adapter.report.issues if i.field == "coverage_method")
+    assert "temp_agency" in issue.message

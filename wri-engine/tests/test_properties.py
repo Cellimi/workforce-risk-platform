@@ -263,3 +263,57 @@ def test_scenario_overrides_never_break_the_invariants(overrides, loaded, org, a
         return
     assert result.net == result.gross + result.offset
     assert all(i.amount >= 0 for i in result.line_items if i.component not in OFFSET_COMPONENTS)
+
+
+def test_the_intake_fallback_profile_is_the_cheapest_a_sector_runs(org, assumptions):
+    """Intake replaces a turnover profile a sector does not run with the pack's
+    `standard_turnover_profile`, so that profile must cost the least to replace.
+
+    The claim is about the cost, not about every coefficient: `civilian_standard` carries a
+    HIGHER washout rate than `civilian_skilled` (more replacement hires fail), and is still
+    cheaper overall because recruiting, testing and training a skilled hire costs more. So
+    the test prices the same removal under each of the sector's profiles and compares the
+    C5 totals. If a fallback ever filled a gap upward, this is what would catch it.
+    """
+    from golden_case import load_cases
+    from wri_engine.costing.engine import cost_one
+    from wri_engine.sectors import get_pack, sector_ids
+
+    def c5_total(case, profile: str) -> Decimal:
+        data = case.dataset()
+        data = data.model_copy(
+            update={
+                "employees": [
+                    e.model_copy(update={"turnover_profile": profile}) for e in data.employees
+                ]
+            }
+        )
+        cost = cost_one(
+            case.raw["action_under_test"],
+            data,
+            as_of=case.as_of,
+            org=case.org_for(org),
+            assumptions=assumptions,
+            sector=case.sector,
+        )
+        return sum(
+            (i.amount for i in cost.line_items if i.component == "C5"),
+            Decimal("0"),
+        )
+
+    cases = {case.sector: case for case in load_cases() if _is_turnover_case(case)}
+    for sector in sector_ids():
+        pack = get_pack(sector)
+        case = cases.get(sector)
+        assert case is not None, f"no golden case with a C5 turnover cost for {sector}"
+        totals = {profile: c5_total(case, profile) for profile in pack.turnover_profiles}
+        cheapest = min(totals, key=lambda p: totals[p])
+        assert pack.standard_turnover_profile == cheapest, (
+            f"{sector}: intake falls back to {pack.standard_turnover_profile!r} at "
+            f"{totals[pack.standard_turnover_profile]}, but {cheapest!r} costs "
+            f"{totals[cheapest]} -- the fallback would fill a gap upward"
+        )
+
+
+def _is_turnover_case(case) -> bool:
+    return any(i["component"] == "C5" for i in case.raw["expected"]["line_items"])

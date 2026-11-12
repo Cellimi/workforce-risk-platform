@@ -545,11 +545,71 @@ def test_the_audit_log_names_the_user_and_the_engagement(staffed, tmp_path):
     assert change["user"] == LEAD[0]
 
 
-def test_a_private_sector_engagement_cannot_be_opened_yet(site):
+def test_a_private_sector_engagement_can_be_opened(site):
+    """The private-sector cost model is installed, so the server accepts it -- and the
+    engagement carries the sector it was opened for."""
     response = site.http.post(
         "/engagements",
         json={"name": "n", "client_name": "c", "sector": "private_sector"},
         headers=site.auth(OWNER),
     )
+    assert response.status_code == 201
+    assert response.json()["sector"] == "private_sector"
+
+
+def test_a_sector_with_no_cost_model_is_refused(site):
+    """A sector the engine cannot cost must be refused at the door, naming what is
+    installed, rather than accepted and priced under the wrong model."""
+    response = site.http.post(
+        "/engagements",
+        json={"name": "n", "client_name": "c", "sector": "nonprofit_sector"},
+        headers=site.auth(OWNER),
+    )
     assert response.status_code == 400
-    assert "not available" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "not available" in detail
+    assert "public_sector" in detail and "private_sector" in detail
+
+
+def test_the_sector_list_is_served_from_the_installed_cost_models(site):
+    """The UI must not carry its own sector list. Everything the server will accept is
+    offered here, with the components that sector can produce."""
+    response = site.http.get("/sectors", headers=site.auth(OWNER))
+    assert response.status_code == 200
+    body = response.json()
+    by_id = {s["id"]: s for s in body["sectors"]}
+    assert set(by_id) == {"public_sector", "private_sector"}
+    assert body["default"] == "public_sector"
+    assert by_id["public_sector"]["components"] == [
+        "C1",
+        "C2",
+        "C3",
+        "C3-offset",
+        "C4",
+        "C5",
+        "C5-offset",
+    ]
+    assert "C6" in by_id["private_sector"]["components"]
+    assert "C7" in by_id["private_sector"]["components"]
+
+
+def test_the_sector_list_needs_a_signed_in_user(site):
+    assert site.http.get("/sectors").status_code == 401
+
+
+def test_an_engagement_is_priced_under_its_own_sector(site):
+    """Two engagements in one installation, two cost models. The workspace takes the sector
+    from the engagement record, so neither is priced under the other's."""
+    private = site.http.post(
+        "/engagements",
+        json={"name": "p", "client_name": "c", "sector": "private_sector"},
+        headers=site.auth(OWNER),
+    ).json()["id"]
+    public = site.http.post(
+        "/engagements",
+        json={"name": "q", "client_name": "c", "sector": "public_sector"},
+        headers=site.auth(OWNER),
+    ).json()["id"]
+    workspaces = site.runtime.workspaces
+    assert workspaces.get(private).sector == "private_sector"
+    assert workspaces.get(public).sector == "public_sector"

@@ -45,6 +45,7 @@ from wri_engine.schema import (
     AppealOrGrievance,
     AppealOutcome,
     CanonicalDataset,
+    CoverageMethod,
     DecidingOfficialLevel,
     DisciplineAction,
     Employee,
@@ -53,6 +54,7 @@ from wri_engine.schema import (
     Separation,
     SeparationReason,
 )
+from wri_engine.sectors import DEFAULT_SECTOR, SectorPack, get_pack
 
 SOURCE_ID = "wri_template"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d"
@@ -279,6 +281,16 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 ("replacement profile",),
             ),
             _f(
+                "coverage_method",
+                False,
+                "choice",
+                "How the employer covers this person's post when they are away: overtime for "
+                "a peer, a temp agency, or none because the post can stand empty. Blank "
+                "means overtime.",
+                _values(CoverageMethod),
+                ("coverage", "backfill method", "cover method", "absence coverage"),
+            ),
+            _f(
                 "is_supervisor",
                 False,
                 "yes_no",
@@ -503,6 +515,34 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 "Y if the position was eliminated after a removal. Blank means N.",
                 synonyms=("posn abolish ind", "position eliminated"),
             ),
+            _f(
+                "outside_investigator_hours",
+                False,
+                "number",
+                "Hours billed by an outside investigator (a law firm or an HR consultant). "
+                "Blank means the investigation was done in house.",
+                synonyms=(
+                    "ext invest hrs",
+                    "outside investigator hours",
+                    "external investigator hours",
+                    "third party investigator hours",
+                ),
+            ),
+            _f(
+                "written_conduct_policy",
+                False,
+                "yes_no",
+                "Y if an unpaid suspension was imposed under a written policy that applies to "
+                "all employees. Blank means Y. It matters only for a salaried exempt "
+                "employee, where federal wage-and-hour rules allow an unpaid disciplinary "
+                "suspension only in full-day increments under such a policy.",
+                synonyms=(
+                    "written policy ind",
+                    "written policy",
+                    "conduct policy",
+                    "policy in writing",
+                ),
+            ),
         ),
     ),
     TableSpec(
@@ -620,6 +660,34 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 "Outside counsel hours billed.",
                 synonyms=("oc hours", "counsel hours", "attorney hours"),
             ),
+            _f(
+                "insurance_retention_paid",
+                False,
+                "money",
+                "The retention or deductible the employer paid under an employment practices "
+                "liability policy. Fill this in only where no settlement or back pay is "
+                "recorded against the same challenge, so the same dollars are not counted "
+                "twice.",
+                synonyms=(
+                    "epli retention",
+                    "retention paid",
+                    "deductible paid",
+                    "self insured retention",
+                ),
+            ),
+            _f(
+                "insurer_paid_amount",
+                False,
+                "money",
+                "What the insurer paid of the amount above. It is reported as a credit "
+                "against the cost, never as a cost.",
+                synonyms=(
+                    "insurer paid",
+                    "carrier paid",
+                    "insurance recovery",
+                    "insurance reimbursement",
+                ),
+            ),
         ),
     ),
     TableSpec(
@@ -677,6 +745,45 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 "yes_no",
                 "Y if the position was eliminated. Blank means N.",
                 synonyms=("abolish ind", "position eliminated"),
+            ),
+            _f(
+                "separation_agreement",
+                False,
+                "yes_no",
+                "Y if the person signed a separation or release agreement. Blank means N.",
+                synonyms=(
+                    "sep agmt ind",
+                    "separation agreement",
+                    "release agreement",
+                    "severance agreement signed",
+                ),
+            ),
+            _f(
+                "severance_amount",
+                False,
+                "money",
+                "Severance actually paid.",
+                synonyms=("sev amt", "severance", "severance pay"),
+            ),
+            _f(
+                "unemployment_claim_filed",
+                False,
+                "yes_no",
+                "Y if the person filed an unemployment claim. Blank means N.",
+                synonyms=("ui claim ind", "unemployment claim", "ui filed"),
+            ),
+            _f(
+                "unemployment_benefits_charged",
+                False,
+                "money",
+                "Benefits charged to the employer's unemployment account for this person. "
+                "Blank where the third-party administrator has not reported them yet.",
+                synonyms=(
+                    "ui benefits charged",
+                    "unemployment charged",
+                    "ui charges",
+                    "benefit charges",
+                ),
             ),
         ),
     ),
@@ -1142,10 +1249,20 @@ class _RowError(ValueError):
 class TemplateAdapter(SourceAdapter):
     source_id = SOURCE_ID
 
-    def __init__(self, mapping: dict | Mapping | None = None, agency_name: str = "Client"):
+    def __init__(
+        self,
+        mapping: dict | Mapping | None = None,
+        agency_name: str = "Client",
+        sector: str | None = None,
+    ):
         super().__init__()
         self.mapping = mapping if isinstance(mapping, Mapping) else parse_mapping(mapping)
         self.agency_name = agency_name
+        #: The engagement's sector. It decides which benefits group a wage is loaded under
+        #: and which turnover profiles the engine will run, so it comes from the engagement
+        #: record and never from the client's file.
+        self.sector = sector or DEFAULT_SECTOR
+        self._pack: SectorPack = get_pack(self.sector)
         self._base = default_org_config()
         #: Built from the data in `load`. Until then, the engine's standard organization.
         self.org: OrgConfig = self._base
@@ -1276,6 +1393,47 @@ class TemplateAdapter(SourceAdapter):
             f"mapping's values for {name}.",
             name,
         )
+
+    # -- sector ------------------------------------------------------------
+    def _benefits_group(self, sworn: bool) -> str:
+        """Which benefits multiplier loads this person's wage.
+
+        A county loads a sworn deputy's wage differently from a clerk's, so the public pack
+        has a group for each. A company has one private-industry multiplier, so a private
+        engagement uses it for everyone -- including anyone the client's file happens to
+        mark sworn, because what the group selects is the employer's benefits cost, not the
+        job's character.
+        """
+        groups = self._pack.benefits_assumption_by_group
+        if sworn and "sworn_public_safety" in groups:
+            return "sworn_public_safety"
+        return self._pack.default_benefits_group
+
+    def _turnover_profile(self, raw: str, employee_id: str) -> str:
+        """The replacement-cost profile, limited to the ones this sector runs.
+
+        A private client's file can arrive carrying a public-sector profile -- a mapped code,
+        or a template filled in from an earlier engagement. Pricing a warehouse hire at
+        deputy recruitment cost would overstate the figure, so the profile falls back to the
+        sector's cheapest and the substitution is reported rather than made silently
+        (CLAUDE.md rule 13).
+        """
+        profile = self._choice(raw, "turnover_profile", "employees")
+        if profile in self._pack.turnover_profiles:
+            return profile
+        fallback = self._pack.standard_turnover_profile
+        self._issue(
+            "turnover_profile_not_in_sector",
+            "employee",
+            employee_id,
+            f"turnover_profile {profile!r} is not one the {self._pack.label.lower()} cost "
+            f"model runs. {fallback!r} was used instead, which is the cheapest to replace, "
+            f"so no cost is filled in upward. Map the client's code to one of: "
+            f"{', '.join(self._pack.turnover_profiles)}.",
+            "turnover_profile",
+            severity=Severity.WARNING,
+        )
+        return fallback
 
     # -- load --------------------------------------------------------------
     def load(self, path: Path) -> CanonicalDataset:
@@ -1509,7 +1667,7 @@ class TemplateAdapter(SourceAdapter):
                         _mode([_norm(r["work_schedule"]).replace(" ", "_") for r in rows]),
                         "civilian_5x8",
                     ),
-                    "benefits_group": "sworn_public_safety" if sworn else "civilian",
+                    "benefits_group": self._benefits_group(sworn),
                     "turnover_profile": _mode([r["turnover_profile"] for r in rows]),
                     "is_supervisory": _mode([r["is_supervisor"].upper() in _TRUE for r in rows]),
                 }
@@ -1632,9 +1790,13 @@ class TemplateAdapter(SourceAdapter):
                     ),
                     annual_paid_hours=schedule.annual_paid_hours,
                     schedule_id=schedule_id,
-                    benefits_group="sworn_public_safety" if sworn else "civilian",
-                    turnover_profile=self._choice(
-                        row["turnover_profile"], "turnover_profile", "employees"
+                    benefits_group=self._benefits_group(sworn),
+                    turnover_profile=self._turnover_profile(row["turnover_profile"], employee_id),
+                    coverage_method=self._choice(
+                        row["coverage_method"],
+                        "coverage_method",
+                        "employees",
+                        default=CoverageMethod.OVERTIME,
                     ),
                     work_location=row["work_location"],
                     supervisor_id=row["supervisor_id"] or None,
@@ -1733,6 +1895,17 @@ class TemplateAdapter(SourceAdapter):
                     position_abolished=self._bool(
                         row["position_abolished"], "position_abolished", False
                     ),
+                    outside_investigator_hours=self._number(
+                        row["outside_investigator_hours"],
+                        "outside_investigator_hours",
+                        Decimal(0),
+                    ),
+                    # Blank means the deduction was made under a written policy, which is
+                    # the ordinary case and the one that keeps the unpaid-suspension credit.
+                    # Assuming otherwise would withhold a credit the employer did take.
+                    written_conduct_policy=self._bool(
+                        row["written_conduct_policy"], "written_conduct_policy", True
+                    ),
                 )
             except Exception as exc:  # noqa: BLE001
                 self._issue(
@@ -1821,6 +1994,12 @@ class TemplateAdapter(SourceAdapter):
                         outside_counsel_hours=self._number(
                             row["outside_counsel_hours"], "outside_counsel_hours", zero
                         ),
+                        insurance_retention_paid=self._number(
+                            row["insurance_retention_paid"], "insurance_retention_paid", zero
+                        ),
+                        insurer_paid_amount=self._number(
+                            row["insurer_paid_amount"], "insurer_paid_amount", zero
+                        ),
                     )
                 )
             except Exception as exc:  # noqa: BLE001
@@ -1854,6 +2033,20 @@ class TemplateAdapter(SourceAdapter):
                         refill_date=self._date(row["refill_date"], "refill_date"),
                         position_abolished=self._bool(
                             row["position_abolished"], "position_abolished", False
+                        ),
+                        separation_agreement=self._bool(
+                            row["separation_agreement"], "separation_agreement", False
+                        ),
+                        severance_amount=self._number(
+                            row["severance_amount"], "severance_amount", Decimal(0)
+                        ),
+                        unemployment_claim_filed=self._bool(
+                            row["unemployment_claim_filed"], "unemployment_claim_filed", False
+                        ),
+                        unemployment_benefits_charged=self._number(
+                            row["unemployment_benefits_charged"],
+                            "unemployment_benefits_charged",
+                            Decimal(0),
                         ),
                     )
                 )

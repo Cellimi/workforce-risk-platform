@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from wri_engine.costing.engine import expected_assumption_ids
 from wri_engine.schema import ActionType, AppealForum, AppealOutcome, SeparationReason
+from wri_engine.sectors import get_pack, sector_ids
 
 
 def test_action_types_match_the_taxonomy(org):
@@ -30,6 +31,16 @@ def test_forums_outcomes_and_separation_reasons_match(org):
 
 def test_every_assumption_the_engine_needs_exists(assumptions, org):
     assumptions.require_all(expected_assumption_ids(org))
+
+
+def test_every_sector_offers_every_profile_its_intake_can_fall_back_to(assumptions):
+    """A sector's `standard_turnover_profile` must be one it actually runs, and its
+    coefficients must exist -- otherwise the intake fallback would ask for an id that is
+    not there."""
+    for sector in sector_ids():
+        pack = get_pack(sector)
+        assert pack.standard_turnover_profile in pack.turnover_profiles
+        assumptions.get(f"c5_washout_rate_{pack.standard_turnover_profile}")
 
 
 def test_every_role_family_has_a_configured_turnover_profile(org, assumptions):
