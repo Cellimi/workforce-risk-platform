@@ -58,17 +58,22 @@ assumptions:
   unit: ratio
   applies_to:
     benefits_group: sworn_public_safety
-  source: Owner professional estimate, pending BLS ECEC Table 3 (state and local government by occupational
-    group -> 'protective service'). Public-safety pension normal cost and OPEB typically exceed the all-occupations
-    state/local average.
+  source: 'Owner professional estimate, accepted by the owner on 2026-11-12 as the working value.
+    NOT a sourced figure. The public figure that would verify it is BLS ECEC Table 3 (state and local
+    government by occupational group, ''protective service''), which was unreachable from the build
+    environment. Public-safety pension normal cost and OPEB typically exceed the all-occupations
+    state/local average, which is why the value sits above the civilian multiplier.'
   confidence: low
   owner: Michael V. Celli
   status: confirmed
   last_reviewed: '2026-11-12'
-  notes: 'CONFIRM FROM PUBLIC DATA: pull ECEC Table 3 protective-service total compensation and wages
-    per hour worked, take the ratio, and replace this value. bls.gov was not reachable from the build
-    environment. Until then this is an owner estimate, and the low bound deliberately equals the all-occupations
-    figure.'
+  notes: 'OWNER DECISION 2026-11-12: 1.75 stands as the working value and is not blocked on being
+    sourced. Confidence stays LOW, because accepting a number is not the same as measuring one, and
+    this one scales every sworn figure in the model. The verification path is unchanged and still
+    worth taking when the data is reachable: pull ECEC Table 3 protective-service total compensation
+    and wages per hour worked, take the ratio, replace this value and move status to researched with
+    the citation. The low bound deliberately equals the all-occupations figure, so a sensitivity run
+    at low mode shows what the model looks like if the public-safety premium turns out to be nil.'
 - id: c1_reference_annual_hours
   value: 2080
   low: 2080
