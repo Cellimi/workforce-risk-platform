@@ -16,8 +16,10 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 
 1. **Branches.** Pull requests are stacked and not yet merged:
    `main` <- #2 `claude/assumptions-signoff` <- #3 `claude/login-engagements`
-   <- #4 `claude/intake-template` <- #5 `claude/licensed-screen`.
-   Start new work on a new branch from the top of the stack (now `claude/licensed-screen`),
+   <- #4 `claude/intake-template` <- #5 `claude/licensed-screen`
+   <- #6 `claude/private-sector-cost-model` <- `claude/single-project-layout`.
+   Start new work on a new branch from the top of the stack (now
+   `claude/single-project-layout`),
    and open its pull request **against that branch**, extending the stack. Once the stack is
    merged, branch from and target `main`.
 2. **Retired branch.** `claude/wri-phase1-discipline-cost-n73knl` is retired. Everything on it,
@@ -36,6 +38,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 |---|---|---|
 | Screen for the licensed product | Chat session | Done, PR #5 |
 | Private-sector cost model | Claude Code session | Done, PR against `claude/licensed-screen`, `claude/private-sector-cost-model` |
+| One project in the repository (retire the February prototype) | Claude Code session | In progress, `claude/single-project-layout` |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
