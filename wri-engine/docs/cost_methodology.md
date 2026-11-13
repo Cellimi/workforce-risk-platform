@@ -462,11 +462,22 @@ the service multiplier and would have been booked at $617.20 at the average.
 
 Things a reader should know:
 
-1. *The group comes from the client's file.* `occupation_group` is an optional column on the
-   employee table. Where it is blank the wage is loaded at the all-occupations figure, which
-   is the published answer to "occupation unknown", and the load report says how many
-   employees that was (`defaulted_occupation_group`) rather than leaving the reader to assume
-   none. A public engagement ignores the column.
+1. *The group is a selection the user makes.* When a private-sector engagement is opened,
+   the user selects the kind of work the client's people mostly do, and the screen shows the
+   multiplier each choice brings. Select construction and every wage is loaded at 1.4538;
+   select sales and office and it is 1.3977. The engagement's admin can change the selection
+   later on the Engagement page, and every figure is recomputed under the new one.
+
+   The selection is the multiplier for **everyone whose own row does not say otherwise**. A
+   client with a mixed workforce can also fill in the optional `occupation_group` column on
+   the employee table, and a row that names a group keeps it -- the office clerk on a building
+   firm's payroll is loaded as office staff, not as a builder. The order is: the employee's
+   own row, then the engagement's selection, then the all-occupations figure.
+
+   The load report says which of those happened and for how many people:
+   `occupation_group_from_engagement` where the selection was used, and
+   `defaulted_occupation_group` where nothing was selected and the all-occupations figure
+   stood in. A public engagement has no such selection and ignores the column.
 2. *Each group's bounds are computed, not judged*: the envelope of the group's own ratio over
    the 20 quarters to 2026 Q2 and of its published sub-groups in 2026 Q2. Sales and office is
    the wide one (1.3283 to 1.4564), because sales (1.3283) and clerical work (1.4564) are

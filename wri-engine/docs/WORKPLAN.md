@@ -43,7 +43,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 296 tests, 95.6% coverage.
+asserts it line item by line item. 309 tests, 95.6% coverage.
 
 1. **Hardening (PR #3).** Sign-in with local accounts, roles from engagement membership, a
    database, isolated engagement workspaces, per-engagement assumption overrides recorded with
@@ -124,9 +124,15 @@ methodology; this is what was done and what was deliberately left.
    than deleted, so the next unreviewed value fails the build.
 2. ~~**Benefits loading is not per occupation group.**~~ **Built 2026-11-13, awaiting the
    owner's review of the five values.** The private pack now carries a multiplier for each
-   of the five broad BLS occupational groups, chosen by an optional `occupation_group` column
-   on the employee table, with the all-occupations 1.4287 as the fallback and a load warning
-   counting who got it. The values are `researched` and listed in
+   of the five broad BLS occupational groups. **The group is a selection on the engagement**
+   (`EngagementRecord.occupation_group`): the user picks it when opening a private-sector
+   engagement, the screen shows the multiplier each choice brings, and the engagement's admin
+   can change it later through `PUT /engagements/{id}/occupation-group`, which re-reads the
+   engagement's files under the new selection. An optional `occupation_group` column on the
+   employee table overrides it row by row for a mixed workforce. With nothing selected the
+   all-occupations 1.4287 is the fallback, and the load report counts who got which.
+   The database gains one nullable column, added on start-up for an installation that
+   already has engagements (`Store._upgrade_schema`). The values are `researched` and listed in
    `RESEARCHED_AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`; golden case 14
    hand-checks them.
    **How the figures were read**, for whoever does this next: BLS's news-release tables on

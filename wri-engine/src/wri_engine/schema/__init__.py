@@ -1,5 +1,6 @@
 from wri_engine.schema.enums import (
     COMPONENT_LABELS,
+    OCCUPATION_GROUP_LABELS,
     OFFSET_COMPONENTS,
     ActionType,
     AppealForum,
@@ -24,6 +25,7 @@ from wri_engine.schema.models import (
 
 __all__ = [
     "COMPONENT_LABELS",
+    "OCCUPATION_GROUP_LABELS",
     "OFFSET_COMPONENTS",
     "ActionType",
     "AdminLeavePeriod",

@@ -20,7 +20,9 @@ from pydantic import BaseModel, Field
 
 from wri_engine.access.roles import CAPABILITIES, Role
 from wri_engine.api.context import bearer_token, current_user, runtime_of
-from wri_engine.sectors import DEFAULT_SECTOR, get_pack
+from wri_engine.costing.assumptions import load_assumptions
+from wri_engine.schema import OCCUPATION_GROUP_LABELS
+from wri_engine.sectors import DEFAULT_SECTOR, SectorPack, get_pack
 from wri_engine.store import MIN_PASSWORD_LENGTH, AuthError, Store, UserRecord
 from wri_engine.store.db import SECTORS
 
@@ -161,6 +163,8 @@ def _engagement_view(engagement, role: Role) -> dict:
         "name": engagement.name,
         "client_name": engagement.client_name,
         "sector": engagement.sector,
+        "occupation_group": engagement.occupation_group,
+        "occupation_group_label": OCCUPATION_GROUP_LABELS.get(engagement.occupation_group),
         "status": engagement.status,
         "created_at": engagement.created_at.isoformat(),
         "your_role": str(role),
@@ -172,6 +176,42 @@ class NewEngagement(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     client_name: str = Field(..., min_length=1, max_length=200)
     sector: str = Field(DEFAULT_SECTOR, description=f"One of: {', '.join(SECTORS)}")
+    occupation_group: str | None = Field(
+        None,
+        description="The kind of work the client's people mostly do. Offered only where the "
+        "sector loads benefits by occupation; see GET /sectors for the choices.",
+    )
+
+
+def _occupation_groups(pack: SectorPack) -> list[dict]:
+    """The groups a person may select in this sector, each with the multiplier it brings.
+
+    The figure shown is the registry's own, read at the time of asking, so the screen can
+    say what a selection will do before it is made.
+    """
+    if not pack.benefits_group_by_occupation:
+        return []
+    assumptions = load_assumptions()
+    return [
+        {
+            "id": str(group),
+            "label": OCCUPATION_GROUP_LABELS[group],
+            "assumption_id": pack.benefits_assumption_by_group[benefits_group],
+            "multiplier": str(assumptions.value(pack.benefits_assumption_by_group[benefits_group])),
+        }
+        for group, benefits_group in pack.benefits_group_by_occupation.items()
+    ]
+
+
+def _unselected(pack: SectorPack) -> dict | None:
+    """What applies when no group is selected: the sector's all-occupations figure."""
+    if not pack.benefits_group_by_occupation:
+        return None
+    assumption_id = pack.benefits_assumption_by_group[pack.default_benefits_group]
+    return {
+        "assumption_id": assumption_id,
+        "multiplier": str(load_assumptions().value(assumption_id)),
+    }
 
 
 @router.get("/sectors", tags=["engagements"])
@@ -189,8 +229,14 @@ def list_sectors(request: Request, user: User) -> dict:
                 "label": pack.label,
                 "description": pack.description,
                 "components": list(pack.component_codes()),
+                "occupation_groups": _occupation_groups(pack),
+                "no_occupation_group": _unselected(pack),
             }
-            for pack in (get_pack(sector) for sector in SECTORS)
+            # The default sector leads, because the screen's chooser opens on the first.
+            for pack in (
+                get_pack(sector)
+                for sector in sorted(SECTORS, key=lambda s: (s != DEFAULT_SECTOR, s))
+            )
         ],
         "default": DEFAULT_SECTOR,
     }
@@ -200,7 +246,11 @@ def list_sectors(request: Request, user: User) -> dict:
 def create_engagement(body: NewEngagement, request: Request, admin: FirmAdmin) -> dict:
     try:
         engagement = _store(request).create_engagement(
-            name=body.name, client_name=body.client_name, sector=body.sector, created_by=admin.id
+            name=body.name,
+            client_name=body.client_name,
+            sector=body.sector,
+            created_by=admin.id,
+            occupation_group=body.occupation_group,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
@@ -222,13 +272,55 @@ class Member(BaseModel):
     role: Role
 
 
-def _engagement_admin(request: Request, engagement_id: str, user: UserRecord) -> None:
+def _engagement_admin(
+    request: Request,
+    engagement_id: str,
+    user: UserRecord,
+    what: str = "manage its members",
+    endpoint: str = "members",
+) -> None:
     role = _store(request).role_in(user, engagement_id)
     if role is None:
         raise HTTPException(404, "engagement not found")
     if role != Role.ADMIN:
-        _audit("members", user=user.email, engagement=engagement_id, outcome="denied")
-        raise HTTPException(403, "only an engagement admin may manage its members")
+        _audit(endpoint, user=user.email, engagement=engagement_id, outcome="denied")
+        raise HTTPException(403, f"only an engagement admin may {what}")
+
+
+class OccupationGroupChoice(BaseModel):
+    occupation_group: str | None = Field(
+        None, description="One of the sector's occupation groups, or null to clear it."
+    )
+
+
+@router.put("/engagements/{engagement_id}/occupation-group", tags=["engagements"])
+def set_occupation_group(
+    engagement_id: str, body: OccupationGroupChoice, request: Request, user: User
+) -> dict:
+    """Select, change or clear the engagement's occupation group.
+
+    The selection decides which benefits multiplier loads the wage of every employee whose
+    own row does not name a group. Changing it re-reads the engagement's files under the new
+    selection, so every figure follows it.
+    """
+    _engagement_admin(
+        request, engagement_id, user, "change its occupation group", "occupation-group"
+    )
+    store = _store(request)
+    before = store.get_engagement(engagement_id)
+    try:
+        engagement = store.set_occupation_group(engagement_id, body.occupation_group)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    runtime_of(request).workspaces.refresh_occupation_group(engagement_id)
+    _audit(
+        "/engagements/{engagement_id}/occupation-group",
+        user=user.email,
+        engagement=engagement_id,
+        before=before.occupation_group if before else None,
+        after=engagement.occupation_group,
+    )
+    return _engagement_view(engagement, Role.ADMIN)
 
 
 @router.get("/engagements/{engagement_id}/members", tags=["engagements"])

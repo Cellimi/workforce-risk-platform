@@ -333,9 +333,11 @@ are the least grounded:
    `docs/cost_methodology.md`.
 9. The **five private benefits multipliers by occupational group**, which the owner has
    not reviewed yet. They run from 1.2996 for service work to 1.4686 for production and
-   transportation, each from its own BLS series, and they apply only where the client's file
-   gives an `occupation_group`. Where it does not, the wage is loaded at the all-occupations
-   1.4287 and the load report says for how many people.
+   transportation, each from its own BLS series. Which one applies is a selection: the user
+   picks the client's occupation group when opening a private-sector engagement and can
+   change it later, and a row in the client's file that names its own group keeps it. With
+   nothing selected the wage is loaded at the all-occupations 1.4287, and the load report
+   says for how many people.
 10. The **bounds on that all-occupations fallback**, 1.38 / 1.4835, which the occupational
     series show to be wrong: the groups actually span 1.2996 to 1.4686. They are left as the
     owner approved them until he decides. Only low and high mode are affected, and only for

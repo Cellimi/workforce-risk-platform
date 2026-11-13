@@ -166,6 +166,7 @@ def meta(ctx: Ctx = Depends(get_ctx)) -> dict:
                 "id": ctx.engagement.id,
                 "name": ctx.engagement.name,
                 "sector": ctx.engagement.sector,
+                "occupation_group": ctx.engagement.occupation_group,
                 "status": ctx.engagement.status,
             }
             if ctx.engagement
@@ -292,6 +293,7 @@ def _dry_run(ctx: Ctx, directory: Path, source: str, mapping: dict | None):
         mapping=mapping,
         client_name=ctx.state.client_name,
         sector=ctx.state.sector,
+        occupation_group=ctx.state.occupation_group,
     )
     try:
         return adapter, adapter.load(directory)

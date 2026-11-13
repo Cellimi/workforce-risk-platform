@@ -83,6 +83,16 @@ class OccupationGroup(StrEnum):
     PRODUCTION_TRANSPORTATION = "production_transportation"
 
 
+#: What a person choosing a group is shown. The wording follows the BLS group titles.
+OCCUPATION_GROUP_LABELS: dict[OccupationGroup, str] = {
+    OccupationGroup.MANAGEMENT_PROFESSIONAL: "Management, professional and related",
+    OccupationGroup.SALES_OFFICE: "Sales and office",
+    OccupationGroup.SERVICE: "Service",
+    OccupationGroup.CONSTRUCTION_MAINTENANCE: "Construction, maintenance and natural resources",
+    OccupationGroup.PRODUCTION_TRANSPORTATION: "Production, transportation and material moving",
+}
+
+
 class InvestigationType(StrEnum):
     SUPERVISORY = "supervisory"
     HR = "hr"

@@ -20,7 +20,7 @@ import yaml
 from fastapi.testclient import TestClient
 
 from template_fixture import write_template
-from test_accounts_engagements import ANALYST, CLIENT, LEAD, SAMPLE, Installation
+from test_accounts_engagements import ANALYST, CLIENT, LEAD, OWNER, SAMPLE, Installation
 from wri_engine.adapters.base import Severity
 from wri_engine.adapters.county_hr_csv import DEFAULT_MAPPING
 from wri_engine.adapters.template import (
@@ -1133,3 +1133,109 @@ def test_an_unreadable_occupation_group_names_the_choices(tmp_path):
     assert data.employees == []
     issue = next(i for i in adapter.report.issues if i.field == "occupation_group")
     assert "service" in issue.message and "sales_office" in issue.message
+
+
+# ---------------------------------------------------------------------------
+# the occupation group selected for the engagement
+# ---------------------------------------------------------------------------
+def test_the_engagements_selection_loads_everyone_the_file_does_not_classify(tmp_path):
+    """The user selects construction for the engagement; the file says nothing per person.
+    Everyone is loaded at the construction multiplier, and a row that does name its own
+    group -- the office clerk on a building firm's payroll -- keeps it."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1"},
+        {**EMPLOYEE, "employee_id": "E2", "occupation_group": "sales_office"},
+    ]
+    write(tmp_path, "employees", rows)
+    write(tmp_path, "actions", [ACTION])
+    adapter = TemplateAdapter(sector="private_sector", occupation_group="construction_maintenance")
+    data = adapter.load(tmp_path)
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {
+        "E1": "private_construction_maintenance",
+        "E2": "private_sales_office",
+    }
+    counts = adapter.report.counts_by_rule()
+    assert "defaulted_occupation_group" not in counts
+    issue = next(
+        i for i in adapter.report.issues if i.rule_id == "occupation_group_from_engagement"
+    )
+    assert issue.message.startswith("1 employee(s)")
+    assert "private_benefits_multiplier_construction_maintenance" in issue.message
+    assert adapter.report.blocking == []
+
+
+def test_a_selection_means_nothing_to_a_public_engagement(tmp_path):
+    write(tmp_path, "employees", [EMPLOYEE])
+    write(tmp_path, "actions", [ACTION])
+    adapter = TemplateAdapter(occupation_group="service")
+    data = adapter.load(tmp_path)
+    assert adapter.occupation_group is None
+    assert data.employees[0].benefits_group == "civilian"
+
+
+def test_changing_the_selection_changes_the_figures(tmp_path):
+    """The whole point, end to end: the same file, the same engagement, and a different
+    cost because the user selected a different kind of work."""
+    site = Installation(tmp_path / "install")
+    e = site.http.post(
+        "/engagements",
+        json={
+            "name": "n",
+            "client_name": "Builder",
+            "sector": "private_sector",
+            "occupation_group": "sales_office",
+        },
+        headers=site.auth(OWNER),
+    ).json()["id"]
+    folder = tmp_path / "files"
+    folder.mkdir()
+    write(folder, "employees", [EMPLOYEE])
+    write(folder, "actions", [ACTION])
+    write(
+        folder,
+        "admin_leave",
+        [
+            {
+                "employee_id": "E1",
+                "action_id": "A1",
+                "start_date": "2025-06-02",
+                "end_date": "2025-06-04",
+                "paid": "Y",
+            }
+        ],
+    )
+    files = [("files", (p.name, p.read_bytes(), "text/csv")) for p in sorted(folder.iterdir())]
+    response = site.http.post(
+        f"/engagements/{e}/datasets/upload",
+        params={"source": "wri_template"},
+        files=files,
+        headers=site.auth(OWNER),
+    )
+    assert response.status_code == 200, response.text
+
+    def leave_cost() -> Decimal:
+        state = site.runtime.workspaces.get(e)
+        return sum((i.amount for i in state.run().line_items if i.component == "C2"), Decimal("0"))
+
+    def group() -> str:
+        state = site.runtime.workspaces.get(e)
+        state.ensure_loaded()
+        return state.dataset.employees[0].benefits_group
+
+    # $41,600 / 2,080 = $20.00/hr; three 8-hour shifts of paid leave = 24 hrs.
+    hours_at_base = Decimal(24) * Decimal(20)
+    assert group() == "private_sales_office"
+    assert leave_cost() == (hours_at_base * Decimal("1.3977")).quantize(Decimal("0.01"))
+
+    url = f"/engagements/{e}/occupation-group"
+    put = site.http.put(
+        url, json={"occupation_group": "construction_maintenance"}, headers=site.auth(OWNER)
+    )
+    assert put.status_code == 200
+    assert group() == "private_construction_maintenance"
+    assert leave_cost() == (hours_at_base * Decimal("1.4538")).quantize(Decimal("0.01"))
+
+    site.http.put(url, json={"occupation_group": None}, headers=site.auth(OWNER))
+    assert group() == "private_all"
+    assert leave_cost() == (hours_at_base * Decimal("1.4287")).quantize(Decimal("0.01"))

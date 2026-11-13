@@ -288,8 +288,9 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 "The broad kind of work, which decides how heavily a private employer's "
                 "benefits load the wage: management_professional, sales_office, service, "
                 "construction_maintenance (also natural resources, installation and repair) "
-                "or production_transportation (also material moving). Blank means the "
-                "all-occupations average, and is reported. Not used for a public employer.",
+                "or production_transportation (also material moving). Blank means the group "
+                "selected for the engagement, or the all-occupations average where none was "
+                "selected; either way it is reported. Not used for a public employer.",
                 _values(OccupationGroup),
                 ("occupation", "occupational group", "job category", "eeo category", "soc group"),
             ),
@@ -1267,6 +1268,7 @@ class TemplateAdapter(SourceAdapter):
         mapping: dict | Mapping | None = None,
         agency_name: str = "Client",
         sector: str | None = None,
+        occupation_group: str | None = None,
     ):
         super().__init__()
         self.mapping = mapping if isinstance(mapping, Mapping) else parse_mapping(mapping)
@@ -1276,6 +1278,14 @@ class TemplateAdapter(SourceAdapter):
         #: record and never from the client's file.
         self.sector = sector or DEFAULT_SECTOR
         self._pack: SectorPack = get_pack(self.sector)
+        #: The occupation group selected for the engagement. It stands in for every employee
+        #: whose own row does not name one; a row that does name one keeps its own. Ignored
+        #: where the sector does not load benefits by occupation.
+        self.occupation_group = (
+            occupation_group
+            if occupation_group in self._pack.benefits_group_by_occupation
+            else None
+        )
         self._base = default_org_config()
         #: Built from the data in `load`. Until then, the engine's standard organization.
         self.org: OrgConfig = self._base
@@ -1422,7 +1432,7 @@ class TemplateAdapter(SourceAdapter):
         if sworn and "sworn_public_safety" in groups:
             return "sworn_public_safety"
         return (
-            self._pack.benefits_group_by_occupation.get(occupation)
+            self._pack.benefits_group_by_occupation.get(occupation or self.occupation_group)
             or self._pack.default_benefits_group
         )
 
@@ -1854,7 +1864,23 @@ class TemplateAdapter(SourceAdapter):
             )
         loaded = {e.employee_id for e in out}
         averaged = [i for i in no_occupation if i in loaded]
-        if averaged and self._pack.benefits_group_by_occupation:
+        if averaged and self.occupation_group:
+            # Not a gap: the engagement's own selection was used, as it is meant to be. It
+            # is still said, so a mixed workforce loaded at one figure is visible.
+            selected = self._pack.benefits_group_by_occupation[self.occupation_group]
+            self._issue(
+                "occupation_group_from_engagement",
+                "file",
+                self._table("employees").file,
+                f"{len(averaged)} employee(s) have no occupation_group of their own, so "
+                f"their wages are loaded at the group selected for the engagement, "
+                f"{self.occupation_group} "
+                f"({self._pack.benefits_assumption_by_group[selected]}). Fill in or map "
+                f"occupation_group for anyone whose work is of a different kind.",
+                "occupation_group",
+                severity=Severity.WARNING,
+            )
+        elif averaged and self._pack.benefits_group_by_occupation:
             multiplier_id = self._pack.benefits_assumption_by_group[
                 self._pack.default_benefits_group
             ]
@@ -1864,8 +1890,9 @@ class TemplateAdapter(SourceAdapter):
                 self._table("employees").file,
                 f"{len(averaged)} employee(s) have no occupation_group, so their wages are "
                 f"loaded at the all-occupations average ({multiplier_id}). That overstates "
-                f"service and sales staff and understates production staff. Fill in or map "
-                f"occupation_group to use each group's own published figure.",
+                f"service and sales staff and understates production staff. Select an "
+                f"occupation group for the engagement, or fill in or map occupation_group, "
+                f"to use the group's own published figure.",
                 "occupation_group",
                 severity=Severity.WARNING,
             )
