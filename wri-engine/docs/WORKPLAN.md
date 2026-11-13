@@ -43,7 +43,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 309 tests, 95.6% coverage.
+asserts it line item by line item. 311 tests, 95.6% coverage.
 
 1. **Hardening (PR #3).** Sign-in with local accounts, roles from engagement membership, a
    database, isolated engagement workspaces, per-engagement assumption overrides recorded with
@@ -122,8 +122,8 @@ methodology; this is what was done and what was deliberately left.
    levels and a note of what would settle each one. No value or bound changed, and
    `AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py` is now empty — kept rather
    than deleted, so the next unreviewed value fails the build.
-2. ~~**Benefits loading is not per occupation group.**~~ **Built 2026-11-13, awaiting the
-   owner's review of the five values.** The private pack now carries a multiplier for each
+2. ~~**Benefits loading is not per occupation group.**~~ **Built and approved by the owner
+   on 2026-11-13.** The private pack now carries a multiplier for each
    of the five broad BLS occupational groups. **The group is a selection on the engagement**
    (`EngagementRecord.occupation_group`): the user picks it when opening a private-sector
    engagement, the screen shows the multiplier each choice brings, and the engagement's admin
@@ -132,9 +132,10 @@ methodology; this is what was done and what was deliberately left.
    employee table overrides it row by row for a mixed workforce. With nothing selected the
    all-occupations 1.4287 is the fallback, and the load report counts who got which.
    The database gains one nullable column, added on start-up for an installation that
-   already has engagements (`Store._upgrade_schema`). The values are `researched` and listed in
-   `RESEARCHED_AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`; golden case 14
-   hand-checks them.
+   already has engagements (`Store._upgrade_schema`). The five values stay `researched`, because the cited series
+   and not the sign-off is what stands behind them; golden case 14 hand-checks them.
+   `RESEARCHED_AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py` is the list for
+   the next researched value nobody has reviewed, and is empty.
    **How the figures were read**, for whoever does this next: BLS's news-release tables on
    `www.bls.gov` refuse automated readers whatever the network allows, so the figures came
    from the series behind them at `https://data.bls.gov/timeseries/<series id>`. Private
@@ -142,11 +143,11 @@ methodology; this is what was done and what was deliberately left.
    a three-digit occupation code + `000D`; the codes used are 000, 100, 200, 300, 400, 500
    for the groups and 110, 120, 210, 220, 430, 510, 520 for the sub-groups behind the bounds.
    `data.bls.gov` is on the Default environment's allowlist.
-   **Still open: the fallback's bounds.** `private_benefits_multiplier_all` carries bounds of
-   1.38 / 1.4835 that the occupational series show to be wrong. The high bound rested on a
-   wages figure for the management group that BLS does not bear out, and the low bound does
-   not reach service at 1.2996. The groups span 1.2996 to 1.4686. The bounds are left as the
-   owner approved them; changing them needs his say-so. The base value was verified.
+   **The fallback's bounds**, settled by the owner on 2026-11-13: 1.2996 / 1.4686, the
+   lightest and heaviest of the five groups, replacing 1.38 / 1.4835. The old high bound
+   rested on a wages figure for the management group that BLS does not bear out, and the old
+   low bound did not reach service. The base value 1.4287 was verified and did not change. A
+   test holds the bounds to the groups' own figures.
 3. **`c3_temp_agency_markup` is `confirmed`, not `researched`, on purpose.** Staffing markups
    are quotable from trade and vendor sources but are not an official statistic, so the
    citation is recorded and the status is not raised to `researched`. Calling a vendor page

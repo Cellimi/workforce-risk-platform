@@ -203,23 +203,49 @@ def test_researched_assumptions_were_not_downgraded(assumptions):
 #: placeholder -- it has a cited source and the engine runs on it -- so it does not belong
 #: on AWAITING_OWNER_REVIEW. This is the list to read and then delete from: once the owner
 #: has reviewed one, remove its id here.
-RESEARCHED_AWAITING_OWNER_REVIEW = {
-    "private_benefits_multiplier_management_professional",
-    "private_benefits_multiplier_sales_office",
-    "private_benefits_multiplier_service",
-    "private_benefits_multiplier_construction_maintenance",
-    "private_benefits_multiplier_production_transportation",
-}
+#:
+#: Empty, because the owner reviewed the five occupational-group multipliers on 2026-11-13.
+#: Add to it, do not delete it.
+RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = set()
+
+#: The five occupational-group multipliers the owner reviewed on 2026-11-13.
+OCCUPATION_GROUP_MULTIPLIERS = {f"private_benefits_multiplier_{g}" for g in OccupationGroup}
 
 
 def test_researched_values_awaiting_review_are_real_and_cited(assumptions):
     """Everything on the review list exists, is marked researched rather than confirmed, and
-    names the BLS series it was read from, so the owner can check the figure himself."""
+    names the source it was read from, so the owner can check the figure himself."""
     for assumption_id in sorted(RESEARCHED_AWAITING_OWNER_REVIEW):
         assumption = assumptions.get(assumption_id)
         assert assumption.status == "researched", assumption_id
-        assert "CMU20" in assumption.source, f"{assumption_id} does not name its BLS series"
+        assert assumption.source.strip(), assumption_id
         assert "awaiting the owner" in assumption.notes, assumption_id
+
+
+def test_the_reviewed_group_multipliers_still_stand_on_their_series(assumptions):
+    """The owner's review does not turn a sourced figure into a sign-off. Each of the five
+    stays `researched`, still names the two BLS series it is the ratio of, and no longer
+    claims to be awaiting anything."""
+    for assumption_id in sorted(OCCUPATION_GROUP_MULTIPLIERS):
+        assumption = assumptions.get(assumption_id)
+        assert assumption.status == "researched", assumption_id
+        assert "CMU201" in assumption.source and "CMU202" in assumption.source, assumption_id
+        assert "reviewed by the owner" in assumption.notes, assumption_id
+        assert "awaiting" not in assumption.notes, assumption_id
+        assert assumption_id not in RESEARCHED_AWAITING_OWNER_REVIEW
+
+
+def test_the_fallback_is_bounded_by_the_lightest_and_heaviest_groups(assumptions):
+    """The owner set the all-occupations fallback's bounds to the range of the five groups
+    on 2026-11-13. Low and high mode then show what an unclassified workforce costs if it is
+    all of the lightest or all of the heaviest kind of work -- which only holds while the
+    bounds really are the groups' own figures."""
+    fallback = assumptions.get("private_benefits_multiplier_all")
+    groups = [assumptions.get(a).value for a in OCCUPATION_GROUP_MULTIPLIERS]
+    assert (fallback.low, fallback.high) == (min(groups), max(groups))
+    assert fallback.low == assumptions.get("private_benefits_multiplier_service").value
+    assert fallback.low < fallback.value < fallback.high
+    assert fallback.status == "researched"
 
 
 def test_every_occupational_group_has_its_own_private_multiplier(assumptions):

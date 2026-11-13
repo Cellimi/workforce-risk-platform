@@ -442,11 +442,11 @@ series for 2026 Q2 (the June 2026 reference period), read from `data.bls.gov` on
 
 | `occupation_group` on the employee | Total comp. | Wages | Multiplier | BLS series (total / wages) | Status |
 |---|---:|---:|---:|---|---|
-| `management_professional` | $78.88 | $54.06 | **1.4591** | `CMU2010000100000D` / `CMU2020000100000D` | researched, awaiting review |
-| `sales_office` | $36.34 | $26.00 | **1.3977** | `CMU2010000200000D` / `CMU2020000200000D` | researched, awaiting review |
-| `service` | $23.73 | $18.26 | **1.2996** | `CMU2010000300000D` / `CMU2020000300000D` | researched, awaiting review |
-| `construction_maintenance` | $47.80 | $32.88 | **1.4538** | `CMU2010000400000D` / `CMU2020000400000D` | researched, awaiting review |
-| `production_transportation` | $36.70 | $24.99 | **1.4686** | `CMU2010000500000D` / `CMU2020000500000D` | researched, awaiting review |
+| `management_professional` | $78.88 | $54.06 | **1.4591** | `CMU2010000100000D` / `CMU2020000100000D` | researched; owner reviewed 2026-11-13 |
+| `sales_office` | $36.34 | $26.00 | **1.3977** | `CMU2010000200000D` / `CMU2020000200000D` | researched; owner reviewed 2026-11-13 |
+| `service` | $23.73 | $18.26 | **1.2996** | `CMU2010000300000D` / `CMU2020000300000D` | researched; owner reviewed 2026-11-13 |
+| `construction_maintenance` | $47.80 | $32.88 | **1.4538** | `CMU2010000400000D` / `CMU2020000400000D` | researched; owner reviewed 2026-11-13 |
+| `production_transportation` | $36.70 | $24.99 | **1.4686** | `CMU2010000500000D` / `CMU2020000500000D` | researched; owner reviewed 2026-11-13 |
 | *(blank)* -- all occupations | $46.89 | $32.82 | **1.4287** | `CMU2010000000000D` / `CMU2020000000000D` | researched; owner reviewed 2026-11-13 |
 
 The assumption ids are `private_benefits_multiplier_<group>` and
@@ -482,13 +482,14 @@ Things a reader should know:
    the 20 quarters to 2026 Q2 and of its published sub-groups in 2026 Q2. Sales and office is
    the wide one (1.3283 to 1.4564), because sales (1.3283) and clerical work (1.4564) are
    loaded very differently and BLS reports them as one group.
-3. *The fallback's own bounds are wrong and are waiting on the owner.* The 1.38 / 1.4835
-   bounds on `private_benefits_multiplier_all` were set before the occupational series could
-   be read. The high bound rested on a wages figure for the management group that the BLS
-   series does not bear out (that group is 1.4591, not 1.4835), and the low bound does not
-   reach service at 1.2996. If the bounds are meant to contain the occupational spread they
-   should be 1.2996 / 1.4686. They are left as approved, because a bound is not changed
-   without asking; the base value 1.4287 was verified against the series and is unaffected.
+3. *The fallback is bounded by the lightest and heaviest groups*: 1.2996 (service) and
+   1.4686 (production, transportation and material moving). So low and high mode show what
+   an unclassified workforce costs if it is all of one kind or all of the other. The owner
+   set these on 2026-11-13 in place of 1.38 / 1.4835, which had been fixed before the
+   occupational series could be read: the old high bound rested on a wages figure for the
+   management group that the series does not bear out, and the old low bound did not reach
+   service. The base value 1.4287 was verified against the series and did not change. A test
+   holds the bounds to the groups' own figures, so they cannot drift apart.
 4. *The hour-worked versus hour-paid caveat in section 2 applies here too*, in the same
    direction and for the same reason.
 5. *BLS's news-release tables refuse automated readers*, so the figures were read from the
@@ -631,10 +632,9 @@ It is the reason that case exists.
 ### The status of every new value
 
 Seventeen coefficients were added for this sector and **no existing value was changed**.
-The owner reviewed the first twelve on **2026-11-13**, so none is a placeholder. The five
-occupational-group multipliers were researched later the same day and are **awaiting his
-review**; they are listed in `RESEARCHED_AWAITING_OWNER_REVIEW` in
-`tests/test_config_consistency.py`. The table below is the twelve he has reviewed:
+The owner reviewed all seventeen on **2026-11-13**, so none is a placeholder and none is
+awaiting review. The five occupational-group multipliers are in the benefits-loading table
+above and stay `researched`; the table below is the other twelve:
 
 | | Count | Which |
 |---|---:|---|
@@ -753,10 +753,9 @@ Phase 1 is the cost baseline and nothing else.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
 - **No claim that any figure is a measured agency cost.** The registry holds 184
-  assumptions. The owner has approved 179 of them — the 167 the public-sector model runs on,
-  on 2026-11-12, and the first 12 the private sector added, on 2026-11-13 — and the 5
-  occupational-group multipliers are researched and awaiting his review. Approval clears the
-  engine to run; it does not make the numbers measurements. Only 20 carry a cited source, and
+  assumptions and the owner has approved every one of them — the 167 the public-sector
+  model runs on, on 2026-11-12, and the 17 the private sector added, on 2026-11-13. Approval
+  clears the engine to run; it does not make the numbers measurements. Only 20 carry a cited source, and
   91 of the 184 remain low confidence. The Assumptions page tints the
   low-confidence rows and shows the source beside each value.
 

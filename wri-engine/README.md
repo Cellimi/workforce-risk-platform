@@ -10,10 +10,9 @@ items that each name their own formula, the values used, and the assumption behi
 > **Harlow County does not exist.** The data is generated from public distributional shapes
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
-> assumptions, **not measured agency costs**. The owner has approved 179 of the 184
-> assumptions; the other 5 are sourced figures awaiting his review. Approval is not
-> verification: 91 are low-confidence professional estimates, and the demo tints every one
-> of them.
+> assumptions, **not measured agency costs**. The owner has approved all 184
+> assumptions, but approval is not verification: 91 are low-confidence professional
+> estimates, and the demo tints every one of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
 > rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
@@ -204,10 +203,10 @@ value; `confidence` says how much weight it bears, and the two moved independent
 raised no confidence level, and the 15 sourced entries stayed `researched` rather than being
 flattened to `confirmed`, because naming a source is the stronger claim.
 
-Five more entries were added after that sign-off and are **awaiting the owner's review**: the
-private-industry benefits multipliers for each broad occupational group, each read from its
-own BLS series. They are `researched`, the engine runs on them, and they are listed in
-`RESEARCHED_AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`.
+Five more entries were added after that sign-off and reviewed by the owner the same day:
+the private-industry benefits multipliers for each broad occupational group, each read from
+its own BLS series. They stay `researched` for the same reason. That makes 184 entries, 20
+with a cited source, and nothing awaiting review.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -331,17 +330,17 @@ are the least grounded:
    experience-rating multiplier. Each still records that it is not a researched figure and
    what would settle it, usually the client's own invoices. See section 8 of
    `docs/cost_methodology.md`.
-9. The **five private benefits multipliers by occupational group**, which the owner has
-   not reviewed yet. They run from 1.2996 for service work to 1.4686 for production and
+9. The **five private benefits multipliers by occupational group**, reviewed by the owner
+   on 2026-11-13. They run from 1.2996 for service work to 1.4686 for production and
    transportation, each from its own BLS series. Which one applies is a selection: the user
    picks the client's occupation group when opening a private-sector engagement and can
    change it later, and a row in the client's file that names its own group keeps it. With
    nothing selected the wage is loaded at the all-occupations 1.4287, and the load report
    says for how many people.
-10. The **bounds on that all-occupations fallback**, 1.38 / 1.4835, which the occupational
-    series show to be wrong: the groups actually span 1.2996 to 1.4686. They are left as the
-    owner approved them until he decides. Only low and high mode are affected, and only for
-    private employees with no occupational group.
+10. **Sales and office is one selection, and its two halves differ.** BLS reports sales at
+    1.3283 and office and administrative support at 1.4564 but the product offers them as
+    one group at 1.3977. A client whose staff are mostly one or the other is better served by
+    its own figure for that assumption.
 
 The fictional county name is settled: **Harlow County**, confirmed by the owner on
 2026-11-12 in `config/org_county.yaml`. It is invented, and

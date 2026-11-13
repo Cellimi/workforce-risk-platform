@@ -21,7 +21,8 @@
 # reviewed and approved the public-sector registry on 2026-11-12 and the twelve values added
 # for the private-sector cost model on 2026-11-13, so no entry carries that status any more.
 # The five private_benefits_multiplier_<occupational group> entries were researched after
-# that and are awaiting his review; they are status = researched, not placeholders.
+# that and reviewed by him the same day; they are status = researched because each names the
+# BLS series it was read from.
 #
 # READ THE DIFFERENCE BETWEEN THESE TWO FIELDS BEFORE QUOTING A NUMBER.
 #   status = confirmed  means the OWNER has signed off on the value as the working figure.
@@ -2434,9 +2435,9 @@ assumptions:
     civilian)'
 
 # ---------------------------------------------------------------------------
-# Private-sector cost model. Added 2026-11-12, owner-approved 2026-11-13 -- except the five
-# private_benefits_multiplier_<occupational group> entries, researched on 2026-11-13 after
-# that approval and awaiting the owner's review.
+# Private-sector cost model. Added 2026-11-12, owner-approved 2026-11-13, including the five
+# private_benefits_multiplier_<occupational group> entries researched that day and the
+# bounds on private_benefits_multiplier_all, which he set to the range of those five groups.
 #
 # Only genuinely new values live here. Where the two sectors do the same thing -- an HR
 # officer's hours on a written reprimand, the FLSA overtime premium -- they share the id
@@ -2452,8 +2453,8 @@ assumptions:
 # ---------------------------------------------------------------------------
 - id: private_benefits_multiplier_all
   value: 1.4287
-  low: 1.38
-  high: 1.4835
+  low: 1.2996
+  high: 1.4686
   unit: ratio
   applies_to:
     benefits_group: private_all
@@ -2461,8 +2462,8 @@ assumptions:
   confidence: medium
   owner: Michael V. Celli
   status: researched
-  last_reviewed: '2026-11-12'
-  notes: 'The private-sector counterpart to benefits_multiplier_civilian, and the single largest difference between the two sector packs. Since 2026-11-13 it is the FALLBACK, used for an employee whose occupational group the data does not give; the five private_benefits_multiplier_<group> entries below carry each group''s own figure. VALUE VERIFIED 2026-11-13 against BLS series CMU2010000000000D and CMU2020000000000D on data.bls.gov. BOUNDS NEED THE OWNER''S DECISION. They were set before the occupational series could be read, and do not hold up. The high bound 1.4835 was derived from a wages figure for the management and professional group that the BLS series does not bear out (that group is 78.88 / 54.06 = 1.4591), and the low bound 1.38 does not reach the service group at 1.2996. The broad groups actually span 1.2996 (service) to 1.4686 (production, transportation and material moving), which is what the bounds should be if they are to contain the occupational spread. Left as they are because the owner approved this entry as it stands and a bound is not changed without asking. Carries the same per-hour-worked against per-hour-paid caveat as the civilian figure; see docs/cost_methodology.md.'
+  last_reviewed: '2026-11-13'
+  notes: 'The private-sector counterpart to benefits_multiplier_civilian, and the single largest difference between the two sector packs. It is the FALLBACK, used for an employee who has no occupational group of their own in an engagement with none selected; the five private_benefits_multiplier_<group> entries below carry each group''s own figure. VALUE VERIFIED 2026-11-13 against BLS series CMU2010000000000D and CMU2020000000000D on data.bls.gov. BOUNDS: the lowest and highest of the five broad occupational groups in the same series for 2026 Q2 - service at 23.73 / 18.26 = 1.2996 and production, transportation and material moving at 36.70 / 24.99 = 1.4686 - so low and high mode show what an unclassified workforce costs if it is all of the lightest or all of the heaviest kind. OWNER DECISION 2026-11-13: the bounds were changed to these from 1.38 / 1.4835, which had been set before the occupational series could be read; the old high bound rested on a wages figure for the management group that the series does not bear out, and the old low bound did not reach service. The base value did not change. Carries the same per-hour-worked against per-hour-paid caveat as the civilian figure; see docs/cost_methodology.md.'
 - id: private_benefits_multiplier_management_professional
   value: 1.4591
   low: 1.432
@@ -2475,7 +2476,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-13'
-  notes: 'Loads the wage of a private employee in management, business, financial or professional work. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4320 to 1.4598) and of its two published sub-groups in 2026 Q2 - management, business and financial 88.63 / 59.85 = 1.4809, professional and related 73.69 / 50.98 = 1.4455. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in management, business, financial or professional work. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4320 to 1.4598) and of its two published sub-groups in 2026 Q2 - management, business and financial 88.63 / 59.85 = 1.4809, professional and related 73.69 / 50.98 = 1.4455. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: private_benefits_multiplier_sales_office
   value: 1.3977
   low: 1.3283
@@ -2488,7 +2489,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-13'
-  notes: 'Loads the wage of a private employee in sales or in office and administrative support. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.3734 to 1.3977) and of its two published sub-groups in 2026 Q2 - sales and related 35.85 / 26.99 = 1.3283, office and administrative support 36.73 / 25.22 = 1.4564. The two halves of this group differ a good deal, so a client whose staff are mostly sales sits near the low bound and one whose staff are mostly clerical near the high. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in sales or in office and administrative support. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.3734 to 1.3977) and of its two published sub-groups in 2026 Q2 - sales and related 35.85 / 26.99 = 1.3283, office and administrative support 36.73 / 25.22 = 1.4564. The two halves of this group differ a good deal, so a client whose staff are mostly sales sits near the low bound and one whose staff are mostly clerical near the high. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: private_benefits_multiplier_service
   value: 1.2996
   low: 1.2816
@@ -2501,7 +2502,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-13'
-  notes: 'Loads the wage of a private employee in service work - food service, cleaning, personal care, security. The lowest of the five groups by a wide margin, so loading service staff at the all-occupations 1.4287 overstates their cost by about a tenth. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.2816 to 1.3019). No sub-group series was found for it. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in service work - food service, cleaning, personal care, security. The lowest of the five groups by a wide margin, so loading service staff at the all-occupations 1.4287 overstates their cost by about a tenth. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.2816 to 1.3019). No sub-group series was found for it. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: private_benefits_multiplier_construction_maintenance
   value: 1.4538
   low: 1.4514
@@ -2514,7 +2515,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-13'
-  notes: 'Loads the wage of a private employee in construction, extraction, farming, or installation, maintenance and repair. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4514 to 1.4742) and of the one current sub-group series found, installation, maintenance and repair 49.01 / 33.61 = 1.4582. The construction and extraction series found ends in 2006 and was not used. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in construction, extraction, farming, or installation, maintenance and repair. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4514 to 1.4742) and of the one current sub-group series found, installation, maintenance and repair 49.01 / 33.61 = 1.4582. The construction and extraction series found ends in 2006 and was not used. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: private_benefits_multiplier_production_transportation
   value: 1.4686
   low: 1.445
@@ -2527,7 +2528,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-13'
-  notes: 'Loads the wage of a private employee in production, transportation or material moving - a plant operative, a driver, a warehouse associate. The most heavily loaded of the five groups. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4450 to 1.4851) and of its two published sub-groups in 2026 Q2 - production 37.21 / 25.03 = 1.4866, transportation and material moving 36.38 / 24.97 = 1.4569. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in production, transportation or material moving - a plant operative, a driver, a warehouse associate. The most heavily loaded of the five groups. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4450 to 1.4851) and of its two published sub-groups in 2026 Q2 - production 37.21 / 25.03 = 1.4866, transportation and material moving 36.38 / 24.97 = 1.4569. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: c4_filing_window_days_agency_charge
   value: 300
   low: 180
