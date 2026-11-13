@@ -4,179 +4,51 @@
 > All rights reserved — see [LICENSE](LICENSE). Reading this repository grants no right to
 > use, copy, modify or distribute the code.
 >
-> **All data here is synthetic and depicts a fictional county.** Nothing in this repository
-> is derived from any real agency's records.
+> **All data here is synthetic.** The county, the company and the people in it are invented.
+> Nothing in this repository is derived from any real employer's records.
 
-This repository holds **two separate projects**. They share no code, and they are at very
-different stages. Don't mistake one for the other.
+Workforce Risk Intelligence (WRI) reports **what employee discipline actually costs an
+employer**, and shows where every dollar came from.
 
-| | What it is | Status |
-|---|---|---|
-| [**`wri-engine/`**](wri-engine/) | **Phase 1 of the WRI engine: the fully loaded cost of discipline.** Joins HR records to discipline records and reports what discipline costs, with every dollar traceable to its formula and the assumption behind it. Canonical schema, source adapters, cost engine, assumptions registry, suppression and role gating, FastAPI service, Streamlit demo. 146 tests. | **Current work.** Start here. |
-| **the root directory** (`app.py`, `models/`, `utils/`, `data/`) | The **earlier MVP**: a forecasting prototype that predicts unit-level risk 30–90 days out. Described below. | Prototype. Superseded in direction by `wri-engine/`; kept for reference. |
+It joins HR records to discipline records and costs each action: the hours spent processing
+it, paid leave during an investigation, cover for the absence, challenges to the action, and
+the cost of replacing someone who is removed. A cost is counted only when the record shows
+the event happened. Nothing is predicted or probability-weighted, and every figure carries
+its formula, its inputs and the assumptions behind it.
 
-The engine is the product direction. The MVP was an earlier exploration, and its forecasting
-and risk-scoring approach is *not* what `wri-engine/` does — Phase 1 is deliberately a cost
-baseline with no prediction or scoring in it at all.
+## Where everything is
 
----
+**The product is in [`wri-engine/`](wri-engine/). Start with
+[`wri-engine/README.md`](wri-engine/README.md).**
 
-# The earlier MVP — forecasting prototype
-
-A predictive analytics tool that ingests HR and operational data, forecasts workforce risks 30–90 days out, ranks organizational units by risk level, and generates leadership-ready executive summaries.
-
----
-
-## What This Does
-
-| Feature | Description |
+| Folder | What it is |
 |---|---|
-| **Data Ingestion** | Accepts CSV files in canonical schema (date, unit, metric, value) |
-| **Feature Engineering** | Rolling averages (7/30/60-day), % changes, per-100-employee ratios, lag variables |
-| **Forecasting** | 30/60/90-day time-series forecasting via Facebook Prophet (linear fallback) |
-| **Risk Classification** | Gradient Boosting model classifies units as Low / Medium / High risk |
-| **Recommendations** | Rule-based intervention mapping (safety, HR, retention, staffing) |
-| **Dashboard** | Streamlit web UI with risk rankings, forecast charts, and unit deep-dives |
-| **Executive Summary** | Auto-generated text report with risks, projections, and recommended actions |
-
----
-
-## Quick Start
-
-### 1. Install dependencies
+| [`wri-engine/`](wri-engine/) | **The WRI engine: the product.** The cost model for public-sector and private-sector employers, the assumptions registry with a source for every coefficient, intake of a client's own files, sign-in and per-client engagements, the API and the screen. |
+| [`legacy/`](legacy/) | The first prototype, from February 2026: a dashboard that forecast unit-level risk. **Not the product and not being developed.** Kept for reference; see [`legacy/README.md`](legacy/README.md). |
 
 ```bash
-cd workforce_risk_platform
-python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+cd wri-engine
+make install     # set up the environment
+make test        # run the test suite
+make demo        # the synthetic walkthrough
 ```
 
-> **Note:** Prophet requires `pystan`. On some systems you may need:
-> ```bash
-> pip install pystan==2.19.1.1 prophet
-> ```
+## Why there is a `legacy/` folder
 
-### 2. Generate sample data (optional)
+The February prototype and the engine answer different questions. The prototype asked which
+units were *likely* to be in trouble in the next 30 to 90 days, from weekly unit totals. The
+engine asks what discipline *did* cost, from individual records, and deliberately contains no
+forecasting or risk scoring in its first phase. They share no code.
 
-```bash
-python data/generate_synthetic_data.py
-# Outputs: workforce_data.csv (8 units × ~130 weeks × 6 metrics ≈ 6,200 rows)
-```
+The prototype is kept so the earlier thinking is on record, and moved out of the top level so
+that this repository reads as one project. If forecasting is taken up later it will be built
+in the engine, on the engine's data, rather than ported from the prototype.
 
-### 3. Run the app
+## One more move to come
 
-```bash
-streamlit run app.py
-```
-
-The dashboard opens at **http://localhost:8501**
-
----
-
-## Usage
-
-1. **Select data source** in the sidebar — use built-in sample data or upload your own CSV
-2. Click **▶ Run Analysis**
-3. Explore the five tabs:
-   - **Risk Rankings** — all units sorted by risk with key drivers
-   - **Forecasts** — 30/60/90-day projections per unit and metric
-   - **Unit Deep-Dive** — detailed view with trend charts and recommendations
-   - **Model Insights** — feature importance and risk scatter plot
-   - **Executive Summary** — generate and download a leadership brief
-
----
-
-## CSV Format
-
-Your CSV must have exactly these columns:
-
-```
-date,unit,metric,value
-2024-01-01,Unit_Alpha,headcount,120
-2024-01-01,Unit_Alpha,grievances,2.0
-2024-01-01,Unit_Alpha,workers_comp_claims,1.5
-...
-```
-
-**Supported metrics:**
-- `headcount`
-- `leave_usage`
-- `grievances`
-- `workers_comp_claims`
-- `attrition`
-- `workload_volume`
-
----
-
-## Project Structure
-
-```
-workforce_risk_platform/
-├── app.py                          # Main Streamlit dashboard
-├── requirements.txt
-├── data/
-│   └── generate_synthetic_data.py  # Synthetic data generator
-├── models/
-│   └── risk_model.py               # Forecasting + risk classification
-└── utils/
-    ├── data_processing.py           # Ingestion, normalization, feature engineering
-    ├── recommendations.py           # Rule-based intervention engine
-    └── executive_summary.py         # Auto-summary generator
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Language | Python 3.10+ |
-| Data processing | Pandas, NumPy |
-| ML | scikit-learn (GradientBoostingClassifier) |
-| Forecasting | Facebook Prophet |
-| Dashboard | Streamlit |
-| Charts | Plotly |
-
----
-
-## Deployment (Post-MVP)
-
-**Streamlit Cloud (easiest):**
-```bash
-# Push to GitHub → connect at share.streamlit.io
-```
-
-**AWS EC2:**
-```bash
-pip install -r requirements.txt
-streamlit run app.py --server.port 80 --server.address 0.0.0.0
-```
-
----
-
-## Scope & Limitations
-
-This is an MVP prototype for validation and demos:
-
-- ✅ Works locally with CSV data
-- ✅ Demonstrates full pipeline end-to-end
-- ❌ No authentication or multi-tenant support
-- ❌ No API integrations (HRIS, payroll systems)
-- ❌ No real-time data pipelines
-- ❌ Model accuracy not optimized — proof-of-concept only
-
----
-
-## Estimated Build Time
-
-~3–4 weeks for one mid-level Python developer.
-
----
-
-*Built to the MVP brief for the Workforce Risk Intelligence Platform.*
-
----
+The engine will move from `wri-engine/` to the top level of this repository once the pull
+requests currently open against it have been merged. Moving it sooner would put every one of
+them into conflict. Until then, everything about the engine is under `wri-engine/`.
 
 ## License
 
