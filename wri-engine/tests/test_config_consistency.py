@@ -59,25 +59,19 @@ def test_the_vacancy_salary_burden_assumption_exists(assumptions):
     assert "OPEN ITEM 3" in assumption.notes
 
 
-#: Values added for the private-sector cost model that the owner has not reviewed yet.
-#: This is the review checklist. As each one is approved, delete it from here -- the test
-#: below then fails if the registry still calls it pending, and passes once it does not.
-AWAITING_OWNER_REVIEW = {
-    "c1_outside_investigator_hourly_rate",
-    "c3_temp_agency_markup",
-    "c4_filing_window_days_demand_letter",
-    "c4_filing_window_days_mediation",
-    "c4_hr_hours_agency_charge",
-    "c4_hr_hours_demand_letter",
-    "c4_hr_hours_mediation",
-    "c6_separation_agreement_counsel_hours",
-    "c6_separation_agreement_hr_hours",
-    "c6_unemployment_experience_rating_multiplier",
-}
+#: Values the owner has not reviewed yet. This is the review checklist: a new value goes in
+#: here when it is added and comes out when the owner approves it, so the two tests below
+#: hold the registry and this list to each other.
+#:
+#: Empty, because the owner approved the public-sector registry on 2026-11-12 and the twelve
+#: private-sector values on 2026-11-13. Add to it, do not delete it -- an empty checklist is
+#: what makes the next unreviewed value fail the build.
+AWAITING_OWNER_REVIEW: set[str] = set()
 
 
 def test_nothing_the_owner_approved_has_gone_back_to_pending(assumptions):
-    """The owner signed off the whole registry on 2026-11-12.
+    """The owner signed off the public-sector registry on 2026-11-12 and the private-sector
+    values on 2026-11-13.
 
     New work may add values he has not seen -- those belong in AWAITING_OWNER_REVIEW above.
     What must not happen is an already-approved value quietly reverting to a placeholder, or
@@ -110,10 +104,61 @@ def test_every_pending_value_says_why_it_is_not_researched(assumptions):
     """
     for assumption in assumptions.placeholders:
         assert assumption.source.strip(), assumption.id
-        assert (
-            "NOT marked researched" in assumption.notes
-            or "Owner professional estimate" in assumption.source
-        ), f"{assumption.id} is pending but does not say why it is not researched"
+        assert _says_it_is_not_researched(assumption), (
+            f"{assumption.id} is pending but does not say why it is not researched"
+        )
+
+
+def _says_it_is_not_researched(assumption) -> bool:
+    notes = assumption.notes.lower()
+    return (
+        "not a researched figure" in notes
+        or "not marked researched" in notes
+        or "Owner professional estimate" in assumption.source
+    )
+
+
+#: The twelve coefficients the private-sector cost model added.
+PRIVATE_SECTOR_VALUES = {
+    "private_benefits_multiplier_all",
+    "c4_filing_window_days_agency_charge",
+    "c1_outside_investigator_hourly_rate",
+    "c3_temp_agency_markup",
+    "c4_filing_window_days_demand_letter",
+    "c4_filing_window_days_mediation",
+    "c4_hr_hours_agency_charge",
+    "c4_hr_hours_demand_letter",
+    "c4_hr_hours_mediation",
+    "c6_separation_agreement_counsel_hours",
+    "c6_separation_agreement_hr_hours",
+    "c6_unemployment_experience_rating_multiplier",
+}
+
+
+def test_approving_the_private_values_did_not_turn_them_into_measurements(assumptions):
+    """The owner approved all twelve on 2026-11-13. That settles who stands behind them and
+    nothing else.
+
+    So the ten that are not researched must still say so and still name what would settle
+    them, and the two that are researched must keep that status -- `researched` names a cited
+    source and is the stronger claim, which a sign-off must not flatten away.
+    """
+    for assumption_id in sorted(PRIVATE_SECTOR_VALUES):
+        assumption = assumptions.get(assumption_id)
+        assert assumption.status in ("confirmed", "researched"), assumption_id
+        assert str(assumption.last_reviewed) >= "2026-11-12", assumption_id
+        if assumption.status == "researched":
+            continue
+        assert _says_it_is_not_researched(assumption), (
+            f"{assumption_id} is confirmed rather than researched, so it has to say that it "
+            f"is not a researched figure -- approval is not a citation"
+        )
+
+    researched = {a for a in PRIVATE_SECTOR_VALUES if assumptions.get(a).status == "researched"}
+    assert researched == {
+        "private_benefits_multiplier_all",
+        "c4_filing_window_days_agency_charge",
+    }, "the two values with a statutory or government source must stay `researched`"
 
 
 def test_sign_off_did_not_inflate_confidence(assumptions):

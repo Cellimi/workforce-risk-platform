@@ -10,10 +10,9 @@ items that each name their own formula, the values used, and the assumption behi
 > **Harlow County does not exist.** The data is generated from public distributional shapes
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
-> assumptions, **not measured agency costs**. The owner has approved the 167 assumptions
-> the public-sector model runs on, but approval is not verification: 86 of those are
-> low-confidence professional estimates, and the demo tints every one of them. The 12 added
-> for the private-sector model are not approved yet and say so.
+> assumptions, **not measured agency costs**. The owner has approved all 179 assumptions,
+> but approval is not verification: 91 are low-confidence professional estimates, and the
+> demo tints every one of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
 > rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
@@ -196,12 +195,13 @@ average base rate for deputy at North District)
 owner and a status. Asking for an assumption that is not there is a hard error, never a
 silent default.
 
-The owner signed off on the 167 entries the public-sector model runs on, on 2026-11-12.
-That is a sign-off, not a measurement: 13 of them carry a cited source, the other 154 are
-professional estimates the owner stands behind, and 86 of those remain **low confidence**.
-`status` says who approved a value; `confidence` says how much weight it bears, and the two
-moved independently. The 12 coefficients the private-sector model added are awaiting the
-owner: 2 are `researched` from a statutory or government source and 10 are `TBD-MIKE`.
+The owner signed off on the 167 entries the public-sector model runs on, on 2026-11-12, and
+on the 12 the private-sector model added, on 2026-11-13. That is a sign-off, not a
+measurement: 15 of the 179 carry a cited source, the other 164 are professional estimates the
+owner stands behind, and 91 remain **low confidence**. `status` says who approved a value;
+`confidence` says how much weight it bears, and the two moved independently — sign-off raised
+no confidence level, and the 15 sourced entries stayed `researched` rather than being
+flattened to `confirmed`, because naming a source is the stronger claim.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -298,10 +298,10 @@ make lint     # ruff
 
 ## Before this is shown externally
 
-The owner has approved every value the public-sector model runs on, so the engine is
-cleared to run. What approval does **not** do is turn an estimate into a measurement. These
-are the ones most worth replacing with the customer's own figures, because they move the
-headline most and are the least grounded:
+The owner has approved every value in `config/assumptions.yaml`, so the engine is cleared to
+run. What approval does **not** do is turn an estimate into a measurement. These are the ones
+most worth replacing with the customer's own figures, because they move the headline most and
+are the least grounded:
 
 1. The **sworn benefits multiplier**, 1.75. The owner accepted it on 2026-11-12 as the
    working value and chose not to block on sourcing it, so the engine runs on it. It is
@@ -316,13 +316,19 @@ headline most and are the least grounded:
    length and cost, field training length, washout rates, civilian ramp weeks.
 6. The **civilian vacancy productivity-loss factor**.
 7. The **minimum cell size** for suppression (default 5).
-8. The **12 private-sector coefficients**, none of which the owner has reviewed. Two are
+8. The **12 private-sector coefficients**, accepted by the owner on 2026-11-13. Two are
    researched from a statutory or government source — the private benefits multiplier from
-   BLS ECEC, and the 300-day agency-charge filing window from Title VII. The other ten are
-   owner estimates: the temp-agency markup, the outside-investigator rate, the three
-   challenge-forum hour figures, two non-statutory filing windows, the two separation
-   agreement hour figures and the unemployment experience-rating multiplier. See section 8
-   of `docs/cost_methodology.md`.
+   BLS ECEC, and the 300-day agency-charge filing window from Title VII — and keep that
+   status. The other ten are owner estimates he now stands behind: the temp-agency markup,
+   the outside-investigator rate, the three challenge-forum hour figures, two non-statutory
+   filing windows, the two separation-agreement hour figures and the unemployment
+   experience-rating multiplier. Each still records that it is not a researched figure and
+   what would settle it, usually the client's own invoices. See section 8 of
+   `docs/cost_methodology.md`.
+9. **Private-industry benefits loading is one multiplier for every occupation.** The ECEC
+   table for private industry by occupational group was not reachable from the build
+   environment, so 1.4287 covers everyone with bounds widened to contain the occupational
+   spread. That is the one place the private model falls short of its plan.
 
 The fictional county name is settled: **Harlow County**, confirmed by the owner on
 2026-11-12 in `config/org_county.yaml`. It is invented, and

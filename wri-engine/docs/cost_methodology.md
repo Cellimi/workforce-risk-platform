@@ -73,7 +73,7 @@ loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
 |---|---|---|
 | `benefits_multiplier_civilian` | **1.627** | researched |
 | `benefits_multiplier_sworn` | **1.75** | confirmed, but low confidence and unsourced |
-| `private_benefits_multiplier_all` | **1.4287** | researched, awaiting owner review |
+| `private_benefits_multiplier_all` | **1.4287** | researched; owner reviewed 2026-11-13 |
 
 **Which of those applies is the sector's decision, not the employee's.** The two public
 multipliers belong to the public-sector pack; a private engagement loads every wage with the
@@ -434,7 +434,7 @@ loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
 
 | Assumption | Value | Status |
 |---|---|---|
-| `private_benefits_multiplier_all` | **1.4287** | researched, awaiting owner review |
+| `private_benefits_multiplier_all` | **1.4287** | researched; owner reviewed 2026-11-13 |
 
 From the BLS **Employer Costs for Employee Compensation** release, June 2026 reference
 period, private industry workers, all workers: total compensation $46.89 per hour worked
@@ -586,25 +586,34 @@ It is the reason that case exists.
 
 ### The status of every new value
 
-Twelve coefficients were added for this sector and **no existing value was changed**. Two are
-researched from a government or statutory source and ten are owner estimates awaiting a
-client figure:
+Twelve coefficients were added for this sector and **no existing value was changed**. The
+owner reviewed all twelve on **2026-11-13**, so none is a placeholder any more:
 
 | | Count | Which |
 |---|---:|---|
-| **researched** (government or statutory source) | 2 | `private_benefits_multiplier_all`, `c4_filing_window_days_agency_charge` |
-| **TBD-MIKE** (awaiting the owner or a client figure) | 10 | the three C4 forum hour figures, the two non-statutory filing windows, `c3_temp_agency_markup`, `c1_outside_investigator_hourly_rate`, the two C6 agreement-hour figures, `c6_unemployment_experience_rating_multiplier` |
+| **researched** (a cited government or statutory source fixes the number) | 2 | `private_benefits_multiplier_all`, `c4_filing_window_days_agency_charge` |
+| **confirmed** (the owner stands behind the figure; no authoritative source exists) | 10 | the three C4 forum hour figures, the two non-statutory filing windows, `c3_temp_agency_markup`, `c1_outside_investigator_hourly_rate`, the two C6 agreement-hour figures, `c6_unemployment_experience_rating_multiplier` |
 
-`c3_temp_agency_markup` is the one to watch in that split. A staffing markup is quotable --
-the American Staffing Association's own worked example marks a $17.00 pay rate up 51.5% to a
-$25.76 bill rate, and 25% to 75% is the commonly quoted range -- but a trade association and
-a vendor price sheet are not an official statistic, so it carries its citation and stays
-`TBD-MIKE`. Calling a vendor page "researched" would devalue the status for the figures that
-earned it.
+**Read that table the way section 2 says to read `status`.** The two researched entries stay
+researched: naming a source is a stronger claim than a sign-off, and an approval must not
+flatten it away. The ten confirmed entries are owner estimates the owner stands behind --
+approval settles *who* stands behind a number, not *where it came from*. Their `confidence`
+levels did not move (five low, five medium), each still records that it is not a researched
+figure, and each still names what would settle it, which for most of them is the client's own
+invoices or matter records.
 
-Each one carries its source text in `config/assumptions.yaml`, and the review checklist is
-`AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`: delete an id from that set as
-it is approved and the test holds the registry to it.
+`c3_temp_agency_markup` is the one to watch. A staffing markup is quotable -- the American
+Staffing Association's own worked example marks a $17.00 pay rate up 51.5% to a $25.76 bill
+rate, and 25% to 75% is the commonly quoted range -- but a trade association and a vendor
+price sheet are not an official statistic. It therefore carries its citation and is
+`confirmed`, not `researched`: calling a vendor page research would devalue the status for
+the figures that earned it. Watch the basis too, because a 50% markup on pay is a 33.3%
+margin on the bill rate and quotes use both.
+
+The review checklist is `AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`. It is
+now empty, and deliberately kept rather than deleted: an empty checklist is what makes the
+next unreviewed value fail the build. Every entry carries its full source text in
+`config/assumptions.yaml`, which is where to read one rather than this summary.
 
 ---
 
@@ -697,12 +706,11 @@ Phase 1 is the cost baseline and nothing else.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
 - **No claim that any figure is a measured agency cost.** The registry holds 179
-  assumptions. The owner has approved the 167 the public-sector model runs on, which clears
-  the engine to run but does not make the numbers measurements: only 13 of those carry a
-  cited source. The 12 added for the private sector are **not** approved -- 2 are researched
-  from a statutory or government source and 10 are marked `TBD-MIKE` (section 8). Across all
-  179, 91 remain low confidence. The Assumptions page tints the low-confidence rows and shows
-  the source beside each value.
+  assumptions and the owner has now approved every one of them — the 167 the public-sector
+  model runs on, on 2026-11-12, and the 12 the private sector added, on 2026-11-13. That
+  clears the engine to run; it does not make the numbers measurements. Only 15 carry a cited
+  source, and 91 of the 179 remain low confidence. The Assumptions page tints the
+  low-confidence rows and shows the source beside each value.
 
 ---
 

@@ -8,7 +8,7 @@ starting, and update it in the same pull request as the work it describes.
 Business decisions (pricing, ownership, legal structure) are kept outside the repository. Do
 not add them here: the repository is public.
 
-Last updated 2026-11-12.
+Last updated 2026-11-13.
 
 ## Working arrangement
 
@@ -110,14 +110,16 @@ methodology; this is what was done and what was deliberately left.
   cover, severance and an unemployment claim; an exempt suspension with no written policy;
   and an insured agency charge. Case 13 caught a $45,000 double count of the retention.
 
-### Open items for the owner
+### Open items
 
-1. **Twelve new coefficients, none reviewed.** Two are `researched` from a statutory or
-   government source: `private_benefits_multiplier_all` (BLS ECEC, private industry, all
-   workers) and `c4_filing_window_days_agency_charge` (Title VII, 300 days with 180 as the
-   low bound). Ten are `TBD-MIKE` with their citations recorded. The review checklist is
-   `AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`: delete an id from that set
-   as it is approved and the test holds the registry to it.
+1. ~~**Twelve new coefficients, none reviewed.**~~ **Done — the owner approved all twelve on
+   2026-11-13.** The two with a statutory or government source stay `researched`:
+   `private_benefits_multiplier_all` (BLS ECEC, private industry, all workers) and
+   `c4_filing_window_days_agency_charge` (Title VII, 300 days with 180 as the low bound). The
+   other ten moved from `TBD-MIKE` to `confirmed`, keeping their citations, their confidence
+   levels and a note of what would settle each one. No value or bound changed, and
+   `AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py` is now empty — kept rather
+   than deleted, so the next unreviewed value fails the build.
 2. **Benefits loading is not per occupation group.** The plan asked for "private-industry
    multipliers by broad occupation group". ECEC publishes those tables but they were not
    reachable from the build environment, so one all-workers multiplier (1.4287) covers
@@ -125,10 +127,11 @@ methodology; this is what was done and what was deliberately left.
    That is a provisional bound, not a measured per-group figure, and it is the one place this
    work falls short of the plan. Finishing it needs the ECEC table for private industry by
    occupational group, which also needs `www.bls.gov` on the environment's allowlist.
-3. **`c3_temp_agency_markup` stays `TBD-MIKE` on purpose.** Staffing markups are quotable
-   from trade and vendor sources but are not an official statistic, so the citation is
-   recorded and the status is not raised. Calling a vendor page `researched` would devalue
-   the status for the figures that earned it.
+3. **`c3_temp_agency_markup` is `confirmed`, not `researched`, on purpose.** Staffing markups
+   are quotable from trade and vendor sources but are not an official statistic, so the
+   citation is recorded and the status is not raised to `researched`. Calling a vendor page
+   research would devalue the status for the figures that earned it. The owner's approval
+   settles who stands behind the figure, not where it came from.
 4. **No state-by-state variation.** Unemployment tax rates genuinely are per state; the
    engine counts benefits charged and shows the experience-rating effect as its own factor,
    base 1.0.
