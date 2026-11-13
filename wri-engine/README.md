@@ -10,9 +10,10 @@ items that each name their own formula, the values used, and the assumption behi
 > **Harlow County does not exist.** The data is generated from public distributional shapes
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
-> assumptions, **not measured agency costs**. The owner has approved all 179 assumptions,
-> but approval is not verification: 91 are low-confidence professional estimates, and the
-> demo tints every one of them.
+> assumptions, **not measured agency costs**. The owner has approved 179 of the 184
+> assumptions; the other 5 are sourced figures awaiting his review. Approval is not
+> verification: 91 are low-confidence professional estimates, and the demo tints every one
+> of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
 > rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
@@ -190,18 +191,23 @@ $48.44/hr overtime ($30.00 base × 1.5 FLSA premium × 1.0765 overtime burden;
 average base rate for deputy at North District)
 ```
 
-**Puts every coefficient in a file, not in code.** 179 assumptions in
+**Puts every coefficient in a file, not in code.** 184 assumptions in
 `config/assumptions.yaml`, each with a source, a confidence level, low/base/high bounds, an
 owner and a status. Asking for an assumption that is not there is a hard error, never a
 silent default.
 
 The owner signed off on the 167 entries the public-sector model runs on, on 2026-11-12, and
 on the 12 the private-sector model added, on 2026-11-13. That is a sign-off, not a
-measurement: 15 of the 179 carry a cited source, the other 164 are professional estimates the
-owner stands behind, and 91 remain **low confidence**. `status` says who approved a value;
-`confidence` says how much weight it bears, and the two moved independently — sign-off raised
-no confidence level, and the 15 sourced entries stayed `researched` rather than being
+measurement: 15 of those 179 carry a cited source, the other 164 are professional estimates
+the owner stands behind, and 91 remain **low confidence**. `status` says who approved a
+value; `confidence` says how much weight it bears, and the two moved independently — sign-off
+raised no confidence level, and the 15 sourced entries stayed `researched` rather than being
 flattened to `confirmed`, because naming a source is the stronger claim.
+
+Five more entries were added after that sign-off and are **awaiting the owner's review**: the
+private-industry benefits multipliers for each broad occupational group, each read from its
+own BLS series. They are `researched`, the engine runs on them, and they are listed in
+`RESEARCHED_AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -232,7 +238,7 @@ expensive cell, never as an alert. It is documented in
 wri-engine/
   CLAUDE.md                     conventions, and the rules that must not be broken
   config/
-    assumptions.yaml            179 cost coefficients, each with its source
+    assumptions.yaml            184 cost coefficients, each with its source
     org_county.yaml             departments, pay plan, schedules, taxonomies
     generator_profile.yaml      every synthetic-data distribution parameter
     mapping_county_hr_csv.yaml  the whole source-to-canonical contract
@@ -325,10 +331,15 @@ are the least grounded:
    experience-rating multiplier. Each still records that it is not a researched figure and
    what would settle it, usually the client's own invoices. See section 8 of
    `docs/cost_methodology.md`.
-9. **Private-industry benefits loading is one multiplier for every occupation.** The ECEC
-   table for private industry by occupational group was not reachable from the build
-   environment, so 1.4287 covers everyone with bounds widened to contain the occupational
-   spread. That is the one place the private model falls short of its plan.
+9. The **five private benefits multipliers by occupational group**, which the owner has
+   not reviewed yet. They run from 1.2996 for service work to 1.4686 for production and
+   transportation, each from its own BLS series, and they apply only where the client's file
+   gives an `occupation_group`. Where it does not, the wage is loaded at the all-occupations
+   1.4287 and the load report says for how many people.
+10. The **bounds on that all-occupations fallback**, 1.38 / 1.4835, which the occupational
+    series show to be wrong: the groups actually span 1.2996 to 1.4686. They are left as the
+    owner approved them until he decides. Only low and high mode are affected, and only for
+    private employees with no occupational group.
 
 The fictional county name is settled: **Harlow County**, confirmed by the owner on
 2026-11-12 in `config/org_county.yaml`. It is invented, and

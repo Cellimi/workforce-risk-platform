@@ -22,10 +22,10 @@ instead of two. Only a genuine difference earns a new id.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import ModuleType
 
-from wri_engine.schema import AppealForum
+from wri_engine.schema import AppealForum, OccupationGroup
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,10 @@ class SectorPack:
     standard_turnover_profile: str
     #: Challenge routes this sector's data can contain, for the C4 preflight.
     challenge_forums: tuple[AppealForum, ...]
+    #: Occupational group -> benefits group, where the sector loads a wage differently by the
+    #: kind of work. Empty where it does not: a county's split is sworn against civilian.
+    #: A person whose group the data does not give gets `default_benefits_group`.
+    benefits_group_by_occupation: dict[OccupationGroup, str] = field(default_factory=dict)
 
     def component_codes(self) -> tuple[str, ...]:
         """The component codes this pack can produce, for documentation and the UI."""

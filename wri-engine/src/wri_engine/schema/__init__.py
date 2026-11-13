@@ -9,6 +9,7 @@ from wri_engine.schema.enums import (
     DecidingOfficialLevel,
     FLSAStatus,
     InvestigationType,
+    OccupationGroup,
     SeparationReason,
 )
 from wri_engine.schema.models import (
@@ -38,6 +39,7 @@ __all__ = [
     "Employee",
     "FLSAStatus",
     "InvestigationType",
+    "OccupationGroup",
     "Separation",
     "SeparationReason",
 ]

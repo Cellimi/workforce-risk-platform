@@ -1058,3 +1058,78 @@ def test_an_unreadable_coverage_method_names_the_choices(tmp_path):
     assert data.employees == []
     issue = next(i for i in adapter.report.issues if i.field == "coverage_method")
     assert "temp_agency" in issue.message
+
+
+# ---------------------------------------------------------------------------
+# occupational groups: which benefits multiplier loads a private wage
+# ---------------------------------------------------------------------------
+def test_an_occupation_group_selects_that_groups_own_multiplier(tmp_path, assumptions):
+    """A service worker's wage carries far less in benefits than a production worker's, and
+    the BLS publishes a figure for each. The template column routes each person to theirs."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1", "occupation_group": "service"},
+        {
+            **EMPLOYEE,
+            "employee_id": "E2",
+            "job_family": "Plant Operative",
+            "occupation_group": "Production Transportation",
+        },
+    ]
+    adapter, data = load(tmp_path, rows, [ACTION], sector="private_sector")
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {"E1": "private_service", "E2": "private_production_transportation"}
+    assert "defaulted_occupation_group" not in adapter.report.counts_by_rule()
+    # The job family built from the file carries the same group as the people in it.
+    assert adapter.org.role_families["plant_operative"].benefits_group == (
+        "private_production_transportation"
+    )
+
+    run = run_costing(
+        data,
+        as_of=AS_OF,
+        org=adapter.org,
+        assumptions=assumptions,
+        sector="private_sector",
+    )
+    assert run.sector == "private_sector"
+    service = assumptions.value("private_benefits_multiplier_service")
+    assert service < assumptions.value("private_benefits_multiplier_all")
+
+
+def test_a_missing_occupation_group_uses_the_average_and_says_so(tmp_path):
+    """Blank is allowed, because not every client's file says what kind of work a job is.
+    The all-occupations figure is the published answer to "occupation unknown" -- but it
+    overstates service staff and understates production staff, so the report says how many
+    people it was used for rather than leaving the reader to assume none."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1"},
+        {**EMPLOYEE, "employee_id": "E2", "occupation_group": "sales_office"},
+    ]
+    adapter, data = load(tmp_path, rows, [ACTION], sector="private_sector")
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {"E1": "private_all", "E2": "private_sales_office"}
+    issue = next(i for i in adapter.report.issues if i.rule_id == "defaulted_occupation_group")
+    assert issue.severity is Severity.WARNING
+    assert issue.message.startswith("1 employee(s)")
+    assert "private_benefits_multiplier_all" in issue.message
+    assert adapter.report.blocking == []
+
+
+def test_a_public_engagement_ignores_the_occupation_group(tmp_path):
+    """A county's split is sworn against civilian. The column is not an error there, and it
+    must neither change a figure nor raise a warning about a multiplier the county never
+    uses."""
+    row = {**EMPLOYEE, "occupation_group": "service"}
+    adapter, data = load(tmp_path, [row], [ACTION])
+    assert data.employees[0].benefits_group == "civilian"
+    assert "defaulted_occupation_group" not in adapter.report.counts_by_rule()
+    blank_adapter, _ = load(tmp_path, [EMPLOYEE], [ACTION])
+    assert "defaulted_occupation_group" not in blank_adapter.report.counts_by_rule()
+
+
+def test_an_unreadable_occupation_group_names_the_choices(tmp_path):
+    row = {**EMPLOYEE, "occupation_group": "hospitality"}
+    adapter, data = load(tmp_path, [row], [ACTION], sector="private_sector")
+    assert data.employees == []
+    issue = next(i for i in adapter.report.issues if i.field == "occupation_group")
+    assert "service" in issue.message and "sales_office" in issue.message

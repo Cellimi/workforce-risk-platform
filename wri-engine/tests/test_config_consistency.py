@@ -9,7 +9,13 @@ from __future__ import annotations
 from decimal import Decimal
 
 from wri_engine.costing.engine import expected_assumption_ids
-from wri_engine.schema import ActionType, AppealForum, AppealOutcome, SeparationReason
+from wri_engine.schema import (
+    ActionType,
+    AppealForum,
+    AppealOutcome,
+    OccupationGroup,
+    SeparationReason,
+)
 from wri_engine.sectors import get_pack, sector_ids
 
 
@@ -191,6 +197,44 @@ def test_researched_assumptions_were_not_downgraded(assumptions):
     researched = {a.id for a in assumptions.assumptions.values() if a.status == "researched"}
     assert "benefits_multiplier_civilian" in researched
     assert len(researched) >= 13
+
+
+#: Researched values the owner has not reviewed yet. A researched value is not a
+#: placeholder -- it has a cited source and the engine runs on it -- so it does not belong
+#: on AWAITING_OWNER_REVIEW. This is the list to read and then delete from: once the owner
+#: has reviewed one, remove its id here.
+RESEARCHED_AWAITING_OWNER_REVIEW = {
+    "private_benefits_multiplier_management_professional",
+    "private_benefits_multiplier_sales_office",
+    "private_benefits_multiplier_service",
+    "private_benefits_multiplier_construction_maintenance",
+    "private_benefits_multiplier_production_transportation",
+}
+
+
+def test_researched_values_awaiting_review_are_real_and_cited(assumptions):
+    """Everything on the review list exists, is marked researched rather than confirmed, and
+    names the BLS series it was read from, so the owner can check the figure himself."""
+    for assumption_id in sorted(RESEARCHED_AWAITING_OWNER_REVIEW):
+        assumption = assumptions.get(assumption_id)
+        assert assumption.status == "researched", assumption_id
+        assert "CMU20" in assumption.source, f"{assumption_id} does not name its BLS series"
+        assert "awaiting the owner" in assumption.notes, assumption_id
+
+
+def test_every_occupational_group_has_its_own_private_multiplier(assumptions):
+    """The private pack must offer a multiplier for each BLS group and fall back to the
+    all-occupations figure, which by construction sits inside the range of the groups."""
+    pack = get_pack("private_sector")
+    assert set(pack.benefits_group_by_occupation) == set(OccupationGroup)
+    values = []
+    for group, benefits_group in pack.benefits_group_by_occupation.items():
+        assumption_id = pack.benefits_assumption_by_group[benefits_group]
+        assert assumption_id == f"private_benefits_multiplier_{group}"
+        values.append(assumptions.value(assumption_id))
+    fallback = assumptions.value(pack.benefits_assumption_by_group[pack.default_benefits_group])
+    assert min(values) < fallback < max(values)
+    assert get_pack("public_sector").benefits_group_by_occupation == {}
 
 
 def test_every_assumption_names_the_owner_who_signed_it_off(assumptions):

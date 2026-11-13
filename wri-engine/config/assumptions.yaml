@@ -20,12 +20,14 @@
 # status = TBD-MIKE means the value is an owner placeholder awaiting sign-off. The owner
 # reviewed and approved the public-sector registry on 2026-11-12 and the twelve values added
 # for the private-sector cost model on 2026-11-13, so no entry carries that status any more.
+# The five private_benefits_multiplier_<occupational group> entries were researched after
+# that and are awaiting his review; they are status = researched, not placeholders.
 #
 # READ THE DIFFERENCE BETWEEN THESE TWO FIELDS BEFORE QUOTING A NUMBER.
 #   status = confirmed  means the OWNER has signed off on the value as the working figure.
 #   status = researched means the value is backed by the CITED SOURCE on the entry.
 #   confidence          is unchanged by sign-off: it still says how much weight the value
-#                       bears. 91 entries remain low confidence and 85 medium.
+#                       bears. 91 entries remain low confidence and 90 medium.
 # Approving a number is not the same as verifying it. An entry whose source still reads
 # "Owner professional estimate" is exactly that - an estimate the owner stands behind, not a
 # measured or externally sourced figure.
@@ -2432,14 +2434,16 @@ assumptions:
     civilian)'
 
 # ---------------------------------------------------------------------------
-# Private-sector cost model. Added 2026-11-12, owner-approved 2026-11-13.
+# Private-sector cost model. Added 2026-11-12, owner-approved 2026-11-13 -- except the five
+# private_benefits_multiplier_<occupational group> entries, researched on 2026-11-13 after
+# that approval and awaiting the owner's review.
 #
 # Only genuinely new values live here. Where the two sectors do the same thing -- an HR
 # officer's hours on a written reprimand, the FLSA overtime premium -- they share the id
 # and the value above, so there is one number to confirm rather than two.
 #
-# Two entries are marked researched because a public source fixes the number, and they
-# stay researched: a cited source is a stronger claim than a sign-off. The other ten are
+# Of the first twelve, two are marked researched because a public source fixes the number,
+# and they stay researched: a cited source is a stronger claim than a sign-off. The other ten are
 # confirmed, which means the owner stands behind them as working figures, not that anyone
 # measured them. Each still carries a citation where one exists for the mechanism or the
 # range, and says what would settle it -- usually the client's own invoices. Calling a
@@ -2458,7 +2462,72 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-12'
-  notes: 'The private-sector counterpart to benefits_multiplier_civilian, and the single largest difference between the two sector packs. BOUNDS: the high bound 1.4835 is the management, professional and related group from the same release (total compensation $78.85 against wages $53.15), the most heavily loaded broad group found; the low bound is set the same distance below the base and is PROVISIONAL. Replace both by reading ECEC Table 4, private industry workers by occupational group, which also lets the pack carry a multiplier per group instead of one average. bls.gov was outside the session''s allowed hosts. Carries the same per-hour-worked against per-hour-paid caveat as the civilian figure; see docs/cost_methodology.md.'
+  notes: 'The private-sector counterpart to benefits_multiplier_civilian, and the single largest difference between the two sector packs. Since 2026-11-13 it is the FALLBACK, used for an employee whose occupational group the data does not give; the five private_benefits_multiplier_<group> entries below carry each group''s own figure. VALUE VERIFIED 2026-11-13 against BLS series CMU2010000000000D and CMU2020000000000D on data.bls.gov. BOUNDS NEED THE OWNER''S DECISION. They were set before the occupational series could be read, and do not hold up. The high bound 1.4835 was derived from a wages figure for the management and professional group that the BLS series does not bear out (that group is 78.88 / 54.06 = 1.4591), and the low bound 1.38 does not reach the service group at 1.2996. The broad groups actually span 1.2996 (service) to 1.4686 (production, transportation and material moving), which is what the bounds should be if they are to contain the occupational spread. Left as they are because the owner approved this entry as it stands and a bound is not changed without asking. Carries the same per-hour-worked against per-hour-paid caveat as the civilian figure; see docs/cost_methodology.md.'
+- id: private_benefits_multiplier_management_professional
+  value: 1.4591
+  low: 1.432
+  high: 1.4809
+  unit: ratio
+  applies_to:
+    benefits_group: private_management_professional
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, management, professional and related occupations, 2026 second quarter (June 2026 reference period): total compensation $78.88 per hour worked (series CMU2010000100000D), wages and salaries $54.06 per hour worked (series CMU2020000100000D), read from data.bls.gov on 2026-11-13. 78.88 / 54.06 = 1.4591.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in management, business, financial or professional work. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4320 to 1.4598) and of its two published sub-groups in 2026 Q2 - management, business and financial 88.63 / 59.85 = 1.4809, professional and related 73.69 / 50.98 = 1.4455. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+- id: private_benefits_multiplier_sales_office
+  value: 1.3977
+  low: 1.3283
+  high: 1.4564
+  unit: ratio
+  applies_to:
+    benefits_group: private_sales_office
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, sales and office occupations, 2026 second quarter (June 2026 reference period): total compensation $36.34 per hour worked (series CMU2010000200000D), wages and salaries $26.00 per hour worked (series CMU2020000200000D), read from data.bls.gov on 2026-11-13. 36.34 / 26.00 = 1.3977.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in sales or in office and administrative support. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.3734 to 1.3977) and of its two published sub-groups in 2026 Q2 - sales and related 35.85 / 26.99 = 1.3283, office and administrative support 36.73 / 25.22 = 1.4564. The two halves of this group differ a good deal, so a client whose staff are mostly sales sits near the low bound and one whose staff are mostly clerical near the high. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+- id: private_benefits_multiplier_service
+  value: 1.2996
+  low: 1.2816
+  high: 1.3019
+  unit: ratio
+  applies_to:
+    benefits_group: private_service
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, service occupations, 2026 second quarter (June 2026 reference period): total compensation $23.73 per hour worked (series CMU2010000300000D), wages and salaries $18.26 per hour worked (series CMU2020000300000D), read from data.bls.gov on 2026-11-13. 23.73 / 18.26 = 1.2996.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in service work - food service, cleaning, personal care, security. The lowest of the five groups by a wide margin, so loading service staff at the all-occupations 1.4287 overstates their cost by about a tenth. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.2816 to 1.3019). No sub-group series was found for it. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+- id: private_benefits_multiplier_construction_maintenance
+  value: 1.4538
+  low: 1.4514
+  high: 1.4742
+  unit: ratio
+  applies_to:
+    benefits_group: private_construction_maintenance
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, natural resources, construction, and maintenance occupations, 2026 second quarter (June 2026 reference period): total compensation $47.80 per hour worked (series CMU2010000400000D), wages and salaries $32.88 per hour worked (series CMU2020000400000D), read from data.bls.gov on 2026-11-13. 47.80 / 32.88 = 1.4538.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in construction, extraction, farming, or installation, maintenance and repair. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4514 to 1.4742) and of the one current sub-group series found, installation, maintenance and repair 49.01 / 33.61 = 1.4582. The construction and extraction series found ends in 2006 and was not used. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
+- id: private_benefits_multiplier_production_transportation
+  value: 1.4686
+  low: 1.445
+  high: 1.4866
+  unit: ratio
+  applies_to:
+    benefits_group: private_production_transportation
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, production, transportation, and material moving occupations, 2026 second quarter (June 2026 reference period): total compensation $36.70 per hour worked (series CMU2010000500000D), wages and salaries $24.99 per hour worked (series CMU2020000500000D), read from data.bls.gov on 2026-11-13. 36.70 / 24.99 = 1.4686.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in production, transportation or material moving - a plant operative, a driver, a warehouse associate. The most heavily loaded of the five groups. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4450 to 1.4851) and of its two published sub-groups in 2026 Q2 - production 37.21 / 25.03 = 1.4866, transportation and material moving 36.38 / 24.97 = 1.4569. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-13 and awaiting the owner''s review.'
 - id: c4_filing_window_days_agency_charge
   value: 300
   low: 180

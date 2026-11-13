@@ -67,6 +67,22 @@ class CoverageMethod(StrEnum):
     NONE = "none"
 
 
+class OccupationGroup(StrEnum):
+    """The five broad occupational groups the BLS publishes compensation costs for.
+
+    A private employer's benefits cost per wage dollar differs a good deal by the kind of
+    work: a service worker's wage carries far less in benefits than a production worker's.
+    These are the groups in the Employer Costs for Employee Compensation series, so a
+    client's job families can be mapped to a multiplier with a published source behind it.
+    """
+
+    MANAGEMENT_PROFESSIONAL = "management_professional"
+    SALES_OFFICE = "sales_office"
+    SERVICE = "service"
+    CONSTRUCTION_MAINTENANCE = "construction_maintenance"
+    PRODUCTION_TRANSPORTATION = "production_transportation"
+
+
 class InvestigationType(StrEnum):
     SUPERVISORY = "supervisory"
     HR = "hr"

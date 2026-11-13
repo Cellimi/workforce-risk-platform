@@ -26,6 +26,12 @@ by the **data**, not by a branch on the sector:
   (29 CFR 541.602(b)(5)), so `DisciplineAction.written_conduct_policy` decides whether there
   is a wage saving to credit at all.
 
+**Benefits loading follows the kind of work.** A private employer's benefits cost per wage
+dollar runs from about 1.30 for service work to about 1.47 for production work, so the pack
+carries one multiplier per broad BLS occupational group. `occupation_group` on the client's
+employee file picks it; where the file does not say, the all-occupations figure is used and
+the load report counts how many people that was.
+
 Turnover reuses the `civilian_*` profiles. The name is a public-sector inheritance, but the
 shape is right for a private employer: recruiting, screening, onboarding, a productivity
 ramp and a washout allowance, with no academy and no field training.
@@ -42,8 +48,12 @@ from wri_engine.costing.components import (
     c6_separation,
     c7_insurance,
 )
-from wri_engine.schema import AppealForum
+from wri_engine.schema import AppealForum, OccupationGroup
 from wri_engine.sectors.base import SectorPack
+
+#: One benefits group per BLS occupational group, each with its own published multiplier.
+#: `private_all` is the all-workers figure, used for anyone whose group the data does not give.
+_BY_OCCUPATION = {group: f"private_{group}" for group in OccupationGroup}
 
 PACK = SectorPack(
     id="private_sector",
@@ -65,7 +75,12 @@ PACK = SectorPack(
     ),
     benefits_assumption_by_group={
         "private_all": "private_benefits_multiplier_all",
+        **{
+            benefits_group: f"private_benefits_multiplier_{group}"
+            for group, benefits_group in _BY_OCCUPATION.items()
+        },
     },
+    benefits_group_by_occupation=_BY_OCCUPATION,
     default_benefits_group="private_all",
     turnover_profiles=("civilian_skilled", "civilian_standard"),
     standard_turnover_profile="civilian_standard",

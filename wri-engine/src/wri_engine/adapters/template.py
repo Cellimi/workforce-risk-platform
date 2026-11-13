@@ -51,6 +51,7 @@ from wri_engine.schema import (
     Employee,
     FLSAStatus,
     InvestigationType,
+    OccupationGroup,
     Separation,
     SeparationReason,
 )
@@ -279,6 +280,18 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 "Which replacement-cost profile applies if this person is removed.",
                 TURNOVER_PROFILES,
                 ("replacement profile",),
+            ),
+            _f(
+                "occupation_group",
+                False,
+                "choice",
+                "The broad kind of work, which decides how heavily a private employer's "
+                "benefits load the wage: management_professional, sales_office, service, "
+                "construction_maintenance (also natural resources, installation and repair) "
+                "or production_transportation (also material moving). Blank means the "
+                "all-occupations average, and is reported. Not used for a public employer.",
+                _values(OccupationGroup),
+                ("occupation", "occupational group", "job category", "eeo category", "soc group"),
             ),
             _f(
                 "coverage_method",
@@ -1395,19 +1408,23 @@ class TemplateAdapter(SourceAdapter):
         )
 
     # -- sector ------------------------------------------------------------
-    def _benefits_group(self, sworn: bool) -> str:
+    def _benefits_group(self, sworn: bool, occupation: str = "") -> str:
         """Which benefits multiplier loads this person's wage.
 
         A county loads a sworn deputy's wage differently from a clerk's, so the public pack
-        has a group for each. A company has one private-industry multiplier, so a private
-        engagement uses it for everyone -- including anyone the client's file happens to
-        mark sworn, because what the group selects is the employer's benefits cost, not the
-        job's character.
+        has a group for each. A company's benefits cost follows the kind of work instead, so
+        the private pack has a group per occupational group and the all-workers figure for
+        anyone whose group the file does not give. A private engagement never uses the
+        sworn multiplier, even for someone the client's file happens to mark sworn: what the
+        group selects is the employer's benefits cost, not the job's character.
         """
         groups = self._pack.benefits_assumption_by_group
         if sworn and "sworn_public_safety" in groups:
             return "sworn_public_safety"
-        return self._pack.default_benefits_group
+        return (
+            self._pack.benefits_group_by_occupation.get(occupation)
+            or self._pack.default_benefits_group
+        )
 
     def _turnover_profile(self, raw: str, employee_id: str) -> str:
         """The replacement-cost profile, limited to the ones this sector runs.
@@ -1667,7 +1684,10 @@ class TemplateAdapter(SourceAdapter):
                         _mode([_norm(r["work_schedule"]).replace(" ", "_") for r in rows]),
                         "civilian_5x8",
                     ),
-                    "benefits_group": self._benefits_group(sworn),
+                    "benefits_group": self._benefits_group(
+                        sworn,
+                        _mode([_norm(r["occupation_group"]).replace(" ", "_") for r in rows]),
+                    ),
                     "turnover_profile": _mode([r["turnover_profile"] for r in rows]),
                     "is_supervisory": _mode([r["is_supervisor"].upper() in _TRUE for r in rows]),
                 }
@@ -1723,6 +1743,7 @@ class TemplateAdapter(SourceAdapter):
         #: The first row seen for each employee id, to tell a harmless repeat from a conflict.
         first_row: dict[str, dict] = {}
         repeats: Counter = Counter()
+        no_occupation: list[str] = []
         for index, row in enumerate(rows, start=2):
             employee_id = row["employee_id"] or f"(row {index})"
             if row["employee_id"] and employee_id in first_row:
@@ -1748,6 +1769,11 @@ class TemplateAdapter(SourceAdapter):
                         raise _RowError(f"{name} is blank", name)
                 family_id = _slug(row["job_family"])
                 role = self.org.role_families[family_id]
+                occupation = self._choice(
+                    row["occupation_group"], "occupation_group", "employees", default=""
+                )
+                if not occupation:
+                    no_occupation.append(employee_id)
                 if family_id not in self.org.raw["pay_plan"]["grades"]:
                     raise _RowError(
                         f"job family {row['job_family']!r} has no usable salary to price a "
@@ -1790,7 +1816,7 @@ class TemplateAdapter(SourceAdapter):
                     ),
                     annual_paid_hours=schedule.annual_paid_hours,
                     schedule_id=schedule_id,
-                    benefits_group=self._benefits_group(sworn),
+                    benefits_group=self._benefits_group(sworn, occupation),
                     turnover_profile=self._turnover_profile(row["turnover_profile"], employee_id),
                     coverage_method=self._choice(
                         row["coverage_method"],
@@ -1824,6 +1850,23 @@ class TemplateAdapter(SourceAdapter):
                 f"{sum(repeats.values())} exact repeat row(s) for {len(repeats)} employee(s) "
                 f"were ignored: {', '.join(sorted(repeats)[:10])}",
                 "employee_id",
+                severity=Severity.WARNING,
+            )
+        loaded = {e.employee_id for e in out}
+        averaged = [i for i in no_occupation if i in loaded]
+        if averaged and self._pack.benefits_group_by_occupation:
+            multiplier_id = self._pack.benefits_assumption_by_group[
+                self._pack.default_benefits_group
+            ]
+            self._issue(
+                "defaulted_occupation_group",
+                "file",
+                self._table("employees").file,
+                f"{len(averaged)} employee(s) have no occupation_group, so their wages are "
+                f"loaded at the all-occupations average ({multiplier_id}). That overstates "
+                f"service and sales staff and understates production staff. Fill in or map "
+                f"occupation_group to use each group's own published figure.",
+                "occupation_group",
                 severity=Severity.WARNING,
             )
         return out, problems
