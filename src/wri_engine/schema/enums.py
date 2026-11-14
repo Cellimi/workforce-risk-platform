@@ -68,16 +68,22 @@ class CoverageMethod(StrEnum):
 
 
 class OccupationGroup(StrEnum):
-    """The five broad occupational groups the BLS publishes compensation costs for.
+    """The occupational groups the BLS publishes compensation costs for.
 
     A private employer's benefits cost per wage dollar differs a good deal by the kind of
     work: a service worker's wage carries far less in benefits than a production worker's.
-    These are the groups in the Employer Costs for Employee Compensation series, so a
-    client's job families can be mapped to a multiplier with a published source behind it.
+    These are groups in the Employer Costs for Employee Compensation series, so a client's
+    job families can be mapped to a multiplier with a published source behind it.
+
+    Five are the broad groups. `SALES` and `OFFICE_ADMIN` are the two halves of
+    `SALES_OFFICE`, offered on their own because they are loaded so differently; the
+    combined group stays for a workforce that is a mix of both.
     """
 
     MANAGEMENT_PROFESSIONAL = "management_professional"
     SALES_OFFICE = "sales_office"
+    SALES = "sales"
+    OFFICE_ADMIN = "office_admin"
     SERVICE = "service"
     CONSTRUCTION_MAINTENANCE = "construction_maintenance"
     PRODUCTION_TRANSPORTATION = "production_transportation"
@@ -86,7 +92,9 @@ class OccupationGroup(StrEnum):
 #: What a person choosing a group is shown. The wording follows the BLS group titles.
 OCCUPATION_GROUP_LABELS: dict[OccupationGroup, str] = {
     OccupationGroup.MANAGEMENT_PROFESSIONAL: "Management, professional and related",
-    OccupationGroup.SALES_OFFICE: "Sales and office",
+    OccupationGroup.SALES_OFFICE: "Sales and office (a mix of both)",
+    OccupationGroup.SALES: "Sales",
+    OccupationGroup.OFFICE_ADMIN: "Office and administrative support",
     OccupationGroup.SERVICE: "Service",
     OccupationGroup.CONSTRUCTION_MAINTENANCE: "Construction, maintenance and natural resources",
     OccupationGroup.PRODUCTION_TRANSPORTATION: "Production, transportation and material moving",

@@ -39,6 +39,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Private-sector cost model | Claude Code session | Done, PR against `claude/licensed-screen`, `claude/private-sector-cost-model` |
 | One project in the repository (retire the February prototype) | Claude Code session | Done: prototype in `legacy/` (PR #7), engine at the top level (`claude/engine-to-top-level`) |
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
+| Offer sales and office work as separate occupation selections | Claude Code session | Done, `claude/split-sales-office`. Two researched values awaiting the owner's review |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
@@ -129,7 +130,7 @@ methodology; this is what was done and what was deliberately left.
   asserted.
 - **One coefficient namespace, deliberately.** Where the sectors do the same thing they share
   the id and the value, so the owner confirms one number rather than two that drift. Only a
-  genuine difference earned a new id, and there are seventeen.
+  genuine difference earned a new id, and there are nineteen.
 - **The sector reaches the engine from the engagement record.** `EngagementRecord.sector` ->
   `EngineState.sector` -> `run_costing(sector=...)` and the template adapter, never from
   anything a caller sends. `SECTORS` in `src/wri_engine/store/db.py` is now derived from the

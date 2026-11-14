@@ -377,7 +377,9 @@ def test_the_occupation_group_is_selected_on_screen_and_can_be_changed(server):
     assert "A company." in texts(at) and "A government employer" not in texts(at)
     picker = labelled(at.selectbox, "Client's occupation group")
     assert picker.options[0].startswith("Not selected (all-occupations average) - x1.4287")
-    assert "Sales and office - x1.3977" in picker.options
+    assert "Sales and office (a mix of both) - x1.3977" in picker.options
+    assert "Sales - x1.3283" in picker.options
+    assert "Office and administrative support - x1.4564" in picker.options
     assert "Construction, maintenance and natural resources - x1.4538" in picker.options
     picker.set_value("construction_maintenance")
     at.run()

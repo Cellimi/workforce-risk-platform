@@ -286,9 +286,10 @@ TEMPLATE: tuple[TableSpec, ...] = (
                 False,
                 "choice",
                 "The broad kind of work, which decides how heavily a private employer's "
-                "benefits load the wage: management_professional, sales_office, service, "
-                "construction_maintenance (also natural resources, installation and repair) "
-                "or production_transportation (also material moving). Blank means the group "
+                "benefits load the wage: management_professional, sales, office_admin, "
+                "sales_office (a mix of the two), service, construction_maintenance (also "
+                "natural resources, installation and repair) or production_transportation "
+                "(also material moving). Blank means the group "
                 "selected for the engagement, or the all-occupations average where none was "
                 "selected; either way it is reported. Not used for a public employer.",
                 _values(OccupationGroup),

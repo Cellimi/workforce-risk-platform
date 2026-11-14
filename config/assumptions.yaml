@@ -22,13 +22,15 @@
 # for the private-sector cost model on 2026-11-13, so no entry carries that status any more.
 # The five private_benefits_multiplier_<occupational group> entries were researched after
 # that and reviewed by him the same day; they are status = researched because each names the
-# BLS series it was read from.
+# BLS series it was read from. Two more, private_benefits_multiplier_sales and
+# private_benefits_multiplier_office_admin, were researched on 2026-11-14 at his request and
+# are awaiting his review.
 #
 # READ THE DIFFERENCE BETWEEN THESE TWO FIELDS BEFORE QUOTING A NUMBER.
 #   status = confirmed  means the OWNER has signed off on the value as the working figure.
 #   status = researched means the value is backed by the CITED SOURCE on the entry.
 #   confidence          is unchanged by sign-off: it still says how much weight the value
-#                       bears. 90 entries remain low confidence and 91 medium.
+#                       bears. 90 entries remain low confidence and 93 medium.
 # Approving a number is not the same as verifying it. An entry whose source still reads
 # "Owner professional estimate" is exactly that - an estimate the owner stands behind, not a
 # measured or externally sourced figure.
@@ -2497,6 +2499,32 @@ assumptions:
   status: researched
   last_reviewed: '2026-11-13'
   notes: 'Loads the wage of a private employee in sales or in office and administrative support. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.3734 to 1.3977) and of its two published sub-groups in 2026 Q2 - sales and related 35.85 / 26.99 = 1.3283, office and administrative support 36.73 / 25.22 = 1.4564. The two halves of this group differ a good deal, so a client whose staff are mostly sales sits near the low bound and one whose staff are mostly clerical near the high. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
+- id: private_benefits_multiplier_sales
+  value: 1.3283
+  low: 1.3031
+  high: 1.3283
+  unit: ratio
+  applies_to:
+    benefits_group: private_sales
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, sales and related occupations, 2026 second quarter (June 2026 reference period): total compensation $35.85 per hour worked (series CMU2010000210000D), wages and salaries $26.99 per hour worked (series CMU2020000210000D), read from data.bls.gov on 2026-11-13. 35.85 / 26.99 = 1.3283.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-14'
+  notes: 'Loads the wage of a private employee in sales work alone - retail, wholesale and commissioned sales. One half of the combined sales and office group (1.3977), offered on its own because the two halves differ so much. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.3031 to 1.3283); the latest quarter is the top of that range, so the high bound equals the value. No finer series was looked for. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-14 at the owner''s request and awaiting the owner''s review.'
+- id: private_benefits_multiplier_office_admin
+  value: 1.4564
+  low: 1.4302
+  high: 1.4568
+  unit: ratio
+  applies_to:
+    benefits_group: private_office_admin
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, office and administrative support occupations, 2026 second quarter (June 2026 reference period): total compensation $36.73 per hour worked (series CMU2010000220000D), wages and salaries $25.22 per hour worked (series CMU2020000220000D), read from data.bls.gov on 2026-11-13. 36.73 / 25.22 = 1.4564.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-14'
+  notes: 'Loads the wage of a private employee in office and administrative support alone - clerks, schedulers, customer service, bookkeeping. The other half of the combined sales and office group (1.3977), offered on its own because the two halves differ so much. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.4302 to 1.4568). No finer series was looked for. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-14 at the owner''s request and awaiting the owner''s review.'
 - id: private_benefits_multiplier_service
   value: 1.2996
   low: 1.2816

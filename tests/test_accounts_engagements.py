@@ -645,11 +645,16 @@ def test_the_sector_list_offers_the_occupation_groups_with_their_multipliers(sit
     assert set(groups) == {
         "management_professional",
         "sales_office",
+        "sales",
+        "office_admin",
         "service",
         "construction_maintenance",
         "production_transportation",
     }
-    assert groups["sales_office"]["label"] == "Sales and office"
+    assert groups["sales_office"]["label"] == "Sales and office (a mix of both)"
+    # Sales and office work are separate selections, each with its own figure.
+    assert groups["sales"]["assumption_id"] == "private_benefits_multiplier_sales"
+    assert Decimal(groups["sales"]["multiplier"]) < Decimal(groups["office_admin"]["multiplier"])
     assert groups["sales_office"]["assumption_id"] == "private_benefits_multiplier_sales_office"
     # Selecting construction rather than sales changes the multiplier, which is the point.
     assert Decimal(groups["construction_maintenance"]["multiplier"]) != Decimal(
