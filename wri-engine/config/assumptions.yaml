@@ -28,7 +28,7 @@
 #   status = confirmed  means the OWNER has signed off on the value as the working figure.
 #   status = researched means the value is backed by the CITED SOURCE on the entry.
 #   confidence          is unchanged by sign-off: it still says how much weight the value
-#                       bears. 91 entries remain low confidence and 90 medium.
+#                       bears. 90 entries remain low confidence and 91 medium.
 # Approving a number is not the same as verifying it. An entry whose source still reads
 # "Owner professional estimate" is exactly that - an estimate the owner stands behind, not a
 # measured or externally sourced figure.
@@ -61,22 +61,29 @@ assumptions:
   unit: ratio
   applies_to:
     benefits_group: sworn_public_safety
-  source: 'Owner professional estimate, accepted by the owner on 2026-11-12 as the working value.
-    NOT a sourced figure. The public figure that would verify it is BLS ECEC Table 3 (state and local
-    government by occupational group, ''protective service''), which was unreachable from the build
-    environment. Public-safety pension normal cost and OPEB typically exceed the all-occupations
-    state/local average, which is why the value sits above the civilian multiplier.'
-  confidence: low
+  source: 'Owner professional estimate, accepted by the owner on 2026-11-12 as the working value and
+    corroborated on 2026-11-14 against the two nearest series BLS publishes. BLS does not publish
+    compensation costs for sworn or protective-service staff on their own, so no single figure
+    verifies it. The nearest two, Employer Costs for Employee Compensation, state and local
+    government workers, total compensation over wages and salaries per hour worked, read from
+    data.bls.gov on 2026-11-14: (1) service occupations, the group that holds police, fire and
+    corrections along with non-sworn service staff - 2026 Q1 $50.95 / $28.77 = 1.7709, 2026 Q2
+    $51.85 / $29.16 = 1.7781, range over 20 quarters 1.7388 to 1.7781 (series CMU3010000300000D and
+    CMU3020000300000D); (2) the public administration industry, all occupations - 2026 Q1 $65.42 /
+    $37.44 = 1.7473, 2026 Q2 $65.84 / $37.60 = 1.7511, range over 20 quarters 1.7250 to 1.7511
+    (series CMU3019200000000D and CMU3029200000000D). 1.75 lies inside both ranges.'
+  confidence: medium
   owner: Michael V. Celli
   status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: 'OWNER DECISION 2026-11-12: 1.75 stands as the working value and is not blocked on being
-    sourced. Confidence stays LOW, because accepting a number is not the same as measuring one, and
-    this one scales every sworn figure in the model. The verification path is unchanged and still
-    worth taking when the data is reachable: pull ECEC Table 3 protective-service total compensation
-    and wages per hour worked, take the ratio, replace this value and move status to researched with
-    the citation. The low bound deliberately equals the all-occupations figure, so a sensitivity run
-    at low mode shows what the model looks like if the public-safety premium turns out to be nil.'
+  last_reviewed: '2026-11-14'
+  notes: 'OWNER DECISION 2026-11-12: 1.75 stands as the working value. OWNER DECISION 2026-11-14: keep
+    1.75 after the check against BLS, and raise confidence from low to medium. It stays confirmed
+    rather than researched on purpose: the two series bracket the value, but neither is a figure for
+    sworn staff, so the number is still the owner''s, now with evidence beside it. If anything it is
+    slightly conservative, since sworn staff usually carry richer pensions than the service-occupations
+    average. It scales every sworn figure in the model. The low bound deliberately equals the
+    all-occupations figure, so a sensitivity run at low mode shows what the model looks like if the
+    public-safety premium turns out to be nil.'
 - id: c1_reference_annual_hours
   value: 2080
   low: 2080

@@ -8,7 +8,7 @@ starting, and update it in the same pull request as the work it describes.
 Business decisions (pricing, ownership, legal structure) are kept outside the repository. Do
 not add them here: the repository is public.
 
-Last updated 2026-11-13.
+Last updated 2026-11-14.
 
 ## Working arrangement
 
@@ -17,9 +17,10 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 1. **Branches.** Pull requests are stacked and not yet merged:
    `main` <- #2 `claude/assumptions-signoff` <- #3 `claude/login-engagements`
    <- #4 `claude/intake-template` <- #5 `claude/licensed-screen`
-   <- #6 `claude/private-sector-cost-model` <- `claude/single-project-layout`.
+   <- #6 `claude/private-sector-cost-model` <- #7 `claude/single-project-layout`
+   <- `claude/sworn-multiplier-evidence`.
    Start new work on a new branch from the top of the stack (now
-   `claude/single-project-layout`),
+   `claude/sworn-multiplier-evidence`),
    and open its pull request **against that branch**, extending the stack. Once the stack is
    merged, branch from and target `main`.
 2. **Retired branch.** `claude/wri-phase1-discipline-cost-n73knl` is retired. Everything on it,
@@ -39,6 +40,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Screen for the licensed product | Chat session | Done, PR #5 |
 | Private-sector cost model | Claude Code session | Done, PR against `claude/licensed-screen`, `claude/private-sector-cost-model` |
 | One project in the repository (retire the February prototype) | Claude Code session | Step 1 done, `claude/single-project-layout`. Step 2 waits for the stack to merge: see below |
+| Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
@@ -46,7 +48,12 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 311 tests, 95.6% coverage.
+asserts it line item by line item. 312 tests, 95.6% coverage.
+
+The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
+against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
+series, state and local service occupations and public administration, bracket it at
+1.7473 to 1.7781 for 2026. The owner kept the value and raised its confidence to medium.
 
 1. **Hardening (PR #3).** Sign-in with local accounts, roles from engagement membership, a
    database, isolated engagement workspaces, per-engagement assumption overrides recorded with
