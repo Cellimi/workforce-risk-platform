@@ -40,6 +40,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | One project in the repository (retire the February prototype) | Claude Code session | Done: prototype in `legacy/` (PR #7), engine at the top level (`claude/engine-to-top-level`) |
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Offer sales and office work as separate occupation selections | Claude Code session | Done, `claude/split-sales-office`. Two researched values awaiting the owner's review |
+| Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | In progress, `claude/client-deliverables` (built on `claude/split-sales-office`) |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
