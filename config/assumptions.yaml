@@ -24,7 +24,7 @@
 # that and reviewed by him the same day; they are status = researched because each names the
 # BLS series it was read from. Two more, private_benefits_multiplier_sales and
 # private_benefits_multiplier_office_admin, were researched on 2026-11-14 at his request and
-# are awaiting his review.
+# reviewed by him the same day.
 #
 # READ THE DIFFERENCE BETWEEN THESE TWO FIELDS BEFORE QUOTING A NUMBER.
 #   status = confirmed  means the OWNER has signed off on the value as the working figure.
@@ -2511,7 +2511,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-14'
-  notes: 'Loads the wage of a private employee in sales work alone - retail, wholesale and commissioned sales. One half of the combined sales and office group (1.3977), offered on its own because the two halves differ so much. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.3031 to 1.3283); the latest quarter is the top of that range, so the high bound equals the value. No finer series was looked for. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-14 at the owner''s request and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in sales work alone - retail, wholesale and commissioned sales. One half of the combined sales and office group (1.3977), offered on its own because the two halves differ so much. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.3031 to 1.3283); the latest quarter is the top of that range, so the high bound equals the value. No finer series was looked for. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-14 at the owner''s request and reviewed by the owner the same day; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: private_benefits_multiplier_office_admin
   value: 1.4564
   low: 1.4302
@@ -2524,7 +2524,7 @@ assumptions:
   owner: Michael V. Celli
   status: researched
   last_reviewed: '2026-11-14'
-  notes: 'Loads the wage of a private employee in office and administrative support alone - clerks, schedulers, customer service, bookkeeping. The other half of the combined sales and office group (1.3977), offered on its own because the two halves differ so much. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.4302 to 1.4568). No finer series was looked for. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-14 at the owner''s request and awaiting the owner''s review.'
+  notes: 'Loads the wage of a private employee in office and administrative support alone - clerks, schedulers, customer service, bookkeeping. The other half of the combined sales and office group (1.3977), offered on its own because the two halves differ so much. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.4302 to 1.4568). No finer series was looked for. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched 2026-11-14 at the owner''s request and reviewed by the owner the same day; it stays researched because the cited series, not the sign-off, is what stands behind it.'
 - id: private_benefits_multiplier_service
   value: 1.2996
   low: 1.2816

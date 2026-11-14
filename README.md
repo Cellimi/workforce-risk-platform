@@ -10,10 +10,9 @@ items that each name their own formula, the values used, and the assumption behi
 > **Harlow County does not exist.** The data is generated from public distributional shapes
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
-> assumptions, **not measured agency costs**. The owner has approved 184 of the 186
-> assumptions; the other two are sourced figures awaiting his review. Approval is not
-> verification: 90 are low-confidence professional estimates, and the demo tints every one
-> of them.
+> assumptions, **not measured agency costs**. The owner has approved all 186
+> assumptions, but approval is not verification: 90 are low-confidence professional
+> estimates, and the demo tints every one of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
 > rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
@@ -237,8 +236,8 @@ flattened to `confirmed`, because naming a source is the stronger claim.
 Five more entries were added after that sign-off and reviewed by the owner the same day:
 the private-industry benefits multipliers for each broad occupational group, each read from
 its own BLS series. They stay `researched` for the same reason. Two more followed on
-2026-11-14, splitting sales work from office work, and are awaiting his review. That makes
-186 entries, 22 with a cited source.
+2026-11-14, splitting sales work from office work, and he reviewed those the same day.
+That makes 186 entries, 22 with a cited source, and nothing awaiting review.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -376,8 +375,8 @@ are the least grounded:
    change it later, and a row in the client's file that names its own group keeps it. With
    nothing selected the wage is loaded at the all-occupations 1.4287, and the load report
    says for how many people.
-10. The **separate multipliers for sales work and office work**, 1.3283 and 1.4564, which
-    the owner has not reviewed yet. They are the two halves of the sales and office group,
+10. The **separate multipliers for sales work and office work**, 1.3283 and 1.4564,
+    reviewed by the owner on 2026-11-14. They are the two halves of the sales and office group,
     each from its own BLS series, added so a client whose staff are mostly one or the other
     is not loaded at the average of both.
 

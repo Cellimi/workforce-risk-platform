@@ -453,8 +453,8 @@ series for 2026 Q2 (the June 2026 reference period), read from `data.bls.gov` on
 |---|---:|---:|---:|---|---|
 | `management_professional` | $78.88 | $54.06 | **1.4591** | `CMU2010000100000D` / `CMU2020000100000D` | researched; owner reviewed 2026-11-13 |
 | `sales_office` (a mix of both) | $36.34 | $26.00 | **1.3977** | `CMU2010000200000D` / `CMU2020000200000D` | researched; owner reviewed 2026-11-13 |
-| `sales` | $35.85 | $26.99 | **1.3283** | `CMU2010000210000D` / `CMU2020000210000D` | researched, awaiting review |
-| `office_admin` | $36.73 | $25.22 | **1.4564** | `CMU2010000220000D` / `CMU2020000220000D` | researched, awaiting review |
+| `sales` | $35.85 | $26.99 | **1.3283** | `CMU2010000210000D` / `CMU2020000210000D` | researched; owner reviewed 2026-11-14 |
+| `office_admin` | $36.73 | $25.22 | **1.4564** | `CMU2010000220000D` / `CMU2020000220000D` | researched; owner reviewed 2026-11-14 |
 | `service` | $23.73 | $18.26 | **1.2996** | `CMU2010000300000D` / `CMU2020000300000D` | researched; owner reviewed 2026-11-13 |
 | `construction_maintenance` | $47.80 | $32.88 | **1.4538** | `CMU2010000400000D` / `CMU2020000400000D` | researched; owner reviewed 2026-11-13 |
 | `production_transportation` | $36.70 | $24.99 | **1.4686** | `CMU2010000500000D` / `CMU2020000500000D` | researched; owner reviewed 2026-11-13 |
@@ -645,10 +645,9 @@ It is the reason that case exists.
 ### The status of every new value
 
 Nineteen coefficients were added for this sector and **no existing value was changed**.
-The owner reviewed seventeen of them on **2026-11-13**, so none is a placeholder. Two are
-**awaiting his review**: the separate multipliers for sales work and for office work, added
-on 2026-11-14 at his request and listed in `RESEARCHED_AWAITING_OWNER_REVIEW` in
-`tests/test_config_consistency.py`. The occupational-group multipliers are in the
+The owner reviewed seventeen of them on **2026-11-13** and the last two, the separate
+multipliers for sales work and for office work, on **2026-11-14**. None is a placeholder
+and none is awaiting review. The occupational-group multipliers are in the
 benefits-loading table above and stay `researched`; the table below is the other twelve:
 
 | | Count | Which |
@@ -768,10 +767,10 @@ Phase 1 is the cost baseline and nothing else.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
 - **No claim that any figure is a measured agency cost.** The registry holds 186
-  assumptions. The owner has approved 184 of them — the 167 the public-sector model runs on,
-  on 2026-11-12, and 17 the private sector added, on 2026-11-13 — and two sourced figures
-  added since are awaiting his review. Approval clears the engine to run; it does not make
-  the numbers measurements. Only 22 carry a cited source, and 90 of the 186 remain low
+  assumptions and the owner has approved every one of them — the 167 the public-sector
+  model runs on, on 2026-11-12, and the 19 the private sector added, on 2026-11-13 and
+  2026-11-14. Approval clears the engine to run; it does not make the numbers
+  measurements. Only 22 carry a cited source, and 90 of the 186 remain low
   confidence. The Assumptions page tints the
   low-confidence rows and shows the source beside each value.
 
