@@ -1,4 +1,4 @@
-# Cost of Discipline — WRI Engine, Phase 1
+# Workforce Risk Intelligence — the cost of discipline
 
 **Every agency tracks discipline as paperwork. Nobody can say what it costs.** This tool
 answers that question: it joins HR records to discipline records and reports the fully loaded
@@ -25,7 +25,7 @@ items that each name their own formula, the values used, and the assumption behi
 ```bash
 make install          # create the virtual environment and install dependencies
 make generate         # build the synthetic county dataset
-make test             # 260 tests, coverage gate
+make test             # the test suite, with a coverage gate
 make api              # terminal one: the engine in demo mode (http://localhost:8000/docs)
 make ui               # terminal two: the screen (http://localhost:8501)
 ```
@@ -46,7 +46,7 @@ Five pages, and a role selector in the sidebar that changes what each role is al
 2. **Cost matrix** — employee type against misconduct type. Small groups are suppressed to
    protect individuals, and the totals still reconcile.
 3. **Drill-down** — one action, every line item, back to the assumption behind it.
-4. **Assumptions** — all 166 coefficients with their source and confidence. Move a slider and
+4. **Assumptions** — every coefficient with its source and confidence. Move a slider and
    the whole model recomputes.
 5. **Data quality** — what failed validation and what that excluded from the totals.
 
@@ -58,8 +58,11 @@ Five pages, and a role selector in the sidebar that changes what each role is al
 ## Everything below is detail
 
 `make test` runs the test suite with a coverage gate on the cost and aggregation code.
-This project is self-contained and shares no code with the February 2026 prototype kept in
-`legacy/` at the top of this repository.
+
+**One folder here is not the product.** [`legacy/`](legacy/) holds the first prototype, from
+February 2026: a dashboard that forecast unit-level risk. It is kept for reference, nobody is
+developing it, and it shares no code with the engine. Everything else in this repository is
+the engine.
 
 ---
 
@@ -234,7 +237,7 @@ expensive cell, never as an alert. It is documented in
 ## Layout
 
 ```
-wri-engine/
+workforce-risk-platform/
   CLAUDE.md                     conventions, and the rules that must not be broken
   config/
     assumptions.yaml            184 cost coefficients, each with its source
@@ -243,18 +246,21 @@ wri-engine/
     mapping_county_hr_csv.yaml  the whole source-to-canonical contract
   src/wri_engine/
     schema/                     canonical Pydantic models
-    adapters/                   base.py, county_hr_csv.py, validation.py, nfc.py (stub)
+    adapters/                   base.py, county_hr_csv.py, template.py, validation.py, nfc.py (stub)
     generator/                  seeded synthetic generator + README of distributions
     sectors/                    which components, multipliers and ids a sector runs
     costing/                    assumptions, rates, context, components/, engine
     aggregation/                rollups, suppression
     access/                     roles, pseudonymization, audit log
     api/                        FastAPI service
+    store/                      sign-in, engagements and overrides (never client HR data)
   app/                          Streamlit UI — HTTP only, never imports the engine
-  tests/golden/                 nine hand-calculated cases, asserted to the cent
+  tests/golden/                 fourteen hand-calculated cases, asserted to the cent
   docs/
     cost_methodology.md         every formula, every simplification, in prose
     demo_script.md              the five-minute walkthrough
+    WORKPLAN.md                 what is built, what is next, and who is working on what
+  legacy/                       the February 2026 prototype; not the product
 ```
 
 ---

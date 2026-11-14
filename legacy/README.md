@@ -1,7 +1,7 @@
 # The February 2026 prototype — kept for reference
 
 > **This is not the product.** It is the first Workforce Risk Intelligence prototype, built in
-> February 2026 and superseded by the engine in [`../wri-engine/`](../wri-engine/). It is kept
+> February 2026 and superseded by the engine at [the top of this repository](../). It is kept
 > so the earlier thinking is on record. Nobody is developing it, and it shares no code with
 > the engine.
 >
@@ -19,7 +19,7 @@
 
 Forecasting, risk scoring and intervention recommendations are exactly what the engine leaves
 out of its first phase on purpose — see "Phase boundary" in
-[`../wri-engine/CLAUDE.md`](../wri-engine/CLAUDE.md). If that work is taken up later it will be
+[`../CLAUDE.md`](../CLAUDE.md). If that work is taken up later it will be
 built in the engine, on its data and with its traceability, not ported from here.
 
 ---
