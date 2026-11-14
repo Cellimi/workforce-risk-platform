@@ -41,7 +41,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Offer sales and office work as separate occupation selections | Claude Code session | Done (PR #10). The owner reviewed the two values on 2026-11-14 |
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
-| Engagement license keys | (unclaimed) | |
+| Engagement license keys | Claude Code session | In progress, `claude/license-keys` (built on `claude/approve-sales-office-values`) |
 
 ## Where things stand
 
