@@ -420,3 +420,61 @@ def test_a_public_engagement_shows_no_occupation_group(server):
     assert (engagement.sector, engagement.occupation_group) == ("public_sector", None)
     at = go(at, "Engagement")
     assert "Occupation group" not in [s.label for s in at.selectbox]
+
+
+def _upload_sample(url: str, store, engagement_id: str) -> None:
+    """Load the synthetic sample into an engagement over HTTP, as a consultant's upload."""
+    import httpx
+
+    from wri_engine.paths import SYNTHETIC_DIR
+
+    token = httpx.post(f"{url}/auth/login", json={"email": OWNER[0], "password": OWNER[1]}).json()[
+        "token"
+    ]
+    files = [
+        ("files", (p.name, p.read_bytes(), "text/csv"))
+        for p in sorted((SYNTHETIC_DIR / "sample").iterdir())
+        if p.is_file()
+    ]
+    response = httpx.post(
+        f"{url}/engagements/{engagement_id}/datasets/upload",
+        files=files,
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=60,
+    )
+    assert response.status_code == 200, response.text
+
+
+def test_the_firm_sets_its_name_and_the_report_is_offered_for_download(server):
+    """A firm administrator puts the firm's name on reports from the Engagement page, and
+    the Executive summary offers the report and the workbook once they have been prepared."""
+    url, store = server
+    owner = store.get_user_by_email(OWNER[0])
+    engagement = store.create_engagement(
+        name="FY26 review",
+        client_name="Pine Valley County",
+        sector="public_sector",
+        created_by=owner.id,
+    )
+    _upload_sample(url, store, engagement.id)
+
+    at = sign_in(open_app(url), OWNER)
+    at = go(at, "Engagement")
+    labelled(at.text_input, "Firm name").input("Northgate Advisory LLP")
+    labelled(at.button, "Save firm name").click()
+    at.run()
+    assert not at.exception, at.exception
+    assert store.firm().name == "Northgate Advisory LLP"
+
+    at = go(at, "Executive summary")
+    assert not at.exception, at.exception
+    downloads = [d.proto.label for d in at.get("download_button")]
+    assert "Download the report (PDF)" not in downloads, "nothing is built until asked for"
+    labelled(at.button, "Prepare the report").click()
+    at.run()
+    assert not at.exception, at.exception
+    downloads = [d.proto.label for d in at.get("download_button")]
+    assert "Download the report (PDF)" in downloads
+    assert "Download the workbook (Excel)" in downloads
+    prepared = at.session_state["report_files"]
+    assert prepared["pdf"].startswith(b"%PDF") and prepared["xlsx"].startswith(b"PK")

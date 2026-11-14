@@ -3,6 +3,7 @@
 from wri_engine.store.db import (
     AuthError,
     EngagementRecord,
+    FirmRecord,
     OverrideRecord,
     Store,
     UserRecord,
@@ -13,6 +14,7 @@ __all__ = [
     "MIN_PASSWORD_LENGTH",
     "AuthError",
     "EngagementRecord",
+    "FirmRecord",
     "OverrideRecord",
     "Store",
     "UserRecord",

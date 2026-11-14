@@ -219,6 +219,8 @@ def engagement_page(api: EngineClient) -> None:
         st.divider()
         _new_engagement(api)
         st.divider()
+        _firm_branding(api)
+        st.divider()
         _users(api)
 
 
@@ -375,6 +377,55 @@ def _new_engagement(api: EngineClient) -> None:
             st.session_state["engagement_id"] = created["id"]
             st.session_state["next_page"] = "Load data"
             refresh(api)
+            st.rerun()
+
+
+def _firm_branding(api: EngineClient) -> None:
+    """The firm's name and logo, as they appear on the cover of every client report."""
+    st.subheader("Your firm on client reports")
+    st.caption(
+        "The name and logo printed on the cover and in the footer of every report this "
+        "installation produces. Leave them blank and reports carry the product's name."
+    )
+    try:
+        firm = api.firm()
+    except ApiError as exc:
+        _error(exc)
+        return
+    with st.form("firm_name"):
+        name = st.text_input("Firm name", value=firm["name"], max_chars=200)
+        if st.form_submit_button("Save firm name"):
+            try:
+                api.set_firm_name(name)
+            except ApiError as exc:
+                _error(exc)
+                return
+            st.rerun()
+    if firm["has_logo"]:
+        try:
+            st.image(api.firm_logo(), width=220)
+        except ApiError as exc:
+            _error(exc)
+        if st.button("Remove the logo"):
+            try:
+                api.clear_firm_logo()
+            except ApiError as exc:
+                _error(exc)
+                return
+            st.rerun()
+    with st.form("firm_logo", clear_on_submit=True):
+        upload = st.file_uploader(
+            "Logo", type=["png", "jpg", "jpeg"], help="A PNG or JPEG, 512 KB at most."
+        )
+        if st.form_submit_button("Save logo"):
+            if upload is None:
+                st.warning("Choose a picture first.")
+                return
+            try:
+                api.set_firm_logo(upload.name, upload.getvalue(), upload.type or "image/png")
+            except ApiError as exc:
+                _error(exc)
+                return
             st.rerun()
 
 
