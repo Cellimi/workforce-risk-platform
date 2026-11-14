@@ -431,12 +431,7 @@ def summarize(
             else None
         ),
         "incomplete_actions": run.incomplete_count,
-        "component_totals": {
-            str(component): str(
-                sum((i.amount for i in run.line_items if i.component == component), ZERO)
-            )
-            for component in COMPONENTS
-        },
+        "component_totals": _component_totals(run),
         "top_cells": [
             {
                 "row_label": c.row_label,
@@ -464,6 +459,20 @@ def summarize(
             reverse=True,
         ),
     }
+
+
+def _component_totals(run: CostRun) -> dict[str, str]:
+    """What each component came to, in the engine's own order.
+
+    The seven public-sector components are always listed, zero or not, so a county's
+    breakdown has the same rows every time. Any other component is listed when the run has
+    money against it -- a private engagement's separation and insurance costs -- because a
+    breakdown that leaves a component out does not add up to the gross printed above it.
+    """
+    totals = {component: ZERO for component in COMPONENTS}
+    for item in run.line_items:
+        totals[item.component] = totals.get(item.component, ZERO) + item.amount
+    return {str(c): str(totals[c]) for c in CostComponent if c in totals}
 
 
 def _window_years(run: CostRun) -> Decimal:

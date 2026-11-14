@@ -64,6 +64,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/costing/` | Assumptions loader, components C1-C7, engine orchestration |
 | `src/wri_engine/aggregation/` | Rollups + small-group suppression |
 | `src/wri_engine/access/` | Role definitions, enforcement, audit log |
+| `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
 | `docs/` | `cost_methodology.md` is the human-readable spec for every formula |

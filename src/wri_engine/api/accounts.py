@@ -15,12 +15,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from wri_engine.access.roles import CAPABILITIES, Role
 from wri_engine.api.context import bearer_token, current_user, runtime_of
 from wri_engine.costing.assumptions import load_assumptions
+from wri_engine.reporting.branding import MAX_LOGO_BYTES, check_logo
 from wri_engine.schema import OCCUPATION_GROUP_LABELS
 from wri_engine.sectors import DEFAULT_SECTOR, SectorPack, get_pack
 from wri_engine.store import MIN_PASSWORD_LENGTH, AuthError, Store, UserRecord
@@ -108,6 +110,62 @@ def me(request: Request, user: User) -> dict:
             _engagement_view(e, role) for e, role in _store(request).engagements_for(user)
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# the firm: whose name and logo go on a client's report
+# ---------------------------------------------------------------------------
+def _firm_view(firm) -> dict:
+    return {"name": firm.name, "has_logo": firm.logo is not None, "logo_mime": firm.logo_mime}
+
+
+class FirmName(BaseModel):
+    name: str = Field("", max_length=200, description="As it should read on a report cover")
+
+
+@router.get("/firm", tags=["firm"])
+def get_firm(request: Request, user: User) -> dict:
+    return _firm_view(_store(request).firm())
+
+
+@router.put("/firm", tags=["firm"])
+def set_firm_name(body: FirmName, request: Request, admin: FirmAdmin) -> dict:
+    firm = _store(request).set_firm_name(body.name)
+    _audit("/firm", user=admin.email, name=firm.name)
+    return _firm_view(firm)
+
+
+@router.get("/firm/logo", tags=["firm"])
+def get_firm_logo(request: Request, user: User) -> Response:
+    firm = _store(request).firm()
+    if firm.logo is None:
+        raise HTTPException(404, "no logo has been set")
+    return Response(firm.logo, media_type=firm.logo_mime)
+
+
+@router.put("/firm/logo", tags=["firm"])
+async def set_firm_logo(
+    request: Request,
+    admin: FirmAdmin,
+    file: UploadFile = File(..., description="A PNG or JPEG, 512 KB at most"),
+) -> dict:
+    """Set the logo printed on report covers. The file is read and checked as a picture
+    before it is kept; its name and the type the browser claimed are not trusted."""
+    data = await file.read(MAX_LOGO_BYTES + 1)
+    try:
+        mime = check_logo(data)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    firm = _store(request).set_firm_logo(data, mime)
+    _audit("/firm/logo", user=admin.email, bytes=len(data), mime=mime)
+    return _firm_view(firm)
+
+
+@router.delete("/firm/logo", tags=["firm"])
+def clear_firm_logo(request: Request, admin: FirmAdmin) -> dict:
+    firm = _store(request).set_firm_logo(None, None)
+    _audit("/firm/logo", user=admin.email, removed=True)
+    return _firm_view(firm)
 
 
 # ---------------------------------------------------------------------------

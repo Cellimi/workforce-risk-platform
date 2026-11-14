@@ -53,6 +53,9 @@ COMPONENT_LABELS = {
     "C4": "C4 Appeals & grievances",
     "C5": "C5 Removal turnover",
     "C5-offset": "C5-offset Vacancy salary saved",
+    "C6": "C6 Separation & unemployment",
+    "C7": "C7 Liability insurance",
+    "C7-offset": "C7-offset Paid by insurer",
 }
 
 DEFAULT_API_URL = os.environ.get("WRI_API_URL", "http://127.0.0.1:8000")
@@ -175,6 +178,48 @@ def sidebar() -> str:
 # ---------------------------------------------------------------------------
 # page 1 - executive summary
 # ---------------------------------------------------------------------------
+def report_downloads(api: EngineClient) -> None:
+    """The deliverables: a report to read and a workbook to work in.
+
+    Laying out a report takes a moment, so it is prepared when asked for and then offered
+    for download, rather than rebuilt every time this page redraws. What was prepared is
+    remembered with the engagement and sensitivity mode it was prepared for, and is dropped
+    as soon as either changes.
+    """
+    st.subheader("Report for the client")
+    st.caption(
+        "A report to read and a workbook to work in, both from the same figures. They show "
+        "what your role may see: small groups are withheld exactly as they are on screen."
+    )
+    key = (st.session_state.get("engagement_id"), mode())
+    prepared = st.session_state.get("report_files")
+    if prepared and prepared["key"] != key:
+        prepared = None
+        st.session_state.pop("report_files", None)
+    if st.button("Prepare the report"):
+        try:
+            prepared = {"key": key, "pdf": api.report_pdf(mode()), "xlsx": api.report_xlsx(mode())}
+        except ApiError as exc:
+            st.error(str(exc))
+            return
+        st.session_state["report_files"] = prepared
+    if prepared:
+        name = agency().lower().replace(" ", "_")
+        left, right = st.columns(2)
+        left.download_button(
+            "Download the report (PDF)",
+            prepared["pdf"],
+            file_name=f"{name}_cost_of_discipline.pdf",
+            mime="application/pdf",
+        )
+        right.download_button(
+            "Download the workbook (Excel)",
+            prepared["xlsx"],
+            file_name=f"{name}_cost_of_discipline.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+
 def executive_summary(api: EngineClient) -> None:
     page_header(
         f"What discipline costs {agency()}",
@@ -282,6 +327,7 @@ retiree health carry on, so they are not counted as savings in either case.
         department_chart(data)
 
     st.divider()
+    report_downloads(api)
     st.download_button(
         "Download the one-page summary (Markdown)",
         api.export_summary(mode()),

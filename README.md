@@ -117,6 +117,33 @@ engagement's source files in `data/engagements/<id>/source/`. Nothing is kept on
 so a restart loses no work. Passwords are stored as scrypt hashes and session tokens as
 SHA-256 hashes.
 
+### What the client receives
+
+Two files, both from the **Executive summary** page (`Prepare the report`), or from
+`GET /engagements/{id}/exports/report.pdf` and `report.xlsx`:
+
+- **A report to read (PDF).** A cover carrying the consulting firm's name and logo, the
+  headline figures, where the money goes, the low-to-high range, where the cost
+  concentrates, what the records could not support, and two appendices: the assumptions
+  these figures actually used with the source of each, and the values specific to this
+  client with who set them and why.
+- **A workbook to work in (Excel).** The same figures, plus every cell of the cost matrix
+  and every assumption with its bounds.
+
+Both are produced from one content object, so they cannot disagree. Three rules hold for
+both:
+
+- **They show what the person asking may see on screen.** The matrix is suppressed before
+  it reaches the report, with the same small-group rule and the same disclosure ledger, and
+  a withheld cell carries no figure.
+- **They never name a person or a case.** Data quality is reported as counts by rule.
+- **Text a person typed stays text.** An override's reason or a client's name is never run
+  as a spreadsheet formula and never read as layout markup.
+
+A firm administrator sets the firm's name and logo once, on the **Engagement** page. The
+logo must be a PNG or a JPEG of 512 KB at most; it is checked as a picture when uploaded,
+and an SVG is refused. With neither set, reports carry the product's name.
+
 ### Loading a client's data
 
 A client's export arrives in its own layout. It is never edited by hand; a **mapping** says
@@ -255,6 +282,7 @@ workforce-risk-platform/
     aggregation/                rollups, suppression
     access/                     roles, pseudonymization, audit log
     api/                        FastAPI service
+    reporting/                  the client report (PDF) and workbook (Excel), from one content
     store/                      sign-in, engagements and overrides (never client HR data)
   app/                          Streamlit UI — HTTP only, never imports the engine
   tests/golden/                 fourteen hand-calculated cases, asserted to the cent
@@ -284,6 +312,8 @@ the signed-in user's membership.
 | `GET /assumptions` | The registry with sources and statuses |
 | `POST /scenarios/run` | Re-run with overridden assumptions; nothing on disk changes |
 | `GET /exports/matrix.csv`, `GET /exports/summary.md` | Exports |
+| `GET /exports/report.pdf`, `GET /exports/report.xlsx` | The report for the client and the workbook beside it |
+| `GET /firm`, `PUT /firm`, `PUT /firm/logo`, `DELETE /firm/logo` | The consulting firm's name and logo (firm administrator sets them) |
 
 ---
 

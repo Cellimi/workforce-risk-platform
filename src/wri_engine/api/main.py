@@ -25,6 +25,7 @@ import json
 import re
 import shutil
 from contextlib import asynccontextmanager
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,16 @@ from wri_engine.api.context import Ctx, Runtime, get_ctx
 from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
 from wri_engine.costing.assumptions import MissingAssumptionError
 from wri_engine.paths import SYNTHETIC_DIR
+from wri_engine.reporting import (
+    Branding,
+    OverrideRow,
+    ReportContent,
+    build_report,
+    render_pdf,
+    render_xlsx,
+)
+from wri_engine.schema import COMPONENT_LABELS, OCCUPATION_GROUP_LABELS, CostComponent
+from wri_engine.sectors import get_pack
 from wri_engine.settings import Settings
 from wri_engine.store import Store
 
@@ -933,6 +944,108 @@ def export_summary(
     )
 
 
+REPORT_ROWS, REPORT_COLS = "role_family", "misconduct_category"
+
+
+def _report_content(ctx: Ctx, mode: str) -> ReportContent:
+    """Assemble a deliverable for this caller.
+
+    Everything in it is something the caller could already see on screen: the matrix is
+    built with their own disclosure ledger and suppressed before it gets here, and the
+    data-quality section carries counts, never an employee or an action id.
+    """
+    state = ctx.state
+    state.ensure_loaded()
+    runs = {name: state.run(mode=name) for name in ("low", "base", "high")}
+    matrix = build_matrix(
+        runs[mode],
+        rows=REPORT_ROWS,
+        cols=REPORT_COLS,
+        filters={},
+        min_cell_size=state.min_cell_size,
+        ledger=ctx.ledger(),
+        fte_by_row=fte_denominators(state.dataset, REPORT_ROWS),
+    )
+    defaults = state.assumptions.with_mode(mode)
+    overrides = []
+    if ctx.engagement and ctx.store:
+        for o in ctx.store.overrides(ctx.engagement.id):
+            record = state.assumptions.get(o.assumption_id)
+            overrides.append(
+                OverrideRow(
+                    assumption_id=o.assumption_id,
+                    value=o.value,
+                    default_value=record.value,
+                    unit=record.unit,
+                    reason=o.reason,
+                    set_by=o.set_by,
+                    set_on=o.set_at.date(),
+                )
+            )
+    firm = ctx.store.firm() if ctx.store else None
+    occupation = ctx.engagement.occupation_group if ctx.engagement else None
+    return build_report(
+        runs=runs,
+        mode=mode,
+        dataset=state.dataset,
+        matrix=matrix,
+        row_dimension=DIMENSIONS[REPORT_ROWS],
+        col_dimension=DIMENSIONS[REPORT_COLS],
+        min_cell_size=state.min_cell_size,
+        quality_counts=state.report.counts_by_rule() if state.report else {},
+        quality_blocking=len(state.report.blocking) if state.report else 0,
+        quality_warnings=len(state.report.warnings) if state.report else 0,
+        effective_assumptions=state.effective_assumptions.with_mode(mode),
+        default_assumptions=defaults,
+        overrides=overrides,
+        branding=Branding(firm.name, firm.logo, firm.logo_mime) if firm else Branding(),
+        client_name=_agency(ctx),
+        engagement_name=ctx.engagement.name if ctx.engagement else "",
+        cost_model=get_pack(state.sector).label,
+        occupation_group=OCCUPATION_GROUP_LABELS.get(occupation, ""),
+        caption=_caption(ctx),
+        standing=_assumption_standing(state.effective_assumptions),
+        generated_on=date.today(),
+    )
+
+
+def _download(data: bytes, media_type: str, filename: str) -> Response:
+    return Response(
+        data,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/exports/report.pdf", tags=["exports"])
+def export_report_pdf(
+    mode: str = Query("base", pattern="^(low|base|high)$"),
+    ctx: Ctx = Depends(get_ctx),
+) -> Response:
+    """The report a consultant hands a client, carrying the firm's name and logo."""
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.pdf")
+    _audit(ctx, "/exports/report.pdf", detail={"mode": mode})
+    content = _report_content(ctx, mode)
+    return _download(render_pdf(content), "application/pdf", f"{content.file_stem}.pdf")
+
+
+@router.get("/exports/report.xlsx", tags=["exports"])
+def export_report_xlsx(
+    mode: str = Query("base", pattern="^(low|base|high)$"),
+    ctx: Ctx = Depends(get_ctx),
+) -> Response:
+    """The workbook that goes with the report: the same figures, plus every matrix cell and
+    every assumption with its bounds."""
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.xlsx")
+    _audit(ctx, "/exports/report.xlsx", detail={"mode": mode})
+    content = _report_content(ctx, mode)
+    return _download(
+        render_xlsx(content),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        f"{content.file_stem}.xlsx",
+    )
+
+
 def _assumption_standing(assumptions) -> str:
     """One sentence on where the registry stands, read from the registry itself.
 
@@ -976,17 +1089,14 @@ def _summary_markdown(s: dict[str, Any], agency: str, caption: str, standing: st
         "| Component | Total |",
         "|---|---:|",
     ]
-    labels = {
-        "C1": "C1 Processing labor",
-        "C2": "C2 Paid administrative leave",
-        "C3": "C3 Backfill overtime",
-        "C3-offset": "C3-offset Unpaid suspension savings",
-        "C4": "C4 Appeals and grievances",
-        "C5": "C5 Removal turnover",
-        "C5-offset": "C5-offset Vacancy salary savings",
-    }
-    for key, label in labels.items():
-        lines.append(f"| {label} | {money(s['component_totals'].get(key, '0'))} |")
+    # Every component with money against it, labelled from the one place the labels live,
+    # so a private engagement's separation and insurance costs are not left off the page.
+    for component in CostComponent:
+        if str(component) in s["component_totals"]:
+            lines.append(
+                f"| {component} {COMPONENT_LABELS[component]} | "
+                f"{money(s['component_totals'][str(component)])} |"
+            )
     lines += [
         f"| **Net** | **{money(s['total_net'])}** |",
         "",

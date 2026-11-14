@@ -24,6 +24,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     create_engine,
     delete,
@@ -108,6 +109,25 @@ class _Override(Base):
     reason: Mapped[str] = mapped_column(String(500), default="")
     set_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     set_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class _Firm(Base):
+    """The consulting firm that runs this installation. One row at most."""
+
+    __tablename__ = "firm_profile"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    logo: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, default=None)
+    logo_mime: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
+
+
+@dataclass(frozen=True)
+class FirmRecord:
+    """Whose reports these are: the name and logo printed on a client deliverable."""
+
+    name: str = ""
+    logo: bytes | None = None
+    logo_mime: str | None = None
 
 
 @dataclass(frozen=True)
@@ -309,6 +329,31 @@ class Store:
     def sign_out(self, token: str) -> None:
         with self._session.begin() as db:
             db.execute(delete(_Session).where(_Session.token_hash == _hash_token(token)))
+
+    # -- the firm ------------------------------------------------------------
+    def firm(self) -> FirmRecord:
+        with self._session() as db:
+            row = db.get(_Firm, 1)
+            return FirmRecord(row.name, row.logo, row.logo_mime) if row else FirmRecord()
+
+    def _firm_row(self, db) -> _Firm:
+        row = db.get(_Firm, 1)
+        if row is None:
+            row = _Firm(id=1, name="")
+            db.add(row)
+        return row
+
+    def set_firm_name(self, name: str) -> FirmRecord:
+        with self._session.begin() as db:
+            self._firm_row(db).name = name.strip()
+        return self.firm()
+
+    def set_firm_logo(self, logo: bytes | None, mime: str | None) -> FirmRecord:
+        """Keep a logo that has already been checked, or remove it with `None`."""
+        with self._session.begin() as db:
+            row = self._firm_row(db)
+            row.logo, row.logo_mime = logo, mime
+        return self.firm()
 
     # -- engagements ---------------------------------------------------------
     def create_engagement(

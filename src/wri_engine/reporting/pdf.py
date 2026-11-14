@@ -1,0 +1,522 @@
+"""The report a consultant hands a client: a `ReportContent` laid out as a PDF.
+
+This module decides how the report looks and nothing about what it says. Every number and
+every sentence comes from the `ReportContent`; if you want to change a figure, change it
+there, and the workbook changes with it.
+
+Text supplied by a person -- a client's name, a department, the reason given for an override
+-- is escaped before it is laid out, because the layout engine reads `<b>` and `&` as markup.
+"""
+
+from __future__ import annotations
+
+import io
+from decimal import Decimal
+from xml.sax.saxutils import escape
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import (
+    Image,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+from wri_engine.reporting.content import PRODUCT_NAME, ReportContent
+
+INK = colors.HexColor("#1f2933")
+MUTED = colors.HexColor("#52606d")
+RULE = colors.HexColor("#cbd2d9")
+BAND = colors.HexColor("#f0f4f8")
+ACCENT = colors.HexColor("#243b53")
+SAVING = "#9b1c1c"
+
+#: The matrix can run to hundreds of cells. The report shows the dearest and says how many
+#: more there are; the workbook carries every one.
+MAX_MATRIX_ROWS = 30
+LOGO_MAX_WIDTH = 2.2 * inch
+LOGO_MAX_HEIGHT = 1.0 * inch
+
+
+def _styles() -> dict[str, ParagraphStyle]:
+    base = getSampleStyleSheet()
+    body = ParagraphStyle("body", parent=base["BodyText"], fontSize=9.5, leading=13, textColor=INK)
+    return {
+        "body": body,
+        "small": ParagraphStyle("small", parent=body, fontSize=8, leading=10.5, textColor=MUTED),
+        "cell": ParagraphStyle("cell", parent=body, fontSize=8, leading=10),
+        "cell_right": ParagraphStyle(
+            "cell_right", parent=body, fontSize=8, leading=10, alignment=TA_RIGHT
+        ),
+        "head": ParagraphStyle(
+            "head",
+            parent=body,
+            fontSize=8,
+            leading=10,
+            textColor=colors.white,
+            fontName="Helvetica-Bold",
+        ),
+        "head_right": ParagraphStyle(
+            "head_right",
+            parent=body,
+            fontSize=8,
+            leading=10,
+            textColor=colors.white,
+            fontName="Helvetica-Bold",
+            alignment=TA_RIGHT,
+        ),
+        "h1": ParagraphStyle(
+            "h1",
+            parent=base["Heading1"],
+            fontSize=15,
+            leading=19,
+            textColor=ACCENT,
+            spaceBefore=6,
+            spaceAfter=6,
+        ),
+        "h2": ParagraphStyle(
+            "h2",
+            parent=base["Heading2"],
+            fontSize=11.5,
+            leading=15,
+            textColor=ACCENT,
+            spaceBefore=10,
+            spaceAfter=4,
+            keepWithNext=1,
+        ),
+        "cover_firm": ParagraphStyle(
+            "cover_firm", parent=body, fontSize=13, leading=17, textColor=MUTED
+        ),
+        "cover_title": ParagraphStyle(
+            "cover_title",
+            parent=base["Title"],
+            fontSize=28,
+            leading=34,
+            textColor=ACCENT,
+            alignment=0,
+            spaceAfter=4,
+        ),
+        "cover_client": ParagraphStyle(
+            "cover_client", parent=body, fontSize=16, leading=21, textColor=INK
+        ),
+        "headline": ParagraphStyle(
+            "headline",
+            parent=body,
+            fontSize=19,
+            leading=23,
+            textColor=ACCENT,
+            fontName="Helvetica-Bold",
+        ),
+        "headline_label": ParagraphStyle(
+            "headline_label", parent=body, fontSize=8.5, leading=11, textColor=MUTED
+        ),
+    }
+
+
+def money(value: Decimal | None) -> str:
+    """Whole dollars, with a real minus sign in front. Rounding happens here and only here."""
+    if value is None:
+        return "n/a"
+    rounded = value.quantize(Decimal("1"))
+    return f"-${-rounded:,}" if rounded < 0 else f"${rounded:,}"
+
+
+def _text(value) -> str:
+    return escape(str(value))
+
+
+def _table(header: list[str], rows: list[list], widths: list[float], styles, right_from: int):
+    """A banded table whose header repeats on every page. Columns from `right_from` on are
+    numbers and are right-aligned."""
+
+    def cell(value, column: int):
+        style = styles["cell_right"] if column >= right_from else styles["cell"]
+        return value if isinstance(value, Paragraph) else Paragraph(_text(value), style)
+
+    data = [
+        [
+            Paragraph(_text(h), styles["head_right" if i >= right_from else "head"])
+            for i, h in enumerate(header)
+        ]
+    ]
+    data += [[cell(v, i) for i, v in enumerate(row)] for row in rows]
+    table = Table(data, colWidths=widths, repeatRows=1, hAlign="LEFT")
+    commands = [
+        ("BACKGROUND", (0, 0), (-1, 0), ACCENT),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.25, RULE),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+    ]
+    for index in range(2, len(data), 2):
+        commands.append(("BACKGROUND", (0, index), (-1, index), BAND))
+    table.setStyle(TableStyle(commands))
+    return table
+
+
+def _logo(content: ReportContent):
+    """The firm's logo, scaled to fit. A logo that cannot be read is left out rather than
+    stopping the report: the name still says whose it is."""
+    if not content.branding.logo:
+        return None
+    try:
+        image = Image(io.BytesIO(content.branding.logo))
+        scale = min(LOGO_MAX_WIDTH / image.imageWidth, LOGO_MAX_HEIGHT / image.imageHeight, 1)
+        image.drawWidth = image.imageWidth * scale
+        image.drawHeight = image.imageHeight * scale
+        image.hAlign = "LEFT"
+        return image
+    except Exception:  # noqa: BLE001 - a bad image must not cost the client their report
+        return None
+
+
+def _cover(content: ReportContent, styles) -> list:
+    story: list = [Spacer(1, 0.9 * inch)]
+    logo = _logo(content)
+    if logo is not None:
+        story += [logo, Spacer(1, 0.25 * inch)]
+    story += [
+        Paragraph(_text(content.branding.prepared_by), styles["cover_firm"]),
+        Spacer(1, 0.5 * inch),
+        Paragraph(_text(content.title), styles["cover_title"]),
+        Paragraph(_text(content.client_name), styles["cover_client"]),
+        Spacer(1, 0.45 * inch),
+    ]
+    facts = [("Prepared for", content.client_name), ("Prepared by", content.branding.prepared_by)]
+    if content.engagement_name:
+        facts.append(("Engagement", content.engagement_name))
+    facts.append(("Cost model", content.cost_model))
+    if content.occupation_group:
+        facts.append(("Occupation group", content.occupation_group))
+    facts += [
+        ("Data as of", content.as_of.isoformat() if content.as_of else "not stated"),
+        ("Period covered", f"{content.window_years} years of decided actions"),
+        ("Assumptions at", f"{content.mode} values"),
+        ("Report prepared", content.generated_on.isoformat()),
+    ]
+    table = Table(
+        [
+            [Paragraph(_text(k), styles["small"]), Paragraph(_text(v), styles["body"])]
+            for k, v in facts
+        ],
+        colWidths=[1.5 * inch, 4.6 * inch],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.25, RULE),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    story += [table, Spacer(1, 0.4 * inch), Paragraph(_text(content.caption), styles["small"])]
+    story.append(PageBreak())
+    return story
+
+
+def _headline(content: ReportContent, styles) -> list:
+    tiles = [
+        (money(content.annual_net), "net cost per year"),
+        (money(content.net_per_employee_per_year), "per employee per year"),
+        (money(content.net), f"net over {content.window_years} years"),
+    ]
+    table = Table(
+        [
+            [Paragraph(_text(value), styles["headline"]) for value, _ in tiles],
+            [Paragraph(_text(label), styles["headline_label"]) for _, label in tiles],
+        ],
+        colWidths=[2.3 * inch] * 3,
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), BAND),
+                ("TOPPADDING", (0, 0), (-1, 0), 10),
+                ("BOTTOMPADDING", (0, 1), (-1, 1), 10),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
+    counted = (
+        f"{content.actions_costed:,} disciplinary actions were costed across "
+        f"{content.active_employees:,} active employees. "
+        f"{content.actions_excluded:,} were left out because their records could not be used, "
+        f"and {content.actions_incomplete:,} are still accruing cost, so their figures are a "
+        f"floor. Gross cost was {money(content.gross)}; {money(-content.offset)} of savings "
+        f"(wages not paid during an unpaid suspension or a vacancy, and amounts an insurer "
+        f"paid) are shown separately rather than netted away, leaving {money(content.net)}."
+    )
+    return [
+        Paragraph("Summary", styles["h1"]),
+        table,
+        Spacer(1, 8),
+        Paragraph(_text(counted), styles["body"]),
+    ]
+
+
+def _components(content: ReportContent, styles) -> list:
+    rows = []
+    for row in content.components:
+        share = "" if row.share_of_gross is None else f"{row.share_of_gross * 100:.0f}%"
+        amount = Paragraph(
+            f'<font color="{SAVING}">{_text(money(row.amount))}</font>'
+            if row.is_offset
+            else _text(money(row.amount)),
+            styles["cell_right"],
+        )
+        rows.append([row.code, row.label, amount, share])
+    rows.append(["", "Gross", money(content.gross), "100%"])
+    rows.append(["", "Savings shown separately", money(content.offset), ""])
+    rows.append(["", "Net", money(content.net), ""])
+    return [
+        Paragraph("Where the money goes", styles["h2"]),
+        _table(
+            ["", "Component", "Amount", "Share of gross"],
+            rows,
+            [0.9 * inch, 3.6 * inch, 1.3 * inch, 1.1 * inch],
+            styles,
+            right_from=2,
+        ),
+    ]
+
+
+def _range(content: ReportContent, styles) -> list:
+    if len(content.modes) < 2:
+        return []
+    rows = [
+        [m.mode, money(m.gross), money(m.offset), money(m.net), money(m.annual_net)]
+        for m in content.modes
+    ]
+    return [
+        Paragraph("How far the figure moves with the assumptions", styles["h2"]),
+        Paragraph(
+            "The same records costed three times: with every assumption at its low bound, at "
+            "its working value, and at its high bound. The truth is not expected to sit at "
+            "either end; the spread shows how much of the total rests on judgement.",
+            styles["body"],
+        ),
+        Spacer(1, 4),
+        _table(
+            ["Assumptions at", "Gross", "Savings", "Net", "Net per year"],
+            rows,
+            [1.4 * inch, 1.4 * inch, 1.3 * inch, 1.4 * inch, 1.4 * inch],
+            styles,
+            right_from=1,
+        ),
+    ]
+
+
+def _matrix(content: ReportContent, styles) -> list:
+    visible = content.visible_cells
+    shown = visible[:MAX_MATRIX_ROWS]
+    rows = [
+        [c.row_label, c.col_label, f"{c.action_count:,}", money(c.net), money(c.cost_per_action)]
+        for c in shown
+    ]
+    note = (
+        f"Cells are {content.row_dimension.lower()} against "
+        f"{content.col_dimension.lower()}. A cell is shown only where at least "
+        f"{content.min_cell_size} different employees stand behind it, so that no figure can "
+        f"be traced to a person. {content.suppressed_cell_count} cell(s) were withheld for "
+        f"that reason; together they come to {money(content.suppressed_net)} net, which is "
+        f"included in every total in this report."
+    )
+    if len(visible) > len(shown):
+        note += (
+            f" The {len(shown)} most expensive of {len(visible)} cells are listed here; the "
+            f"workbook that accompanies this report lists them all."
+        )
+    return [
+        Paragraph("Where the cost concentrates", styles["h2"]),
+        Paragraph(_text(note), styles["body"]),
+        Spacer(1, 4),
+        _table(
+            [content.row_dimension, content.col_dimension, "Actions", "Net cost", "Per action"],
+            rows,
+            [2.0 * inch, 2.3 * inch, 0.7 * inch, 1.0 * inch, 0.9 * inch],
+            styles,
+            right_from=2,
+        ),
+    ]
+
+
+def _departments(content: ReportContent, styles) -> list:
+    if not content.departments:
+        return []
+    rows = [
+        [d.department, f"{d.active_fte:,}", money(d.net), money(d.net_per_fte_per_year)]
+        for d in content.departments
+    ]
+    return [
+        Paragraph("Cost per employee per year, by department", styles["h2"]),
+        _table(
+            ["Department", "Active employees", "Net cost", "Per employee per year"],
+            rows,
+            [3.0 * inch, 1.2 * inch, 1.2 * inch, 1.5 * inch],
+            styles,
+            right_from=1,
+        ),
+    ]
+
+
+def _quality(content: ReportContent, styles) -> list:
+    story = [Paragraph("What the records could and could not support", styles["h2"])]
+    if not content.quality:
+        story.append(Paragraph("No problems were found in the records supplied.", styles["body"]))
+        return story
+    story.append(
+        Paragraph(
+            _text(
+                f"{content.quality_blocking} problem(s) stopped a record being used and "
+                f"{content.quality_warnings} were noted without stopping anything. "
+                f"{content.actions_excluded} action(s) were left out of every figure as a "
+                f"result. Where a detail was missing the lighter assumption was taken, so a "
+                f"gap lowers the total rather than raising it."
+            ),
+            styles["body"],
+        )
+    )
+    story.append(Spacer(1, 4))
+    story.append(
+        _table(
+            ["What was found", "How many"],
+            [[q.rule_id.replace("_", " "), f"{q.count:,}"] for q in content.quality],
+            [5.7 * inch, 1.2 * inch],
+            styles,
+            right_from=1,
+        )
+    )
+    return story
+
+
+def _number(value: Decimal) -> str:
+    return f"{value.normalize():f}" if value == value.to_integral() else f"{value:f}"
+
+
+def _appendix_assumptions(content: ReportContent, styles) -> list:
+    rows = []
+    for a in content.assumptions_used:
+        value = _number(a.value) + (" *" if a.overridden else "")
+        rows.append(
+            [
+                Paragraph(_text(a.id), styles["cell"]),
+                value,
+                a.unit.replace("_", " "),
+                f"{a.status}, {a.confidence}",
+                Paragraph(_text(a.source), styles["small"]),
+            ]
+        )
+    return [
+        PageBreak(),
+        Paragraph("Appendix A. The assumptions behind these figures", styles["h1"]),
+        Paragraph(_text(content.assumption_note), styles["body"]),
+        Spacer(1, 4),
+        Paragraph(
+            _text(
+                f"These are the {len(content.assumptions_used)} assumptions the figures in "
+                f"this report actually used, out of {content.registry_size} in the registry. "
+                f"{content.standing} A value marked * is the client's own; see Appendix B."
+            ),
+            styles["body"],
+        ),
+        Spacer(1, 6),
+        _table(
+            ["Assumption", "Value", "Unit", "Standing", "Where it comes from"],
+            rows,
+            [1.9 * inch, 0.6 * inch, 0.95 * inch, 0.85 * inch, 2.6 * inch],
+            styles,
+            right_from=99,
+        ),
+    ]
+
+
+def _appendix_overrides(content: ReportContent, styles) -> list:
+    story = [
+        Spacer(1, 10),
+        Paragraph("Appendix B. Values specific to this client", styles["h1"]),
+    ]
+    if not content.overrides:
+        story.append(
+            Paragraph(
+                "None. Every figure in this report uses the default value of each assumption.",
+                styles["body"],
+            )
+        )
+        return story
+    rows = [
+        [
+            Paragraph(_text(o.assumption_id), styles["cell"]),
+            _number(o.default_value),
+            _number(o.value),
+            Paragraph(_text(o.reason), styles["cell"]),
+            Paragraph(_text(f"{o.set_by}, {o.set_on.isoformat()}"), styles["small"]),
+        ]
+        for o in content.overrides
+    ]
+    story.append(
+        _table(
+            ["Assumption", "Default", "This client", "Reason given", "Set by"],
+            rows,
+            [1.9 * inch, 0.7 * inch, 0.8 * inch, 2.2 * inch, 1.3 * inch],
+            styles,
+            right_from=99,
+        )
+    )
+    return story
+
+
+def render_pdf(content: ReportContent) -> bytes:
+    """Lay a report out as a PDF and return the file's bytes."""
+    styles = _styles()
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=0.8 * inch,
+        rightMargin=0.8 * inch,
+        topMargin=0.8 * inch,
+        bottomMargin=0.9 * inch,
+        title=f"{content.title} - {content.client_name}",
+        author=content.branding.prepared_by,
+        subject=f"{PRODUCT_NAME}: {content.cost_model}",
+    )
+
+    def footer(canvas, doc) -> None:
+        canvas.saveState()
+        canvas.setStrokeColor(RULE)
+        canvas.line(0.8 * inch, 0.7 * inch, letter[0] - 0.8 * inch, 0.7 * inch)
+        canvas.setFont("Helvetica", 7.5)
+        canvas.setFillColor(MUTED)
+        left = f"{content.branding.prepared_by}  |  {content.title}: {content.client_name}"
+        canvas.drawString(0.8 * inch, 0.52 * inch, left[:110])
+        canvas.drawRightString(letter[0] - 0.8 * inch, 0.52 * inch, f"Page {doc.page}")
+        canvas.restoreState()
+
+    story: list = []
+    story += _cover(content, styles)
+    story += _headline(content, styles)
+    story += _components(content, styles)
+    story += _range(content, styles)
+    story += _matrix(content, styles)
+    story += _departments(content, styles)
+    story += _quality(content, styles)
+    story += [
+        Paragraph("How to read these figures", styles["h2"]),
+        Paragraph(_text(content.method_note), styles["body"]),
+    ]
+    story += _appendix_assumptions(content, styles)
+    story += _appendix_overrides(content, styles)
+    document.build(story, onFirstPage=footer, onLaterPages=footer)
+    return buffer.getvalue()

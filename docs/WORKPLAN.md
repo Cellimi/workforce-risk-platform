@@ -40,7 +40,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | One project in the repository (retire the February prototype) | Claude Code session | Done: prototype in `legacy/` (PR #7), engine at the top level (`claude/engine-to-top-level`) |
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Offer sales and office work as separate occupation selections | Claude Code session | Done, `claude/split-sales-office`. Two researched values awaiting the owner's review |
-| Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | In progress, `claude/client-deliverables` (built on `claude/split-sales-office`) |
+| Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
@@ -48,7 +48,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 312 tests, 95.6% coverage.
+asserts it line item by line item. 334 tests, 95.8% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -68,11 +68,51 @@ series, state and local service occupations and public administration, bracket i
 4. **Private-sector cost model.** Built. See below.
 5. **Engagement license keys.** A signed key per engagement, verified offline by the installed
    product, with an exportable usage log.
-6. **Client deliverables.** A report carrying the consulting firm's name and logo; PDF and
-   spreadsheet export; an appendix of assumptions and overrides.
+6. **Client deliverables.** Built: a report carrying the consulting firm's name and logo
+   (PDF), a workbook beside it (Excel), and appendices of the assumptions used and the
+   client's own values. See "Client deliverables" below.
 7. **Install package.** Container install, configuration guide, upgrade path.
 8. **Phases 2 and 3** (hotspot detection; intervention cost-benefit). Out of scope until
    Phase 1 is in use: see "Phase boundary" in `CLAUDE.md`.
+
+## Client deliverables
+
+Built in `src/wri_engine/reporting/`. `content.py` assembles a `ReportContent`; `pdf.py` and
+`xlsx.py` each lay that out and decide nothing about what it says. Change a figure or a
+sentence in `content.py` and both files change together.
+
+- **Where it is served.** `GET /exports/report.pdf` and `GET /exports/report.xlsx`, for any
+  role that may view aggregates, in an engagement or in the synthetic walkthrough. The
+  **Executive summary** page prepares both on request and offers them for download.
+- **The firm's name and logo** live in a `firm_profile` table (one row), set by a firm
+  administrator through `PUT /firm` and `PUT /firm/logo` or on the **Engagement** page. A
+  logo is checked as a picture on upload (`reporting/branding.py`): PNG or JPEG only, 512 KB
+  at most. SVG is refused on purpose.
+- **Use limitation holds** (`CLAUDE.md` rule 10). The matrix is built by the API with the
+  caller's disclosure ledger and suppressed before `build_report` sees it. Data quality is
+  counts by rule; no employee or action id is in a deliverable.
+- **Nothing typed is trusted.** Workbook strings are stored as strings whatever they start
+  with, so a reason beginning `=` is not a formula; PDF text is escaped before layout.
+- **Dependencies added:** `reportlab` (PDF), `openpyxl` (Excel), `pillow` (reading a logo),
+  and `pypdf` for the tests only.
+
+Found while building it and fixed in the same change: the summary's component breakdown
+(`summarize` in `aggregation/rollups.py`, and so the screen's chart and `summary.md`) listed
+only the seven public-sector components, so a private engagement's separation and insurance
+costs were in the totals but missing from the breakdown. A component is now listed whenever
+the run has money against it. Public output is unchanged.
+
+Not done, and worth a decision from the owner:
+
+1. **No record-level export.** The workbook is aggregates only. A sheet of line items for
+   the engagement lead and analyst is a larger disclosure surface than this change should
+   open without being asked.
+2. **Wording in Appendix A.** A source such as "Owner professional estimate" is the
+   registry's own text and reads as the product owner's, not the consulting firm's. Whether
+   a client-facing report should say "professional estimate" instead is a wording call.
+3. **One layout.** No choice of colours, fonts or page size per firm; the logo and name are
+   the branding.
+4. **The report's matrix is always employee type by misconduct type**, the screen's default.
 
 ## One project in the repository
 

@@ -126,6 +126,32 @@ class EngineClient:
     def export_summary(self, mode: str = "base") -> str:
         return self._request("GET", "/exports/summary.md", params={"mode": mode}).text
 
+    def report_pdf(self, mode: str = "base") -> bytes:
+        """The report for the client, carrying the firm's name and logo."""
+        return self._request("GET", "/exports/report.pdf", params={"mode": mode}).content
+
+    def report_xlsx(self, mode: str = "base") -> bytes:
+        """The workbook that goes with the report."""
+        return self._request("GET", "/exports/report.xlsx", params={"mode": mode}).content
+
+    # -- the firm's name and logo (licensed mode) ----------------------------
+    def firm(self) -> dict:
+        return self._request("GET", "/firm", scoped=False).json()
+
+    def set_firm_name(self, name: str) -> dict:
+        return self._request("PUT", "/firm", scoped=False, json={"name": name}).json()
+
+    def firm_logo(self) -> bytes:
+        return self._request("GET", "/firm/logo", scoped=False).content
+
+    def set_firm_logo(self, filename: str, data: bytes, mime: str) -> dict:
+        return self._request(
+            "PUT", "/firm/logo", scoped=False, files={"file": (filename, data, mime)}
+        ).json()
+
+    def clear_firm_logo(self) -> dict:
+        return self._request("DELETE", "/firm/logo", scoped=False).json()
+
     # -- sign-in and accounts (licensed mode) --------------------------------
     def login(self, email: str, password: str) -> dict:
         body = self._request(
