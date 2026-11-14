@@ -72,7 +72,7 @@ loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
 | Assumption | Value | Status |
 |---|---|---|
 | `benefits_multiplier_civilian` | **1.627** | researched |
-| `benefits_multiplier_sworn` | **1.75** | confirmed, but low confidence and unsourced |
+| `benefits_multiplier_sworn` | **1.75** | confirmed; an owner estimate, corroborated against BLS on 2026-11-14 |
 | `private_benefits_multiplier_all` | **1.4287** | researched; owner reviewed 2026-11-13 |
 
 **Which family of multipliers applies is the sector's decision.** The two public
@@ -99,20 +99,29 @@ behind a number*; it does not change *where the number came from*. The `source` 
    leave hours slightly. The effect biases loaded cost **upward** by roughly the paid-leave
    share. The cleaner form is a multiplier built from the ECEC benefit lines excluding paid
    leave; that refinement is recorded in the assumption's notes.
-2. *The sworn multiplier is not sourced yet.* Public-safety pension normal cost and OPEB
-   typically run well above the all-occupations state and local average, which is why the
-   base value is higher. The figure to confirm it against is ECEC Table 3 (state and local
-   government by occupational group, "protective service"); `bls.gov` was unreachable from
-   the build environment, so 1.75 is an owner estimate with **low** confidence and its low
-   bound deliberately set to the all-occupations figure. The owner accepted 1.75 on
-   2026-11-12 as the working value and chose not to block the project on sourcing it, so the
-   engine runs on it — but it remains an estimate rather than a cited figure, its confidence
-   stays **low**, and it scales every public-safety number in the model.
+2. *The sworn multiplier is an owner estimate that the published figures bracket, not a
+   published figure.* Public-safety pension normal cost and OPEB typically run well above the
+   all-occupations state and local average, which is why the base value is higher. BLS does
+   not publish compensation costs for sworn or protective-service staff on their own, so
+   there is no single number to cite. On 2026-11-14 the value was checked against the two
+   nearest series BLS does publish, for state and local government, total compensation over
+   wages per hour worked:
 
-   Because its low bound is the all-occupations multiplier, running the model in **low mode**
-   shows what the figures look like if the public-safety premium turns out to be nil. That is
-   the honest way to present a number nobody has verified: show the range, not just the
-   point.
+   | Published group | 2026 Q1 | 2026 Q2 | Range over 20 quarters |
+   |---|---:|---:|---|
+   | Service occupations — police, fire and corrections, plus non-sworn service staff | 1.7709 | 1.7781 | 1.7388 to 1.7781 |
+   | Public administration, all occupations | 1.7473 | 1.7511 | 1.7250 to 1.7511 |
+
+   1.75 lies inside both ranges and within about 1.5% of every recent reading. The owner
+   kept it and raised its confidence from low to **medium**. It stays `confirmed` rather
+   than `researched` on purpose: neither series is a figure for sworn staff, so the number
+   is still the owner's, with evidence beside it. If anything it is slightly conservative,
+   since sworn staff usually carry richer pensions than the service-occupations average. It
+   scales every public-safety number in the model. The series ids are in the assumption's
+   source.
+
+   Its low bound is the all-occupations multiplier, so running the model in **low mode**
+   shows what the figures look like if the public-safety premium turns out to be nil.
 
 ### Rates for people who are not in the extract
 
@@ -756,7 +765,7 @@ Phase 1 is the cost baseline and nothing else.
   assumptions and the owner has approved every one of them — the 167 the public-sector
   model runs on, on 2026-11-12, and the 17 the private sector added, on 2026-11-13. Approval
   clears the engine to run; it does not make the numbers measurements. Only 20 carry a cited source, and
-  91 of the 184 remain low confidence. The Assumptions page tints the
+  90 of the 184 remain low confidence. The Assumptions page tints the
   low-confidence rows and shows the source beside each value.
 
 ---

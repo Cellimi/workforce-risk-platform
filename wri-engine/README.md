@@ -11,7 +11,7 @@ items that each name their own formula, the values used, and the assumption behi
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
 > assumptions, **not measured agency costs**. The owner has approved all 184
-> assumptions, but approval is not verification: 91 are low-confidence professional
+> assumptions, but approval is not verification: 90 are low-confidence professional
 > estimates, and the demo tints every one of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
@@ -198,7 +198,7 @@ silent default.
 The owner signed off on the 167 entries the public-sector model runs on, on 2026-11-12, and
 on the 12 the private-sector model added, on 2026-11-13. That is a sign-off, not a
 measurement: 15 of those 179 carry a cited source, the other 164 are professional estimates
-the owner stands behind, and 91 remain **low confidence**. `status` says who approved a
+the owner stands behind, and 90 remain **low confidence**. `status` says who approved a
 value; `confidence` says how much weight it bears, and the two moved independently — sign-off
 raised no confidence level, and the 15 sourced entries stayed `researched` rather than being
 flattened to `confirmed`, because naming a source is the stronger claim.
@@ -308,12 +308,13 @@ run. What approval does **not** do is turn an estimate into a measurement. These
 most worth replacing with the customer's own figures, because they move the headline most and
 are the least grounded:
 
-1. The **sworn benefits multiplier**, 1.75. The owner accepted it on 2026-11-12 as the
-   working value and chose not to block on sourcing it, so the engine runs on it. It is
-   still an estimate rather than a cited figure, still marked low confidence, and it scales
-   every public-safety number in the model — the civilian multiplier beside it comes from
-   BLS ECEC and this one does not. Verifying it against ECEC Table 3, protective service
-   occupations, remains the single highest-value thing anyone could do to this registry.
+1. The **sworn benefits multiplier**, 1.75. It is an owner estimate, and it scales every
+   public-safety number in the model. BLS publishes no figure for sworn staff on their own,
+   but on 2026-11-14 it was checked against the two nearest series BLS does publish for
+   state and local government: service occupations (1.7709 to 1.7781 in 2026) and public
+   administration (1.7473 to 1.7511). 1.75 lies inside both, so the owner kept it and
+   raised its confidence to medium. A client's own pension and retiree-health contribution
+   rates would still beat any national average.
 2. **C1 processing and investigation hours**.
 3. **Outside counsel rate and the county's arbitration cost share**.
 4. **Whether overtime is pensionable**, which drives the C3 overtime burden.

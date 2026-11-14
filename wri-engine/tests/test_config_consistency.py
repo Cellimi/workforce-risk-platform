@@ -334,6 +334,22 @@ def test_benefits_multipliers_are_plausible(assumptions):
         assert Decimal("1.2") < value < Decimal("2.5"), f"{name} = {value} is not credible"
 
 
+def test_the_sworn_multiplier_says_what_stands_behind_it(assumptions):
+    """1.75 is an owner estimate that two published BLS series bracket. BLS publishes nothing
+    for sworn staff alone, so it must not claim to be `researched`; but it must name the
+    series it was checked against, so anyone can repeat the check."""
+    sworn = assumptions.get("benefits_multiplier_sworn")
+    assert sworn.status == "confirmed"
+    assert sworn.confidence == "medium"
+    assert "Owner professional estimate" in sworn.source
+    for series in ("CMU3010000300000D", "CMU3020000300000D", "CMU3019200000000D"):
+        assert series in sworn.source
+    # The civilian figure is the all-occupations one; a sworn multiplier below it would say
+    # public safety is cheaper to carry than a clerk.
+    assert sworn.value > assumptions.get("benefits_multiplier_civilian").value
+    assert sworn.low <= sworn.value <= sworn.high
+
+
 def test_overtime_premium_is_the_statutory_minimum(assumptions):
     assert assumptions.get("c3_ot_premium_multiplier").value >= Decimal("1.5")
 
