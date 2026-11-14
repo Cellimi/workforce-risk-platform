@@ -1,4 +1,4 @@
-# Read by `streamlit run` when started from wri-engine/ (as `make ui` does).
+# Read by `streamlit run` when started from the repository root (as `make ui` does).
 
 [client]
 # Hide Streamlit's developer controls (Deploy, rerun, settings) from people using the

@@ -14,17 +14,15 @@ Last updated 2026-11-14.
 
 Two sessions work on the engine: a chat session and a Claude Code session.
 
-1. **Branches.** Pull requests are stacked and not yet merged:
-   `main` <- #2 `claude/assumptions-signoff` <- #3 `claude/login-engagements`
-   <- #4 `claude/intake-template` <- #5 `claude/licensed-screen`
-   <- #6 `claude/private-sector-cost-model` <- #7 `claude/single-project-layout`
-   <- `claude/sworn-multiplier-evidence`.
-   Start new work on a new branch from the top of the stack (now
-   `claude/sworn-multiplier-evidence`),
-   and open its pull request **against that branch**, extending the stack. Once the stack is
-   merged, branch from and target `main`.
-2. **Retired branch.** `claude/wri-phase1-discipline-cost-n73knl` is retired. Everything on it,
-   through `86d7fd0`, is inside `claude/licensed-screen`. Do not push to it.
+1. **Branches.** The stacked pull requests #2 to #8 were merged into `main` on 2026-11-14,
+   by the owner's instruction. Start new work on a new branch from `main` and open its pull
+   request against `main`. If one piece of work has to build on another that is not merged
+   yet, branch from that one and target it, and say so here.
+2. **The engine is at the top level.** It used to live in `wri-engine/`; every path in an
+   older branch, note or command needs that prefix removed. Run `make` from the repository
+   root. A branch cut before the move must be rebased or merged onto `main` before it is
+   worked on, or every file it touches will conflict.
+   `claude/wri-phase1-discipline-cost-n73knl` is retired; do not push to it.
 3. **Claims.** Only one session works on a build item at a time. Claim it in the table below,
    in your first commit, before writing code.
 4. **Conventions.** `CLAUDE.md` holds the hard rules (no coefficient in Python, a golden test
@@ -39,7 +37,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 |---|---|---|
 | Screen for the licensed product | Chat session | Done, PR #5 |
 | Private-sector cost model | Claude Code session | Done, PR against `claude/licensed-screen`, `claude/private-sector-cost-model` |
-| One project in the repository (retire the February prototype) | Claude Code session | Step 1 done, `claude/single-project-layout`. Step 2 waits for the stack to merge: see below |
+| One project in the repository (retire the February prototype) | Claude Code session | Done: prototype in `legacy/` (PR #7), engine at the top level (`claude/engine-to-top-level`) |
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Engagement license keys | (unclaimed) | |
 
@@ -81,14 +79,22 @@ the top level, the first prototype from February 2026 (a dashboard forecasting u
 risk). The owner asked for the repository to show one WRI, keeping the prototype for
 reference.
 
-- **Step 1, done.** The prototype moved to `legacy/` with its own README, and the top-level
-  README now describes one product. Nothing under `wri-engine/` moved, so no open pull
-  request is disturbed. The prototype was run from its new folder to check it still works.
-- **Step 2, not started: move the engine to the top level.** Do this only once every open
-  pull request in the stack has merged, because it renames every file the stack touches.
-  When it is done: move the contents of `wri-engine/` up, merge its `.gitignore` and
-  `README.md` with the top-level ones, drop the duplicate `LICENSE`, and fix the paths in
-  `Makefile`, `pyproject.toml`, `CLAUDE.md` and the docs. One commit, nothing else in it.
+- **Step 1, done (PR #7).** The prototype moved to `legacy/` with its own README. It was
+  run from its new folder to check it still works.
+- **Step 2, done (`claude/engine-to-top-level`).** Once the stack had merged, every tracked
+  file under `wri-engine/` moved up one level, unchanged. The engine's README became the
+  repository's, the two `.gitignore` files merged, and the duplicate `LICENSE` was dropped.
+  The environment was rebuilt at the top level and the whole suite run there.
+- **What a person has to do after pulling it.** Git moves only the files it tracks, so
+  anything a local copy made for itself is left behind in a `wri-engine/` folder:
+  1. Run `make install` again from the repository root; the old virtual environment stays
+     in `wri-engine/.venv` and is no longer used.
+  2. If that copy was ever run as a licensed installation, move its own records across
+     **before deleting anything**: `wri-engine/data/wri.db`, `wri-engine/data/pseudonym.salt`
+     and `wri-engine/data/engagements/` go into `data/`. Without them the product starts
+     with an empty database and no engagements, and the salt is what keeps pseudonymized
+     employee ids stable.
+  3. Then the leftover `wri-engine/` folder can be deleted.
 - **The prototype's features are not being ported.** Forecasting, risk scoring and
   intervention recommendations are Phases 2 and 3 (see "Phase boundary" in `CLAUDE.md`). If
   they are taken up, they are built in the engine on its data, not lifted from `legacy/`.

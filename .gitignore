@@ -1,5 +1,3 @@
-# Repository-wide ignores. wri-engine/.gitignore adds rules specific to that project.
-
 # macOS
 .DS_Store
 ._*
@@ -40,11 +38,17 @@ coverage.xml
 # Generated analytics stores
 *.duckdb
 
-# Generated synthetic data, in any project in this repo. The committed sample under
-# data/synthetic/sample/ is kept so the repo is browsable without running a generator.
+# Generated synthetic data. The committed sample under data/synthetic/sample/ is kept so the
+# repository is browsable without running the generator.
 **/data/synthetic/**
 !**/data/synthetic/sample/
 !**/data/synthetic/sample/**
 
 # Runtime artifact: the API appends one line per request. Never source.
 **/data/audit_log.jsonl
+
+# A licensed installation's own records: its database, the salt that pseudonymizes employee
+# ids, and every engagement's client files. Never source.
+/data/wri.db
+/data/pseudonym.salt
+/data/engagements/
