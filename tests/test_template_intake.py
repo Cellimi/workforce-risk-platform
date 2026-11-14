@@ -1239,3 +1239,26 @@ def test_changing_the_selection_changes_the_figures(tmp_path):
     site.http.put(url, json={"occupation_group": None}, headers=site.auth(OWNER))
     assert group() == "private_all"
     assert leave_cost() == (hours_at_base * Decimal("1.4287")).quantize(Decimal("0.01"))
+
+
+def test_sales_and_office_work_are_loaded_separately(tmp_path, assumptions):
+    """The two halves of the sales and office group are far apart, so each is a selection of
+    its own: on a row, and for a whole engagement."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1", "occupation_group": "sales"},
+        {**EMPLOYEE, "employee_id": "E2", "occupation_group": "Office Admin"},
+        {**EMPLOYEE, "employee_id": "E3"},
+    ]
+    write(tmp_path, "employees", rows)
+    write(tmp_path, "actions", [ACTION])
+    adapter = TemplateAdapter(sector="private_sector", occupation_group="office_admin")
+    data = adapter.load(tmp_path)
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {
+        "E1": "private_sales",
+        "E2": "private_office_admin",
+        "E3": "private_office_admin",
+    }
+    assert adapter.report.blocking == []
+    assert assumptions.value("private_benefits_multiplier_sales") == Decimal("1.3283")
+    assert assumptions.value("private_benefits_multiplier_office_admin") == Decimal("1.4564")

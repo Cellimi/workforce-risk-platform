@@ -51,7 +51,7 @@ from wri_engine.costing.components import (
 from wri_engine.schema import AppealForum, OccupationGroup
 from wri_engine.sectors.base import SectorPack
 
-#: One benefits group per BLS occupational group, each with its own published multiplier.
+#: One benefits group per occupational group offered, each with its own published multiplier.
 #: `private_all` is the all-workers figure, used for anyone whose group the data does not give.
 _BY_OCCUPATION = {group: f"private_{group}" for group in OccupationGroup}
 

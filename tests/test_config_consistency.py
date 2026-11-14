@@ -204,12 +204,23 @@ def test_researched_assumptions_were_not_downgraded(assumptions):
 #: on AWAITING_OWNER_REVIEW. This is the list to read and then delete from: once the owner
 #: has reviewed one, remove its id here.
 #:
-#: Empty, because the owner reviewed the five occupational-group multipliers on 2026-11-13.
-#: Add to it, do not delete it.
-RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = set()
+#: The two halves of the sales and office group, split out on 2026-11-14 at the owner's
+#: request. Do not delete the set when it empties.
+RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = {
+    "private_benefits_multiplier_sales",
+    "private_benefits_multiplier_office_admin",
+}
 
-#: The five occupational-group multipliers the owner reviewed on 2026-11-13.
-OCCUPATION_GROUP_MULTIPLIERS = {f"private_benefits_multiplier_{g}" for g in OccupationGroup}
+#: The five broad occupational groups. Their multipliers were reviewed by the owner on
+#: 2026-11-13, and their lowest and highest figures bound the all-occupations fallback.
+BROAD_OCCUPATION_GROUPS = (
+    OccupationGroup.MANAGEMENT_PROFESSIONAL,
+    OccupationGroup.SALES_OFFICE,
+    OccupationGroup.SERVICE,
+    OccupationGroup.CONSTRUCTION_MAINTENANCE,
+    OccupationGroup.PRODUCTION_TRANSPORTATION,
+)
+OCCUPATION_GROUP_MULTIPLIERS = {f"private_benefits_multiplier_{g}" for g in BROAD_OCCUPATION_GROUPS}
 
 
 def test_researched_values_awaiting_review_are_real_and_cited(assumptions):
@@ -220,6 +231,26 @@ def test_researched_values_awaiting_review_are_real_and_cited(assumptions):
         assert assumption.status == "researched", assumption_id
         assert assumption.source.strip(), assumption_id
         assert "awaiting the owner" in assumption.notes, assumption_id
+
+
+def test_every_group_on_offer_is_either_reviewed_or_listed_for_review(assumptions):
+    """A selection the screen offers must never rest on a figure nobody has been asked to
+    look at: each group's multiplier is one the owner reviewed, or it is on the list."""
+    offered = {f"private_benefits_multiplier_{g}" for g in OccupationGroup}
+    assert offered == OCCUPATION_GROUP_MULTIPLIERS | RESEARCHED_AWAITING_OWNER_REVIEW
+
+
+def test_the_two_halves_of_sales_and_office_straddle_the_combined_figure(assumptions):
+    """Sales and office work are split because they are loaded so differently. The combined
+    group is an average of the two, so it has to sit between them -- and its bounds are
+    exactly the two halves, which is what the registry says they are."""
+    sales = assumptions.get("private_benefits_multiplier_sales")
+    office = assumptions.get("private_benefits_multiplier_office_admin")
+    combined = assumptions.get("private_benefits_multiplier_sales_office")
+    assert sales.value < combined.value < office.value
+    assert (combined.low, combined.high) == (sales.value, office.value)
+    for half in (sales, office):
+        assert "CMU201" in half.source and "CMU202" in half.source
 
 
 def test_the_reviewed_group_multipliers_still_stand_on_their_series(assumptions):
