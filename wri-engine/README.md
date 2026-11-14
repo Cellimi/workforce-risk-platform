@@ -21,7 +21,7 @@ repository.
 cd wri-engine
 make install          # venv + dependencies (Python 3.11+)
 make generate         # write the synthetic county HR export to data/synthetic/
-make test             # 146 tests, coverage gate on costing/ and aggregation/
+make test             # 180 tests, coverage gate on costing/ and aggregation/
 make api              # terminal one: http://localhost:8000  (docs at /docs)
 make ui               # terminal two: http://localhost:8501
 ```
@@ -30,6 +30,46 @@ A trimmed sample export is committed at `data/synthetic/sample/`, so the API and
 without `make generate`. Use `make generate` for the full 2,500-employee dataset.
 
 Then read `docs/demo_script.md` and walk the five pages in order.
+
+---
+
+## Two ways to run it
+
+**The synthetic walkthrough (`make api`, demo mode).** No sign-in. The caller picks a role in
+an `X-WRI-Role` header and the only data is fictional Harlow County. This is for showing the
+method. It must never be reachable by anyone you would not hand the data to.
+
+**A licensed installation (`make serve`, the default mode).** Every request needs a signed-in
+user. Work is organised into **engagements**: one client, one dataset, one set of
+client-specific assumption overrides. A user sees an engagement only if they are a member,
+with the role their membership gives them.
+
+```bash
+wri-admin create-user you@firm.example --name "You" --firm-admin   # once, on the server
+make serve
+```
+
+Then, over the API (`/docs` lists everything):
+
+| Step | Endpoint |
+|---|---|
+| Sign in, get a bearer token | `POST /auth/login` |
+| Create consultant and client accounts (firm administrator) | `POST /users` |
+| Open an engagement (firm administrator) | `POST /engagements` |
+| Add members as `admin`, `hr_analyst` or `executive` | `PUT /engagements/{id}/members` |
+| Upload the client's export; it is validated before it replaces anything | `POST /engagements/{id}/datasets/upload` |
+| Use the client's own figure for an assumption, with a reason | `PUT /engagements/{id}/assumptions/{assumption_id}/override` |
+| Everything in the table under "The API" below | `/engagements/{id}/...` |
+
+What is stored where: accounts, sessions, engagements, memberships and overrides in a
+database (`data/wri.db`, SQLite by default; set `WRI_DATABASE_URL` for another). Each
+engagement's source files in `data/engagements/<id>/source/`. Nothing is kept only in memory,
+so a restart loses no work. Passwords are stored as scrypt hashes and session tokens as
+SHA-256 hashes.
+
+Not built yet: a screen for the licensed mode (the Streamlit app talks to demo mode only),
+single sign-on, column mapping for a client's own export layout (uploads must currently be in
+the Harlow County layout), the private-sector cost model, and engagement license keys.
 
 ---
 
@@ -118,8 +158,10 @@ wri-engine/
 
 ## The API
 
-`http://localhost:8000/docs` for the generated OpenAPI. The role goes in an `X-WRI-Role`
-header (`executive`, `hr_analyst`, `admin`).
+`http://localhost:8000/docs` for the generated OpenAPI. In demo mode the role goes in an
+`X-WRI-Role` header (`executive`, `hr_analyst`, `admin`) and the paths are as shown. In a
+licensed installation the same paths sit under `/engagements/{id}` and the role comes from
+the signed-in user's membership.
 
 | Endpoint | |
 |---|---|

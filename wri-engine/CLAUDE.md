@@ -28,6 +28,13 @@ layer is disposable.
     `aggregation/` and `access/`, enforced before data reaches the API response — never in
     the UI.
 
+11. **Sign-in is the default.** `WRI_AUTH_MODE=demo` (header-chosen roles) exists only for
+    the synthetic walkthrough. Every data endpoint takes a `Ctx` from
+    `wri_engine.api.context`; never read a role, a session key or a file path from anything
+    the caller sends in licensed mode.
+12. **One engagement never sees another's data.** Client files live in the engagement's own
+    folder, reached only through `Workspaces`. Client HR data does not go in the database.
+
 ## Style
 
 - Prefer small, readable functions. Each component module in `costing/components/` must be

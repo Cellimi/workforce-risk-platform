@@ -2,7 +2,7 @@ VENV ?= .venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
-.PHONY: install generate test lint fmt api ui demo clean
+.PHONY: install generate test lint fmt api serve ui demo clean
 
 install:
 	@if command -v uv >/dev/null 2>&1; then \
@@ -28,8 +28,14 @@ fmt:
 	$(VENV)/bin/ruff format src tests app
 	$(VENV)/bin/ruff check --fix src tests app
 
+# The synthetic walkthrough: roles chosen in a header, no sign-in. Never expose this.
 api:
-	$(VENV)/bin/uvicorn wri_engine.api.main:app --reload --port 8000
+	WRI_AUTH_MODE=demo $(VENV)/bin/uvicorn wri_engine.api.main:app --reload --port 8000
+
+# A licensed installation: sign-in required, data kept per engagement.
+#   $(VENV)/bin/wri-admin create-user you@firm.example --firm-admin   (first time only)
+serve:
+	$(VENV)/bin/uvicorn wri_engine.api.main:app --port 8000
 
 ui:
 	$(VENV)/bin/streamlit run app/streamlit_app.py --server.port 8501

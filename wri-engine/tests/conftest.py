@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import os
+
+# The pre-existing API tests exercise the synthetic walkthrough, which is demo mode. The
+# licensed (signed-in) mode builds its own app in tests/test_accounts_engagements.py.
+os.environ.setdefault("WRI_AUTH_MODE", "demo")
+
 from datetime import date
 from pathlib import Path
 

@@ -1,7 +1,8 @@
 """Append-only access log.
 
 Every request that reaches the engine is written here before the response is built: who
-asked (role), what they asked for (endpoint and filters), when, and whether it was allowed.
+asked (user and role), in which engagement, what they asked for (endpoint and filters),
+when, and whether it was allowed.
 One JSON object per line, opened in append mode and never rewritten.
 
 This is the demo's version of an audit trail. A production deployment would ship these
@@ -28,6 +29,8 @@ class AuditEntry:
     role: str
     endpoint: str
     outcome: str
+    user: str = ""
+    engagement: str = ""
     filters: dict = field(default_factory=dict)
     detail: dict = field(default_factory=dict)
 
@@ -42,6 +45,8 @@ class AuditLog:
         role: str,
         endpoint: str,
         outcome: str = "allowed",
+        user: str = "",
+        engagement: str = "",
         filters: dict | None = None,
         detail: dict | None = None,
     ) -> AuditEntry:
@@ -50,6 +55,8 @@ class AuditLog:
             role=str(role),
             endpoint=endpoint,
             outcome=outcome,
+            user=user,
+            engagement=engagement,
             filters=filters or {},
             detail=detail or {},
         )

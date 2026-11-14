@@ -10,9 +10,9 @@ The UI's role dropdown only *chooses* a role -- it cannot grant one.
 | `hr_analyst` | Aggregates, plus record-level drill-down with employee IDs pseudonymized. |
 | `admin`      | Everything, including real identifiers and assumption edits.           |
 
-For the demo the role arrives in an `X-WRI-Role` header and there is no authentication
-behind it. That is the seam where SSO goes: replace `role_from_header` with a function that
-derives the role from a verified token. Nothing else in the codebase needs to change.
+In a licensed installation the role comes from the signed-in user's membership of an
+engagement (see `wri_engine.api.context`). Only in demo mode does it arrive in an
+`X-WRI-Role` header with no authentication behind it.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ class Capability(StrEnum):
     VIEW_REAL_IDENTIFIERS = "view_real_identifiers"
     EDIT_ASSUMPTIONS = "edit_assumptions"
     RUN_SCENARIOS = "run_scenarios"
+    MANAGE_DATA = "manage_data"
 
 
 CAPABILITIES: dict[Role, frozenset[Capability]] = {
@@ -44,8 +45,14 @@ CAPABILITIES: dict[Role, frozenset[Capability]] = {
     Role.ADMIN: frozenset(Capability),
 }
 
-#: Changing this changes every pseudonym. In production it belongs in a secret store.
+#: Changing this changes every pseudonym. A licensed installation generates its own on first
+#: start (see `wri_engine.api.app.create_app`); the default is for the synthetic demo only.
 _PSEUDONYM_SALT = os.environ.get("WRI_PSEUDONYM_SALT", "harlow-county-demo")
+
+
+def set_pseudonym_salt(salt: str) -> None:
+    global _PSEUDONYM_SALT
+    _PSEUDONYM_SALT = salt
 
 
 class AccessDenied(PermissionError):
