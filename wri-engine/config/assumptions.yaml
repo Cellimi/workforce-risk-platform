@@ -17,15 +17,18 @@
 #   last_reviewed  ISO date
 #   notes          anything a reader needs, including what to replace it with
 #
-# status = TBD-MIKE means the value is an owner placeholder awaiting sign-off. As of
-# 2026-11-12 the owner has reviewed and approved the whole registry, so no entry carries that
-# status any more.
+# status = TBD-MIKE means the value is an owner placeholder awaiting sign-off. The owner
+# reviewed and approved the public-sector registry on 2026-11-12 and the twelve values added
+# for the private-sector cost model on 2026-11-13, so no entry carries that status any more.
+# The five private_benefits_multiplier_<occupational group> entries were researched after
+# that and reviewed by him the same day; they are status = researched because each names the
+# BLS series it was read from.
 #
 # READ THE DIFFERENCE BETWEEN THESE TWO FIELDS BEFORE QUOTING A NUMBER.
 #   status = confirmed  means the OWNER has signed off on the value as the working figure.
 #   status = researched means the value is backed by the CITED SOURCE on the entry.
 #   confidence          is unchanged by sign-off: it still says how much weight the value
-#                       bears. 86 entries remain low confidence and 79 medium.
+#                       bears. 91 entries remain low confidence and 90 medium.
 # Approving a number is not the same as verifying it. An entry whose source still reads
 # "Owner professional estimate" is exactly that - an estimate the owner stands behind, not a
 # measured or externally sourced figure.
@@ -2430,3 +2433,242 @@ assumptions:
   notes: 'Used only when the position is not yet refilled: expected calendar days from separation to the
     replacement reaching solo duty. Any action costed with this value is flagged cost_incomplete. (standard
     civilian)'
+
+# ---------------------------------------------------------------------------
+# Private-sector cost model. Added 2026-11-12, owner-approved 2026-11-13, including the five
+# private_benefits_multiplier_<occupational group> entries researched that day and the
+# bounds on private_benefits_multiplier_all, which he set to the range of those five groups.
+#
+# Only genuinely new values live here. Where the two sectors do the same thing -- an HR
+# officer's hours on a written reprimand, the FLSA overtime premium -- they share the id
+# and the value above, so there is one number to confirm rather than two.
+#
+# Of the first twelve, two are marked researched because a public source fixes the number,
+# and they stay researched: a cited source is a stronger claim than a sign-off. The other ten are
+# confirmed, which means the owner stands behind them as working figures, not that anyone
+# measured them. Each still carries a citation where one exists for the mechanism or the
+# range, and says what would settle it -- usually the client's own invoices. Calling a
+# vendor pricing page 'researched' would devalue the status on the entries that earned it,
+# so none of them claims it.
+# ---------------------------------------------------------------------------
+- id: private_benefits_multiplier_all
+  value: 1.4287
+  low: 1.2996
+  high: 1.4686
+  unit: ratio
+  applies_to:
+    benefits_group: private_all
+  source: 'BLS Employer Costs for Employee Compensation, June 2026 reference period, private industry workers, all workers: total compensation $46.89 per hour worked, wages and salaries $32.82 per hour worked. 46.89 / 32.82 = 1.4287. Benefits are 30.0% of employer costs in private industry, against 38.5% in state and local government, which is why this multiplier sits well below benefits_multiplier_civilian.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'The private-sector counterpart to benefits_multiplier_civilian, and the single largest difference between the two sector packs. It is the FALLBACK, used for an employee who has no occupational group of their own in an engagement with none selected; the five private_benefits_multiplier_<group> entries below carry each group''s own figure. VALUE VERIFIED 2026-11-13 against BLS series CMU2010000000000D and CMU2020000000000D on data.bls.gov. BOUNDS: the lowest and highest of the five broad occupational groups in the same series for 2026 Q2 - service at 23.73 / 18.26 = 1.2996 and production, transportation and material moving at 36.70 / 24.99 = 1.4686 - so low and high mode show what an unclassified workforce costs if it is all of the lightest or all of the heaviest kind. OWNER DECISION 2026-11-13: the bounds were changed to these from 1.38 / 1.4835, which had been set before the occupational series could be read; the old high bound rested on a wages figure for the management group that the series does not bear out, and the old low bound did not reach service. The base value did not change. Carries the same per-hour-worked against per-hour-paid caveat as the civilian figure; see docs/cost_methodology.md.'
+- id: private_benefits_multiplier_management_professional
+  value: 1.4591
+  low: 1.432
+  high: 1.4809
+  unit: ratio
+  applies_to:
+    benefits_group: private_management_professional
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, management, professional and related occupations, 2026 second quarter (June 2026 reference period): total compensation $78.88 per hour worked (series CMU2010000100000D), wages and salaries $54.06 per hour worked (series CMU2020000100000D), read from data.bls.gov on 2026-11-13. 78.88 / 54.06 = 1.4591.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in management, business, financial or professional work. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4320 to 1.4598) and of its two published sub-groups in 2026 Q2 - management, business and financial 88.63 / 59.85 = 1.4809, professional and related 73.69 / 50.98 = 1.4455. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
+- id: private_benefits_multiplier_sales_office
+  value: 1.3977
+  low: 1.3283
+  high: 1.4564
+  unit: ratio
+  applies_to:
+    benefits_group: private_sales_office
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, sales and office occupations, 2026 second quarter (June 2026 reference period): total compensation $36.34 per hour worked (series CMU2010000200000D), wages and salaries $26.00 per hour worked (series CMU2020000200000D), read from data.bls.gov on 2026-11-13. 36.34 / 26.00 = 1.3977.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in sales or in office and administrative support. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.3734 to 1.3977) and of its two published sub-groups in 2026 Q2 - sales and related 35.85 / 26.99 = 1.3283, office and administrative support 36.73 / 25.22 = 1.4564. The two halves of this group differ a good deal, so a client whose staff are mostly sales sits near the low bound and one whose staff are mostly clerical near the high. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
+- id: private_benefits_multiplier_service
+  value: 1.2996
+  low: 1.2816
+  high: 1.3019
+  unit: ratio
+  applies_to:
+    benefits_group: private_service
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, service occupations, 2026 second quarter (June 2026 reference period): total compensation $23.73 per hour worked (series CMU2010000300000D), wages and salaries $18.26 per hour worked (series CMU2020000300000D), read from data.bls.gov on 2026-11-13. 23.73 / 18.26 = 1.2996.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in service work - food service, cleaning, personal care, security. The lowest of the five groups by a wide margin, so loading service staff at the all-occupations 1.4287 overstates their cost by about a tenth. BOUNDS: this group''s own ratio over the 20 quarters to 2026 Q2 (1.2816 to 1.3019). No sub-group series was found for it. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
+- id: private_benefits_multiplier_construction_maintenance
+  value: 1.4538
+  low: 1.4514
+  high: 1.4742
+  unit: ratio
+  applies_to:
+    benefits_group: private_construction_maintenance
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, natural resources, construction, and maintenance occupations, 2026 second quarter (June 2026 reference period): total compensation $47.80 per hour worked (series CMU2010000400000D), wages and salaries $32.88 per hour worked (series CMU2020000400000D), read from data.bls.gov on 2026-11-13. 47.80 / 32.88 = 1.4538.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in construction, extraction, farming, or installation, maintenance and repair. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4514 to 1.4742) and of the one current sub-group series found, installation, maintenance and repair 49.01 / 33.61 = 1.4582. The construction and extraction series found ends in 2006 and was not used. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
+- id: private_benefits_multiplier_production_transportation
+  value: 1.4686
+  low: 1.445
+  high: 1.4866
+  unit: ratio
+  applies_to:
+    benefits_group: private_production_transportation
+  source: 'BLS Employer Costs for Employee Compensation, private industry workers, production, transportation, and material moving occupations, 2026 second quarter (June 2026 reference period): total compensation $36.70 per hour worked (series CMU2010000500000D), wages and salaries $24.99 per hour worked (series CMU2020000500000D), read from data.bls.gov on 2026-11-13. 36.70 / 24.99 = 1.4686.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-13'
+  notes: 'Loads the wage of a private employee in production, transportation or material moving - a plant operative, a driver, a warehouse associate. The most heavily loaded of the five groups. BOUNDS: the envelope of this group''s own ratio over the 20 quarters to 2026 Q2 (1.4450 to 1.4851) and of its two published sub-groups in 2026 Q2 - production 37.21 / 25.03 = 1.4866, transportation and material moving 36.38 / 24.97 = 1.4569. Carries the same per-hour-worked against per-hour-paid caveat as benefits_multiplier_civilian. Researched and reviewed by the owner on 2026-11-13; it stays researched because the cited series, not the sign-off, is what stands behind it.'
+- id: c4_filing_window_days_agency_charge
+  value: 300
+  low: 180
+  high: 300
+  unit: days
+  applies_to:
+    forum: agency_charge
+  source: 'Title VII of the Civil Rights Act, 42 U.S.C. 2000e-5(e)(1): a charge must be filed within 180 days of the alleged unlawful employment practice, extended to 300 days where the person has initially instituted proceedings with a state or local agency with authority to grant relief.'
+  confidence: high
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-12'
+  notes: 'The base is 300 because most states have a fair employment practices agency, which triggers the longer window; the low bound 180 is the window where none does. Used by C4 to decide whether an action with no charge on file is still open to one, so its cost is reported as a floor rather than a settled figure. State fair employment statutes can run longer than either bound.'
+- id: c3_temp_agency_markup
+  value: 1.5
+  low: 1.25
+  high: 1.75
+  unit: ratio
+  applies_to:
+    coverage_method: temp_agency
+  source: 'Staffing industry markups over the worker''s pay rate are commonly quoted in the 25% to 75% range, varying by role and market; the American Staffing Association''s worked example marks a $17.00 average hourly pay rate up 51.5% to a $25.76 bill rate. These are trade and vendor sources, not an official statistic.'
+  confidence: low
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Multiplies the peer base rate to price agency cover, in place of the FLSA premium and overtime burden a peer on overtime would carry: the temp is not working overtime, and the markup already carries the agency''s payroll taxes, insurance, recruiting and margin. Not a researched figure: no authoritative source was reachable, only vendor pricing pages. Confirm against the client''s own staffing invoices, which is the one place the real number exists. Watch the basis - a 50% markup is a 33.3% margin on the bill rate, and quotes use both. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c1_outside_investigator_hourly_rate
+  value: 325
+  low: 200
+  high: 600
+  unit: usd_per_hour
+  applies_to:
+    scope: processing
+  source: 'Owner professional estimate. Defaulted to the outside counsel rate, because a workplace investigation is usually run by employment counsel or a specialist firm billing on the same basis.'
+  confidence: low
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Applies only when the record shows outside investigator hours, so public-sector data produces no line item. Private employers routinely retain an outside investigator for harassment complaints precisely so the investigation is independent of the managers involved. Confirm from the client''s invoices. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c6_unemployment_experience_rating_multiplier
+  value: 1.0
+  low: 1.0
+  high: 2.0
+  unit: ratio
+  applies_to:
+    scope: unemployment
+  source: 'Mechanism: FUTA is 6.0% on the first $7,000 of each employee''s wages with a credit of up to 5.4% for state unemployment tax paid, a net 0.6% and a maximum $42 per employee per year (IRS, Form 940). State unemployment tax is experience rated, so benefits charged to an employer''s account raise its later state rate. The mechanism is documented; the size of the effect for any one employer is not.'
+  confidence: low
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Deliberately 1.0, which counts ONLY the benefits the record says were charged and claims no amplification. Raising it models the later tax increase an experience rated state imposes, which is real but depends on the state''s formula, the employer''s reserve ratio and its taxable payroll. Not a researched figure: 1.0 is a conservative choice rather than a measured figure. The honest way to size it for a client is their own state rate notices across a few years. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c4_hr_hours_agency_charge
+  value: 25
+  low: 12
+  high: 50
+  unit: hours
+  applies_to:
+    forum: agency_charge
+  source: 'Owner professional estimate, following the same pattern as the public-sector forum hours in this registry.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Internal HR and employee relations time on a charge filed with an enforcement agency: gathering documents, drafting the position statement, responding to requests for information and preparing witnesses. More than a grievance step, less than defending a suit. Not a researched figure: no published benchmark for internal hours was found. Confirm against the client''s own matter records. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c4_hr_hours_demand_letter
+  value: 6
+  low: 2
+  high: 16
+  unit: hours
+  applies_to:
+    forum: demand_letter
+  source: 'Owner professional estimate, following the same pattern as the public-sector forum hours in this registry.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Internal time responding to a lawyer''s demand letter before anything is filed: pulling the file, briefing counsel, deciding whether to settle early. Not a researched figure: no published benchmark for internal hours was found. Confirm against the client''s own matter records. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c4_hr_hours_mediation
+  value: 14
+  low: 6
+  high: 30
+  unit: hours
+  applies_to:
+    forum: mediation
+  source: 'Owner professional estimate, following the same pattern as the public-sector forum hours in this registry.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Internal time preparing for and attending mediation, whether the agency''s own programme or a private mediator. Not a researched figure: no published benchmark for internal hours was found. Confirm against the client''s own matter records. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c4_filing_window_days_demand_letter
+  value: 90
+  low: 30
+  high: 180
+  unit: days
+  applies_to:
+    forum: demand_letter
+  source: 'Owner professional estimate. Unlike the agency charge window, no statute fixes this one.'
+  confidence: low
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'No statute sets this. It is a practical window: how long after a decision a demand letter still plausibly arrives, used only to decide whether an action''s challenge cost is still open. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c4_filing_window_days_mediation
+  value: 60
+  low: 30
+  high: 120
+  unit: days
+  applies_to:
+    forum: mediation
+  source: 'Owner professional estimate. Unlike the agency charge window, no statute fixes this one.'
+  confidence: low
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Mediation follows a charge or a demand rather than starting a clock of its own, so this is a practical window for how long after the decision a mediation may still be convened. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c6_separation_agreement_hr_hours
+  value: 8
+  low: 3
+  high: 20
+  unit: hours
+  applies_to:
+    scope: separation_agreement
+  source: 'Owner professional estimate.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'HR time drafting, negotiating and administering a separation agreement. The timeline is longer than it looks for anyone aged 40 or over: a release of federal age claims is unenforceable unless the employee is given at least 21 days to consider it and 7 days to revoke after signing, and 45 days where the separation is part of a group programme (Older Workers Benefit Protection Act, 29 U.S.C. 626(f)(1)(F)-(G)). Not a researched figure: the statute fixes the waiting periods, not the hours. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'
+- id: c6_separation_agreement_counsel_hours
+  value: 4
+  low: 1
+  high: 12
+  unit: hours
+  applies_to:
+    scope: separation_agreement
+  source: 'Owner professional estimate. Priced at c4_outside_counsel_hourly_rate.'
+  confidence: medium
+  owner: Michael V. Celli
+  status: confirmed
+  last_reviewed: '2026-11-13'
+  notes: 'Counsel time settling the release language. Usually short where the employer has a template and longer where the employee is represented or the release has to survive the Older Workers Benefit Protection Act. Not a researched figure. Confirm from the client''s legal invoices. OWNER DECISION 2026-11-13 - the owner accepted this value. Accepting a number is not measuring one, so the confidence level is unchanged.'

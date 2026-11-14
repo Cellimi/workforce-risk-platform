@@ -169,12 +169,35 @@ class EngineClient:
     def engagements(self) -> list[dict]:
         return self._request("GET", "/engagements", scoped=False).json()["engagements"]
 
-    def create_engagement(self, name: str, client_name: str, sector: str = "public_sector") -> dict:
+    def sectors(self) -> list[dict]:
+        """The cost models this installation can run, for the sector chooser."""
+        return self._request("GET", "/sectors", scoped=False).json()["sectors"]
+
+    def create_engagement(
+        self,
+        name: str,
+        client_name: str,
+        sector: str = "public_sector",
+        occupation_group: str | None = None,
+    ) -> dict:
         return self._request(
             "POST",
             "/engagements",
             scoped=False,
-            json={"name": name, "client_name": client_name, "sector": sector},
+            json={
+                "name": name,
+                "client_name": client_name,
+                "sector": sector,
+                "occupation_group": occupation_group,
+            },
+        ).json()
+
+    def set_occupation_group(self, occupation_group: str | None) -> dict:
+        return self._request(
+            "PUT",
+            f"/engagements/{self.engagement_id}/occupation-group",
+            scoped=False,
+            json={"occupation_group": occupation_group},
         ).json()
 
     def list_members(self) -> list[dict]:

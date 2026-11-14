@@ -10,9 +10,9 @@ items that each name their own formula, the values used, and the assumption behi
 > **Harlow County does not exist.** The data is generated from public distributional shapes
 > and documented judgement. Nothing is derived from any real agency's records, and no real
 > county, agency, union, employer or person is represented. Cost figures reflect documented
-> assumptions, **not measured agency costs**. The owner has approved all 167 assumptions,
-> but approval is not verification: 86 are still low-confidence professional estimates, and
-> the demo tints every one of them.
+> assumptions, **not measured agency costs**. The owner has approved all 184
+> assumptions, but approval is not verification: 91 are low-confidence professional
+> estimates, and the demo tints every one of them.
 
 > **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli. All
 > rights reserved — see [LICENSE](LICENSE). Reading this code grants no right to use, copy,
@@ -154,7 +154,12 @@ canonical schema. The engine sees nothing else. A second source system means a s
 and a mapping file; the cost logic does not move. The NFC adapter is designed and stubbed with
 its full field mapping in `src/wri_engine/adapters/nfc.py`.
 
-**Costs five components, each a pure function.**
+**Costs five components in the public sector and seven in the private, each a pure
+function.** Which of them can run is the engagement's **sector pack**
+(`src/wri_engine/sectors/`): it names the components, the benefits multiplier that loads a
+wage, and the coefficient ids that must exist before the engine starts. No component
+branches on the sector -- C6 and C7 emit a line only when the record carries the field they
+need, and public-sector data carries none of them.
 
 | | Component | What it counts |
 |---|---|---|
@@ -165,11 +170,16 @@ its full field mapping in `src/wri_engine/adapters/nfc.py`.
 | C4 | Appeals and grievances | Internal hours, outside counsel, arbitration fees, back pay, interest, settlements — only where a record exists |
 | C5 | Removal turnover | Vacancy coverage, recruiting, screening, academy, field training, ramp-up, equipment, adjusted for recruit washout |
 | C5-offset | Vacancy salary savings | The removed employee's salary, which stops on the separation date, credited back over the same shifts the vacancy overtime was charged for |
+| C6 | Separation and unemployment | *Private sector.* Severance actually paid, the HR and counsel hours behind the agreement, and unemployment benefits charged to the employer's account |
+| C7 | Employment practices liability | *Private sector.* The retention the employer bore, where nothing else in the record captured the payout |
+| C7-offset | Insurer payments | *Private sector.* What an insurer paid, as a **negative** line item, so gross shows the full exposure and net the employer's own burden |
 
-The two offsets exist because the engine charges **gross**: it bills the overtime that covers
+The offsets exist because the engine charges **gross**: it bills the overtime that covers
 a suspended or vacant post at the rate of whoever works the shift, then credits back the wage
 the county stopped paying, at that person's own rate. Only the wage and the payroll taxes on
-it are treated as saved — health insurance and retiree health continue either way.
+it are treated as saved — health insurance and retiree health continue either way. C7-offset
+does the same job for an insured private employer: the money was spent, and net says who
+spent it.
 
 **Explains every dollar.** Each line item stores its formula in plain English, the values it
 used, and the ids of the assumptions it consumed:
@@ -180,16 +190,23 @@ $48.44/hr overtime ($30.00 base × 1.5 FLSA premium × 1.0765 overtime burden;
 average base rate for deputy at North District)
 ```
 
-**Puts every coefficient in a file, not in code.** 166 assumptions in
+**Puts every coefficient in a file, not in code.** 184 assumptions in
 `config/assumptions.yaml`, each with a source, a confidence level, low/base/high bounds, an
 owner and a status. Asking for an assumption that is not there is a hard error, never a
 silent default.
 
-The owner signed off on the whole registry on 2026-11-12, so nothing is left marked
-`TBD-MIKE`. That is a sign-off, not a measurement: 13 entries carry a cited source, the
-other 154 are professional estimates the owner stands behind, and 86 of those remain **low
-confidence**. `status` says who approved a value; `confidence` says how much weight it
-bears, and the two moved independently.
+The owner signed off on the 167 entries the public-sector model runs on, on 2026-11-12, and
+on the 12 the private-sector model added, on 2026-11-13. That is a sign-off, not a
+measurement: 15 of those 179 carry a cited source, the other 164 are professional estimates
+the owner stands behind, and 91 remain **low confidence**. `status` says who approved a
+value; `confidence` says how much weight it bears, and the two moved independently — sign-off
+raised no confidence level, and the 15 sourced entries stayed `researched` rather than being
+flattened to `confirmed`, because naming a source is the stronger claim.
+
+Five more entries were added after that sign-off and reviewed by the owner the same day:
+the private-industry benefits multipliers for each broad occupational group, each read from
+its own BLS series. They stay `researched` for the same reason. That makes 184 entries, 20
+with a cited source, and nothing awaiting review.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -220,7 +237,7 @@ expensive cell, never as an alert. It is documented in
 wri-engine/
   CLAUDE.md                     conventions, and the rules that must not be broken
   config/
-    assumptions.yaml            166 cost coefficients, each with its source
+    assumptions.yaml            184 cost coefficients, each with its source
     org_county.yaml             departments, pay plan, schedules, taxonomies
     generator_profile.yaml      every synthetic-data distribution parameter
     mapping_county_hr_csv.yaml  the whole source-to-canonical contract
@@ -228,6 +245,7 @@ wri-engine/
     schema/                     canonical Pydantic models
     adapters/                   base.py, county_hr_csv.py, validation.py, nfc.py (stub)
     generator/                  seeded synthetic generator + README of distributions
+    sectors/                    which components, multipliers and ids a sector runs
     costing/                    assumptions, rates, context, components/, engine
     aggregation/                rollups, suppression
     access/                     roles, pseudonymization, audit log
@@ -285,10 +303,10 @@ make lint     # ruff
 
 ## Before this is shown externally
 
-The owner has approved every value in `config/assumptions.yaml`, so the engine is cleared
-to run. What approval does **not** do is turn an estimate into a measurement. These are the
-ones most worth replacing with the customer's own figures, because they move the headline
-most and are the least grounded:
+The owner has approved every value in `config/assumptions.yaml`, so the engine is cleared to
+run. What approval does **not** do is turn an estimate into a measurement. These are the ones
+most worth replacing with the customer's own figures, because they move the headline most and
+are the least grounded:
 
 1. The **sworn benefits multiplier**, 1.75. The owner accepted it on 2026-11-12 as the
    working value and chose not to block on sourcing it, so the engine runs on it. It is
@@ -303,6 +321,26 @@ most and are the least grounded:
    length and cost, field training length, washout rates, civilian ramp weeks.
 6. The **civilian vacancy productivity-loss factor**.
 7. The **minimum cell size** for suppression (default 5).
+8. The **12 private-sector coefficients**, accepted by the owner on 2026-11-13. Two are
+   researched from a statutory or government source — the private benefits multiplier from
+   BLS ECEC, and the 300-day agency-charge filing window from Title VII — and keep that
+   status. The other ten are owner estimates he now stands behind: the temp-agency markup,
+   the outside-investigator rate, the three challenge-forum hour figures, two non-statutory
+   filing windows, the two separation-agreement hour figures and the unemployment
+   experience-rating multiplier. Each still records that it is not a researched figure and
+   what would settle it, usually the client's own invoices. See section 8 of
+   `docs/cost_methodology.md`.
+9. The **five private benefits multipliers by occupational group**, reviewed by the owner
+   on 2026-11-13. They run from 1.2996 for service work to 1.4686 for production and
+   transportation, each from its own BLS series. Which one applies is a selection: the user
+   picks the client's occupation group when opening a private-sector engagement and can
+   change it later, and a row in the client's file that names its own group keeps it. With
+   nothing selected the wage is loaded at the all-occupations 1.4287, and the load report
+   says for how many people.
+10. **Sales and office is one selection, and its two halves differ.** BLS reports sales at
+    1.3283 and office and administrative support at 1.4564 but the product offers them as
+    one group at 1.3977. A client whose staff are mostly one or the other is better served by
+    its own figure for that assumption.
 
 The fictional county name is settled: **Harlow County**, confirmed by the owner on
 2026-11-12 in `config/org_county.yaml`. It is invented, and

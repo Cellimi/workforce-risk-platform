@@ -16,10 +16,10 @@ items should be enough to find out why without reading any Python.
 someone for shifts they do not work, or pays overtime to cover a post, the engine charges the
 full amount — then records what the county stopped paying as a **negative line item** in its
 own offset component. Totals always report gross, offset and net separately, so a saving can
-never be quietly used to shrink a cost. There are two offsets: `C3-offset` for an unpaid
-suspension and `C5-offset` for the salary of a vacant post after a removal. Both are defined
-once, in `OFFSET_COMPONENTS`, and everything that needs to know "is this a saving?" asks that
-set.
+never be quietly used to shrink a cost. There are three offsets: `C3-offset` for an unpaid
+suspension, `C5-offset` for the salary of a vacant post after a removal, and `C7-offset` for
+what an insurer paid of a private employer's settlement. All three are defined once, in
+`OFFSET_COMPONENTS`, and everything that needs to know "is this a saving?" asks that set.
 
 **Every dollar is explainable.** Each `CostLineItem` stores the amount, a human-readable
 `formula`, the actual `inputs` used, and the ids of every assumption consumed. Nothing is
@@ -73,6 +73,13 @@ loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
 |---|---|---|
 | `benefits_multiplier_civilian` | **1.627** | researched |
 | `benefits_multiplier_sworn` | **1.75** | confirmed, but low confidence and unsourced |
+| `private_benefits_multiplier_all` | **1.4287** | researched; owner reviewed 2026-11-13 |
+
+**Which family of multipliers applies is the sector's decision.** The two public
+multipliers belong to the public-sector pack; a private engagement loads each wage with the
+private-industry figure for that person's occupational group, or the all-occupations figure
+shown here where the file does not give one. Section 8 covers them; the rest of this section
+describes the public-sector model.
 
 The civilian multiplier is the ratio of total compensation to wages for state and local
 government workers in the BLS **Employer Costs for Employee Compensation** release for March
@@ -112,7 +119,9 @@ behind a number*; it does not change *where the number came from*. The `source` 
 HR and labor relations staff are never in an HR discipline extract, and senior deciding
 officials are usually not named on the action. Their hours are costed at a reference annual
 salary from the registry, converted at `c1_reference_annual_hours` (2,080) and loaded with
-the civilian multiplier. When the record *does* name the person -- a supervisor, or a
+**the sector pack's own default multiplier** -- the civilian one for a county, the private
+all-occupations one
+for a company. When the record *does* name the person -- a supervisor, or a
 deciding official who is an employee in the dataset -- their own loaded rate is used instead,
 and the line item's formula says which happened.
 
@@ -389,15 +398,281 @@ The **productivity ramp is not** washout-adjusted: only the person who stays ram
 
 ---
 
-## 8. Aggregation, suppression and use limitation
+## 8. The private-sector cost model
+
+Everything above describes a county. A licensee's next client is a company, and the arithmetic
+does not change: a component looks at a record and, if the record shows the event happened,
+produces a line item. Three things do change, and a **sector pack** holds exactly those three
+(`src/wri_engine/sectors/`):
+
+| A pack decides | Public sector | Private sector |
+|---|---|---|
+| Which components can run | C1-C5 | C1-C5, plus **C6** and **C7** |
+| Which benefits multiplier loads a wage | `benefits_multiplier_sworn` for sworn staff, `benefits_multiplier_civilian` otherwise | One per broad occupational group, `private_benefits_multiplier_<group>`; `private_benefits_multiplier_all` where the group is not given |
+| Which coefficient ids must exist before the engine starts | 6 turnover profiles, 4 challenge forums | 2 turnover profiles, 6 challenge forums |
+
+A pack holds no arithmetic and no numbers: a coefficient still lives in
+`config/assumptions.yaml` and is still fetched by id (rule 1). An engagement's sector comes
+from its record in the database and never from anything the caller sends, so a client cannot
+have their actions priced under another sector's model.
+
+**The two packs deliberately share one coefficient namespace.** Where the sectors genuinely do
+the same thing -- an HR officer's hours on a written reprimand -- they share the id and the
+value, so there is one number for the owner to confirm instead of two that can drift apart.
+Only a genuine difference earns a new id, and every id below is a genuine difference.
+
+**No component branches on the sector.** C6 and C7 emit a line only when the record carries
+the field they need -- a severance amount, an insurer payment -- and public-sector data
+carries none of them, so the new components are inert on public data. That is rule 9
+(actuals over estimates) doing double duty: it is also what makes the public figures in
+section 12 provably unchanged by this work, and a property test asserts it line item by line
+item.
+
+### Benefits loading
+
+```
+loaded_hourly_rate = hourly_base_rate x benefits_multiplier[benefits_group]
+```
+
+A private employer's benefits cost per wage dollar depends on the kind of work, so the
+private pack carries **one multiplier per broad occupational group** and the all-occupations
+figure as the fallback. Each is total compensation divided by wages and salaries, per hour
+worked, for private industry workers in the BLS **Employer Costs for Employee Compensation**
+series for 2026 Q2 (the June 2026 reference period), read from `data.bls.gov` on 2026-11-13:
+
+| `occupation_group` on the employee | Total comp. | Wages | Multiplier | BLS series (total / wages) | Status |
+|---|---:|---:|---:|---|---|
+| `management_professional` | $78.88 | $54.06 | **1.4591** | `CMU2010000100000D` / `CMU2020000100000D` | researched; owner reviewed 2026-11-13 |
+| `sales_office` | $36.34 | $26.00 | **1.3977** | `CMU2010000200000D` / `CMU2020000200000D` | researched; owner reviewed 2026-11-13 |
+| `service` | $23.73 | $18.26 | **1.2996** | `CMU2010000300000D` / `CMU2020000300000D` | researched; owner reviewed 2026-11-13 |
+| `construction_maintenance` | $47.80 | $32.88 | **1.4538** | `CMU2010000400000D` / `CMU2020000400000D` | researched; owner reviewed 2026-11-13 |
+| `production_transportation` | $36.70 | $24.99 | **1.4686** | `CMU2010000500000D` / `CMU2020000500000D` | researched; owner reviewed 2026-11-13 |
+| *(blank)* -- all occupations | $46.89 | $32.82 | **1.4287** | `CMU2010000000000D` / `CMU2020000000000D` | researched; owner reviewed 2026-11-13 |
+
+The assumption ids are `private_benefits_multiplier_<group>` and
+`private_benefits_multiplier_all`. Benefits are 30.0% of employer costs in private industry
+against 38.5% in state and local government, which is why even the heaviest private group
+sits well below the 1.627 used for county civilians.
+
+**The spread is the reason the groups exist.** Service work is loaded at 1.30 and production
+work at 1.47. Loading everyone at the 1.4287 average overstates every hour of a service
+worker's cost by about a tenth and understates a production worker's by about 3%. Golden
+case 14 shows it on one action: three shifts of paid leave for a line cook cost $561.43 at
+the service multiplier and would have been booked at $617.20 at the average.
+
+Things a reader should know:
+
+1. *The group is a selection the user makes.* When a private-sector engagement is opened,
+   the user selects the kind of work the client's people mostly do, and the screen shows the
+   multiplier each choice brings. Select construction and every wage is loaded at 1.4538;
+   select sales and office and it is 1.3977. The engagement's admin can change the selection
+   later on the Engagement page, and every figure is recomputed under the new one.
+
+   The selection is the multiplier for **everyone whose own row does not say otherwise**. A
+   client with a mixed workforce can also fill in the optional `occupation_group` column on
+   the employee table, and a row that names a group keeps it -- the office clerk on a building
+   firm's payroll is loaded as office staff, not as a builder. The order is: the employee's
+   own row, then the engagement's selection, then the all-occupations figure.
+
+   The load report says which of those happened and for how many people:
+   `occupation_group_from_engagement` where the selection was used, and
+   `defaulted_occupation_group` where nothing was selected and the all-occupations figure
+   stood in. A public engagement has no such selection and ignores the column.
+2. *Each group's bounds are computed, not judged*: the envelope of the group's own ratio over
+   the 20 quarters to 2026 Q2 and of its published sub-groups in 2026 Q2. Sales and office is
+   the wide one (1.3283 to 1.4564), because sales (1.3283) and clerical work (1.4564) are
+   loaded very differently and BLS reports them as one group.
+3. *The fallback is bounded by the lightest and heaviest groups*: 1.2996 (service) and
+   1.4686 (production, transportation and material moving). So low and high mode show what
+   an unclassified workforce costs if it is all of one kind or all of the other. The owner
+   set these on 2026-11-13 in place of 1.38 / 1.4835, which had been fixed before the
+   occupational series could be read: the old high bound rested on a wages figure for the
+   management group that the series does not bear out, and the old low bound did not reach
+   service. The base value 1.4287 was verified against the series and did not change. A test
+   holds the bounds to the groups' own figures, so they cannot drift apart.
+4. *The hour-worked versus hour-paid caveat in section 2 applies here too*, in the same
+   direction and for the same reason.
+5. *BLS's news-release tables refuse automated readers*, so the figures were read from the
+   BLS data series behind them. The series ids above are the citation: anyone can open
+   `https://data.bls.gov/timeseries/<series id>` and see the same numbers.
+
+The reference rates in section 2 -- an HR officer, a senior deciding official, nobody who
+appears in a discipline extract -- are loaded with **the pack's own default multiplier**, the
+all-occupations figure, not a fixed civilian one. A company's HR officer does not carry a
+state pension, and charging one at a government multiplier would have overstated every action
+in a private engagement. The all-occupations figure is used because nobody knows what kind of
+work a person who is not in the file does.
+
+### C1 -- the outside investigator
+
+A county investigates with internal affairs or a supervisor. A company facing a harassment
+complaint often retains a law firm or a specialist investigator, and that invoice is the
+largest single processing cost on the action.
+
+```
+outside_investigation = outside_investigator_hours x c1_outside_investigator_hourly_rate
+```
+
+The hours come from the record. Nothing is counted where the record shows none, so an
+in-house investigation costs what it did before.
+
+### C3 -- how the post is covered, and an unpaid suspension that may not be lawful
+
+A county backfills a minimum-staffing post with a peer on overtime. A company may do that,
+hire an agency temp, or leave the post empty. The employee record carries
+`coverage_method` -- `overtime`, `temp_agency` or `none` -- and the same routing prices both
+C3 (the absence) and C5's vacancy period (the empty post), so one empty post is never priced
+two different ways:
+
+| `coverage_method` | Rate used |
+|---|---|
+| `overtime` | base rate x `c3_ot_premium_multiplier` x `c3_ot_burden_multiplier`, as in section 5 |
+| `temp_agency` | the peer's base rate x `c3_temp_agency_markup`; no FLSA premium, because the temp is not working overtime |
+| `none` | nothing: the post stands empty and no coverage cost is charged |
+
+Blank means `overtime`, which is what every public-sector record implies, so nothing moves on
+existing data.
+
+**The salary-basis rule.** Under the Fair Labor Standards Act regulations, 29 CFR
+541.602(b)(5), an employer may dock a salaried exempt employee's pay for a disciplinary
+suspension **only in full-day increments and only under a written policy applicable to all
+employees**. Where an action records an unpaid suspension of an exempt employee and
+`written_conduct_policy` is N, the engine emits a **zero-valued `C3-offset` line** citing the
+regulation instead of crediting the wage back. The line is there so the reader sees the
+credit was considered and withheld, and why -- a missing credit with no line would look like
+an omission. Blank means Y: a deduction recorded as made is treated as properly made, because
+assuming otherwise would withhold a credit the employer did take.
+
+### C4 -- three more ways a private action is challenged
+
+A private employer without a union contract has no grievance ladder and no civil service
+board. The pack adds three forums, each with its own HR hours and filing window:
+
+| Forum | `c4_hr_hours_*` | `c4_filing_window_days_*` |
+|---|---:|---:|
+| `agency_charge` | 25 | **300** (researched) |
+| `demand_letter` | 6 | 90 |
+| `mediation` | 14 | 60 |
+
+The agency-charge window is the one figure here fixed by statute rather than judgement. Title
+VII, 42 U.S.C. 2000e-5(e)(1), gives 180 days to file a charge, extended to 300 where the
+person first instituted proceedings with a state or local agency with authority to grant
+relief. 300 is used as the base and 180 as the low bound, so **low mode shows the figures for
+a client in a state with no such agency.** The window matters because, as in section 6, an
+action inside its window is reported as still accruing cost rather than as complete.
+
+Arbitration and court stay in the private pack: a unionised private employer grieves and
+arbitrates exactly as a county does, and either sector can end up in court.
+
+### C6 -- separation agreements and unemployment
+
+Two costs that follow a private removal out of the door and are almost never on the
+discipline ledger.
+
+| Line | Formula |
+|---|---|
+| `severance_paid` | the amount on the record |
+| `agreement_hr_hours` | `c6_separation_agreement_hr_hours` (8) x HR loaded rate |
+| `agreement_counsel` | `c6_separation_agreement_counsel_hours` (4) x `c4_outside_counsel_hourly_rate` |
+| `unemployment_benefits_charged` | benefits charged x `c6_unemployment_experience_rating_multiplier` |
+
+Severance and benefits charged are **read, never estimated**. An agreement recorded with no
+amount is not reconstructed from weeks of service: it is reported as a cost that cannot be
+counted, so the total is visibly a floor rather than quietly wrong (rule 13).
+
+The experience-rating multiplier is a separate line of the formula precisely so it can be set
+to **1.0 and disappear**, which is its base value. The mechanism is well documented -- FUTA is
+6.0% on the first $7,000 of wages with a credit of up to 5.4% for state unemployment tax paid,
+and the state tax is experience rated, so benefits charged to an employer's account raise its
+later rate. The *size* of that effect for any one employer is not documented, so the base
+counts the dollars charged and nothing more, and the high bound of 2.0 shows what a fully
+experience-rated employer would see.
+
+C6 runs only where the separation reason is discipline-driven. A resignation for a better job
+is not a cost of discipline.
+
+### C7 -- employment practices liability, and what the insurer paid
+
+A private employer facing a discrimination charge usually has an employment practices
+liability policy behind it. That changes **who pays**, not whether the money was spent, and a
+model reporting only the employer's share would understate what the discipline cost.
+
+So `C7-offset` credits back whatever the insurer paid: **gross shows the full exposure, net
+shows the employer's own burden** -- the same shape as C3 and C5. Both figures are read from
+the record; neither is estimated. The premium that bought the cover is **not** counted: it is
+paid whether or not anyone is disciplined, so it is not a cost of this action (rule 9).
+
+**The retention trap.** The employer's retention and the insurer's payment are two slices of
+one payout, and the employer's slice is easy to count twice. If C4 has already booked a
+$45,000 settlement and the insurer paid $30,000 of it, the employer's $15,000 is *already*
+in the number -- it is precisely the part the offset does not credit back. Booking the
+retention again as its own line would overstate the matter by exactly the retention. So the
+retention is booked **only when nothing else captured the payout**: a retention recorded with
+no settlement and no back pay, which is what an accounts payable export looks like when all
+it knows is "we paid our deductible". Where both appear, a validation warning
+(`retention_recorded_with_payout`) names the records rather than the engine guessing which
+way the policy runs.
+
+This was caught by hand-checking golden case 13, where it had inflated gross by $45,000.
+It is the reason that case exists.
+
+### What the private model does not do
+
+- **No pattern detection and no probability weighting.** The phase boundary in `CLAUDE.md`
+  applies to both sectors.
+- **No estimated severance, no estimated unemployment charge, no estimated insurer payment.**
+  Where the record is silent the cost is reported as uncounted, never filled in.
+- **No finer occupational detail than the five broad groups**, and none by industry.
+  BLS publishes both; the model stops at the level a client's job families can be
+  mapped to without argument.
+- **No state-by-state variation.** The agency-charge window is modelled through its low bound
+  rather than by asking which state the client is in. Unemployment tax rates, which genuinely
+  are per state, are not modelled at all: the engine counts benefits charged.
+
+### The status of every new value
+
+Seventeen coefficients were added for this sector and **no existing value was changed**.
+The owner reviewed all seventeen on **2026-11-13**, so none is a placeholder and none is
+awaiting review. The five occupational-group multipliers are in the benefits-loading table
+above and stay `researched`; the table below is the other twelve:
+
+| | Count | Which |
+|---|---:|---|
+| **researched** (a cited government or statutory source fixes the number) | 2 | `private_benefits_multiplier_all`, `c4_filing_window_days_agency_charge` |
+| **confirmed** (the owner stands behind the figure; no authoritative source exists) | 10 | the three C4 forum hour figures, the two non-statutory filing windows, `c3_temp_agency_markup`, `c1_outside_investigator_hourly_rate`, the two C6 agreement-hour figures, `c6_unemployment_experience_rating_multiplier` |
+
+**Read that table the way section 2 says to read `status`.** The two researched entries stay
+researched: naming a source is a stronger claim than a sign-off, and an approval must not
+flatten it away. The ten confirmed entries are owner estimates the owner stands behind --
+approval settles *who* stands behind a number, not *where it came from*. Their `confidence`
+levels did not move (five low, five medium), each still records that it is not a researched
+figure, and each still names what would settle it, which for most of them is the client's own
+invoices or matter records.
+
+`c3_temp_agency_markup` is the one to watch. A staffing markup is quotable -- the American
+Staffing Association's own worked example marks a $17.00 pay rate up 51.5% to a $25.76 bill
+rate, and 25% to 75% is the commonly quoted range -- but a trade association and a vendor
+price sheet are not an official statistic. It therefore carries its citation and is
+`confirmed`, not `researched`: calling a vendor page research would devalue the status for
+the figures that earned it. Watch the basis too, because a 50% markup on pay is a 33.3%
+margin on the bill rate and quotes use both.
+
+The review checklist is `AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`. It is
+now empty, and deliberately kept rather than deleted: an empty checklist is what makes the
+next unreviewed value fail the build. Every entry carries its full source text in
+`config/assumptions.yaml`, which is where to read one rather than this summary.
+
+---
+
+## 9. Aggregation, suppression and use limitation
 
 ### Rollups
 
 The default view is **employee type (role family) x misconduct category**, with department as
 a toggle; action type, location, bargaining unit, year and sworn/civilian are also available
 on either axis or as filters. Each cell carries action count, distinct employees, gross,
-offset, net, cost per action, cost per 100 FTE, the C1-C5 component mix, and how many of its
-records are still accruing cost.
+offset, net, cost per action, cost per 100 FTE, the component mix (C1-C5, and C6 and C7 in
+a private engagement), and how many of its records are still accruing cost.
 
 Cost per 100 FTE uses **active headcount**, not the number of people disciplined. The
 headline "per employee per year" figure divides net cost by the window length and by everyone
@@ -450,7 +725,7 @@ endpoint, filters, timestamp, and whether it was allowed.
 
 ---
 
-## 9. Data quality
+## 10. Data quality
 
 The adapter reports what it could not translate rather than raising. Records with **blocking**
 issues are excluded from every total and the exclusion count is always shown -- they are never
@@ -467,7 +742,7 @@ unknown action; a resolved appeal with no resolution date.
 
 ---
 
-## 10. What this baseline does not do
+## 11. What this baseline does not do
 
 Phase 1 is the cost baseline and nothing else.
 
@@ -477,14 +752,16 @@ Phase 1 is the cost baseline and nothing else.
   `src/wri_engine/generator/README.md`, precisely so nobody mistakes it for a discovery.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
-- **No claim that any figure is a measured agency cost.** The owner has approved all 167
-  assumptions, which clears the engine to run but does not make the numbers measurements.
-  Only 13 carry a cited source; 86 remain low confidence. The Assumptions page tints the
+- **No claim that any figure is a measured agency cost.** The registry holds 184
+  assumptions and the owner has approved every one of them — the 167 the public-sector
+  model runs on, on 2026-11-12, and the 17 the private sector added, on 2026-11-13. Approval
+  clears the engine to run; it does not make the numbers measurements. Only 20 carry a cited source, and
+  91 of the 184 remain low confidence. The Assumptions page tints the
   low-confidence rows and shows the source beside each value.
 
 ---
 
-## 11. Current results
+## 12. Current results
 
 From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:
 

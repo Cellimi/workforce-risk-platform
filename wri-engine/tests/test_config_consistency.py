@@ -9,7 +9,14 @@ from __future__ import annotations
 from decimal import Decimal
 
 from wri_engine.costing.engine import expected_assumption_ids
-from wri_engine.schema import ActionType, AppealForum, AppealOutcome, SeparationReason
+from wri_engine.schema import (
+    ActionType,
+    AppealForum,
+    AppealOutcome,
+    OccupationGroup,
+    SeparationReason,
+)
+from wri_engine.sectors import get_pack, sector_ids
 
 
 def test_action_types_match_the_taxonomy(org):
@@ -32,6 +39,16 @@ def test_every_assumption_the_engine_needs_exists(assumptions, org):
     assumptions.require_all(expected_assumption_ids(org))
 
 
+def test_every_sector_offers_every_profile_its_intake_can_fall_back_to(assumptions):
+    """A sector's `standard_turnover_profile` must be one it actually runs, and its
+    coefficients must exist -- otherwise the intake fallback would ask for an id that is
+    not there."""
+    for sector in sector_ids():
+        pack = get_pack(sector)
+        assert pack.standard_turnover_profile in pack.turnover_profiles
+        assumptions.get(f"c5_washout_rate_{pack.standard_turnover_profile}")
+
+
 def test_every_role_family_has_a_configured_turnover_profile(org, assumptions):
     for role in org.role_families.values():
         assumptions.get(f"c5_washout_rate_{role.turnover_profile}")
@@ -48,10 +65,106 @@ def test_the_vacancy_salary_burden_assumption_exists(assumptions):
     assert "OPEN ITEM 3" in assumption.notes
 
 
-def test_the_registry_is_fully_signed_off(assumptions):
-    """The owner approved the whole registry on 2026-11-12, so nothing is left pending."""
-    pending = sorted(a.id for a in assumptions.placeholders)
-    assert not pending, f"{len(pending)} assumptions still awaiting sign-off: {pending[:5]}"
+#: Values the owner has not reviewed yet. This is the review checklist: a new value goes in
+#: here when it is added and comes out when the owner approves it, so the two tests below
+#: hold the registry and this list to each other.
+#:
+#: Empty, because the owner approved the public-sector registry on 2026-11-12 and the twelve
+#: private-sector values on 2026-11-13. Add to it, do not delete it -- an empty checklist is
+#: what makes the next unreviewed value fail the build.
+AWAITING_OWNER_REVIEW: set[str] = set()
+
+
+def test_nothing_the_owner_approved_has_gone_back_to_pending(assumptions):
+    """The owner signed off the public-sector registry on 2026-11-12 and the private-sector
+    values on 2026-11-13.
+
+    New work may add values he has not seen -- those belong in AWAITING_OWNER_REVIEW above.
+    What must not happen is an already-approved value quietly reverting to a placeholder, or
+    a new one being added without landing on the review list.
+    """
+    pending = {a.id for a in assumptions.placeholders}
+    unexpected = sorted(pending - AWAITING_OWNER_REVIEW)
+    assert not unexpected, (
+        f"{len(unexpected)} assumptions are pending that are not on the review checklist: "
+        f"{unexpected}. Either the owner's sign-off was undone, or a new value was added "
+        f"without being listed for him to review."
+    )
+
+
+def test_the_review_checklist_is_not_stale(assumptions):
+    """Once the owner approves one, it has to come off the list."""
+    pending = {a.id for a in assumptions.placeholders}
+    approved = sorted(AWAITING_OWNER_REVIEW - pending)
+    assert not approved, (
+        f"{approved} are no longer pending, so remove them from AWAITING_OWNER_REVIEW."
+    )
+
+
+def test_every_pending_value_says_why_it_is_not_researched(assumptions):
+    """A pending value must explain itself, so the owner can review it without digging.
+
+    The owner asked for every new value to carry a citation. Where no authoritative figure
+    exists, the honest answer is to say so rather than dress a vendor page up as research --
+    so each pending entry has to state that it is not researched and what would settle it.
+    """
+    for assumption in assumptions.placeholders:
+        assert assumption.source.strip(), assumption.id
+        assert _says_it_is_not_researched(assumption), (
+            f"{assumption.id} is pending but does not say why it is not researched"
+        )
+
+
+def _says_it_is_not_researched(assumption) -> bool:
+    notes = assumption.notes.lower()
+    return (
+        "not a researched figure" in notes
+        or "not marked researched" in notes
+        or "Owner professional estimate" in assumption.source
+    )
+
+
+#: The twelve coefficients the private-sector cost model added.
+PRIVATE_SECTOR_VALUES = {
+    "private_benefits_multiplier_all",
+    "c4_filing_window_days_agency_charge",
+    "c1_outside_investigator_hourly_rate",
+    "c3_temp_agency_markup",
+    "c4_filing_window_days_demand_letter",
+    "c4_filing_window_days_mediation",
+    "c4_hr_hours_agency_charge",
+    "c4_hr_hours_demand_letter",
+    "c4_hr_hours_mediation",
+    "c6_separation_agreement_counsel_hours",
+    "c6_separation_agreement_hr_hours",
+    "c6_unemployment_experience_rating_multiplier",
+}
+
+
+def test_approving_the_private_values_did_not_turn_them_into_measurements(assumptions):
+    """The owner approved all twelve on 2026-11-13. That settles who stands behind them and
+    nothing else.
+
+    So the ten that are not researched must still say so and still name what would settle
+    them, and the two that are researched must keep that status -- `researched` names a cited
+    source and is the stronger claim, which a sign-off must not flatten away.
+    """
+    for assumption_id in sorted(PRIVATE_SECTOR_VALUES):
+        assumption = assumptions.get(assumption_id)
+        assert assumption.status in ("confirmed", "researched"), assumption_id
+        assert str(assumption.last_reviewed) >= "2026-11-12", assumption_id
+        if assumption.status == "researched":
+            continue
+        assert _says_it_is_not_researched(assumption), (
+            f"{assumption_id} is confirmed rather than researched, so it has to say that it "
+            f"is not a researched figure -- approval is not a citation"
+        )
+
+    researched = {a for a in PRIVATE_SECTOR_VALUES if assumptions.get(a).status == "researched"}
+    assert researched == {
+        "private_benefits_multiplier_all",
+        "c4_filing_window_days_agency_charge",
+    }, "the two values with a statutory or government source must stay `researched`"
 
 
 def test_sign_off_did_not_inflate_confidence(assumptions):
@@ -84,6 +197,70 @@ def test_researched_assumptions_were_not_downgraded(assumptions):
     researched = {a.id for a in assumptions.assumptions.values() if a.status == "researched"}
     assert "benefits_multiplier_civilian" in researched
     assert len(researched) >= 13
+
+
+#: Researched values the owner has not reviewed yet. A researched value is not a
+#: placeholder -- it has a cited source and the engine runs on it -- so it does not belong
+#: on AWAITING_OWNER_REVIEW. This is the list to read and then delete from: once the owner
+#: has reviewed one, remove its id here.
+#:
+#: Empty, because the owner reviewed the five occupational-group multipliers on 2026-11-13.
+#: Add to it, do not delete it.
+RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = set()
+
+#: The five occupational-group multipliers the owner reviewed on 2026-11-13.
+OCCUPATION_GROUP_MULTIPLIERS = {f"private_benefits_multiplier_{g}" for g in OccupationGroup}
+
+
+def test_researched_values_awaiting_review_are_real_and_cited(assumptions):
+    """Everything on the review list exists, is marked researched rather than confirmed, and
+    names the source it was read from, so the owner can check the figure himself."""
+    for assumption_id in sorted(RESEARCHED_AWAITING_OWNER_REVIEW):
+        assumption = assumptions.get(assumption_id)
+        assert assumption.status == "researched", assumption_id
+        assert assumption.source.strip(), assumption_id
+        assert "awaiting the owner" in assumption.notes, assumption_id
+
+
+def test_the_reviewed_group_multipliers_still_stand_on_their_series(assumptions):
+    """The owner's review does not turn a sourced figure into a sign-off. Each of the five
+    stays `researched`, still names the two BLS series it is the ratio of, and no longer
+    claims to be awaiting anything."""
+    for assumption_id in sorted(OCCUPATION_GROUP_MULTIPLIERS):
+        assumption = assumptions.get(assumption_id)
+        assert assumption.status == "researched", assumption_id
+        assert "CMU201" in assumption.source and "CMU202" in assumption.source, assumption_id
+        assert "reviewed by the owner" in assumption.notes, assumption_id
+        assert "awaiting" not in assumption.notes, assumption_id
+        assert assumption_id not in RESEARCHED_AWAITING_OWNER_REVIEW
+
+
+def test_the_fallback_is_bounded_by_the_lightest_and_heaviest_groups(assumptions):
+    """The owner set the all-occupations fallback's bounds to the range of the five groups
+    on 2026-11-13. Low and high mode then show what an unclassified workforce costs if it is
+    all of the lightest or all of the heaviest kind of work -- which only holds while the
+    bounds really are the groups' own figures."""
+    fallback = assumptions.get("private_benefits_multiplier_all")
+    groups = [assumptions.get(a).value for a in OCCUPATION_GROUP_MULTIPLIERS]
+    assert (fallback.low, fallback.high) == (min(groups), max(groups))
+    assert fallback.low == assumptions.get("private_benefits_multiplier_service").value
+    assert fallback.low < fallback.value < fallback.high
+    assert fallback.status == "researched"
+
+
+def test_every_occupational_group_has_its_own_private_multiplier(assumptions):
+    """The private pack must offer a multiplier for each BLS group and fall back to the
+    all-occupations figure, which by construction sits inside the range of the groups."""
+    pack = get_pack("private_sector")
+    assert set(pack.benefits_group_by_occupation) == set(OccupationGroup)
+    values = []
+    for group, benefits_group in pack.benefits_group_by_occupation.items():
+        assumption_id = pack.benefits_assumption_by_group[benefits_group]
+        assert assumption_id == f"private_benefits_multiplier_{group}"
+        values.append(assumptions.value(assumption_id))
+    fallback = assumptions.value(pack.benefits_assumption_by_group[pack.default_benefits_group])
+    assert min(values) < fallback < max(values)
+    assert get_pack("public_sector").benefits_group_by_occupation == {}
 
 
 def test_every_assumption_names_the_owner_who_signed_it_off(assumptions):

@@ -1,0 +1,197 @@
+name: "Agency charge settled under an insurance policy, with an outside investigator"
+description: >
+  A reprimand draws a charge at an enforcement agency. The employer brings in an outside
+  investigator, defends the charge and settles. A liability policy carries most of it: the
+  employer pays its retention, the insurer pays the rest. Gross shows the full exposure,
+  the offset credits the insurer's share, and net is what the employer actually bore.
+
+  The case carries both insurance data shapes on purpose. On the charge the settlement is
+  recorded, so the retention is already inside it and is NOT booked again. On the demand
+  letter nothing but the deductible is recorded, so the deductible is the cost. Getting this
+  wrong in either direction misstates the matter by the size of the retention.
+sector: private_sector
+as_of: 2026-11-12
+action_under_test: A1
+
+org:
+  departments:
+    - id: retail
+      name: "Retail"
+      locations: ["Store 14"]
+      role_families:
+        - id: sales_associate
+          name: "Sales Associate"
+          job_titles: ["Sales Associate"]
+          job_class_code: "RT-200"
+          pay_grade: sales_associate
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: non_exempt
+          schedule: civilian_5x8
+          benefits_group: private_all
+          turnover_profile: civilian_standard
+          is_supervisory: false
+        - id: store_manager
+          name: "Store Manager"
+          job_titles: ["Store Manager"]
+          job_class_code: "RT-500"
+          pay_grade: store_manager
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: exempt
+          schedule: civilian_5x8
+          benefits_group: private_all
+          turnover_profile: civilian_skilled
+          is_supervisory: true
+  entry_salaries:
+    sales_associate: 41600
+    store_manager: 72800
+
+employees:
+  - employee_id: E1
+    department: "Retail"
+    role_family: sales_associate
+    job_title: "Sales Associate"
+    job_class_code: "RT-200"
+    pay_grade: sales_associate
+    pay_step: 1
+    annual_base_salary: 52000
+    hourly_base_rate: 25.00
+    flsa_status: non_exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    coverage_method: none
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_standard
+    work_location: "Store 14"
+    supervisor_id: E2
+    hire_date: 2022-11-07
+  - employee_id: E2
+    department: "Retail"
+    role_family: store_manager
+    job_title: "Store Manager"
+    job_class_code: "RT-500"
+    pay_grade: store_manager
+    pay_step: 1
+    annual_base_salary: 83200
+    hourly_base_rate: 40.00
+    flsa_status: exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    coverage_method: none
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_all
+    turnover_profile: civilian_skilled
+    work_location: "Store 14"
+    hire_date: 2017-03-27
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-01-12
+    proposal_date: 2026-01-19
+    decision_date: 2026-02-02
+    misconduct_category: conduct_unbecoming
+    misconduct_subtype: "Public conduct"
+    action_type: written_reprimand
+    suspension_days: 0
+    was_investigated: true
+    investigation_type: hr
+    deciding_official_level: division_head
+    outside_investigator_hours: 20
+    written_conduct_policy: true
+
+appeals:
+  - appeal_id: P1
+    action_id: A1
+    forum: agency_charge
+    filed_date: 2026-03-30
+    resolution_date: 2026-09-18
+    outcome: settled
+    back_pay_awarded: 0
+    settlement_amount: 45000
+    outside_counsel_hours: 60
+    insurer_paid_amount: 30000
+    insurance_retention_paid: 15000
+  # The other data shape. A demand letter arrives separately, the broker handles it, and all
+  # the client's accounts payable export shows is the deductible they paid. There is no
+  # settlement figure to book, so the retention is the only record of what it cost them.
+  - appeal_id: P2
+    action_id: A1
+    forum: demand_letter
+    filed_date: 2026-04-20
+    resolution_date: 2026-06-15
+    outcome: settled
+    back_pay_awarded: 0
+    settlement_amount: 0
+    outside_counsel_hours: 0
+    insurer_paid_amount: 0
+    insurance_retention_paid: 10000
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# Associate E1: $52,000 / 2,080 = $25.00/hr base x 1.4287 = $35.7175/hr loaded.
+# Manager E2:   $83,200 / 2,080 = $40.00/hr base x 1.4287 = $57.148/hr loaded.
+# HR reference $53.57625/hr; division head $72.121875/hr; outside counsel $325/hr.
+#
+# C1, a written reprimand plus the investigation it took
+#   supervisor            4 hrs x $57.148    = $228.592 -> $228.59
+#   HR                    2 hrs x $53.57625  = $107.1525 -> $107.15
+#   deciding              1 hr  x $72.121875 = $72.12
+#   investigation (HR)   16 hrs x $53.57625  = $857.22
+#   outside investigator 20 hrs x $325.00    = $6,500.00
+#     A public employer uses its own investigator and records nothing here. A private
+#     employer facing a harassment complaint retains an outside firm precisely so the
+#     investigation is independent of the managers involved, and it is billed by the hour.
+#
+# C4, the charge and the demand letter
+#   agency charge, internal  25 hrs x $53.57625 = $1,339.40625 -> $1,339.41
+#   demand letter, internal   6 hrs x $53.57625 = $321.4575 -> $321.46
+#   outside counsel          60 hrs x $325.00   = $19,500.00
+#   settlement               $45,000.00 from the record
+#   No arbitration fee: the forum is an agency charge, not arbitration. No back pay, so no
+#   interest.
+#
+# C7, WHO ACTUALLY PAID, AND THE TRAP IN IT
+#   On the CHARGE the insurer paid $30,000 of the $45,000 settlement. The settlement is
+#   already in gross, so the employer's $15,000 retention is already in the number too --
+#   it is simply the part the offset does not credit back. Booking that retention again as
+#   its own line would overstate the matter by exactly $15,000, so it is NOT booked, and a
+#   validation warning records the ambiguity for the engagement to resolve.
+#       C7-offset  -$30,000.00
+#   On the DEMAND LETTER nothing but the deductible is recorded, which is what a client's
+#   accounts payable export looks like when the broker handled the matter. With no
+#   settlement to sit inside, the deductible IS the cost:
+#       C7 policy retention  $10,000.00
+#
+# Gross   $83,925.95   the full exposure, insurer's share included
+# Offset  -$30,000.00  what the insurer bore
+# Net     $53,925.95   what the employer bore
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '72.12'}
+    - {component: C1, subcomponent: hr_hours, amount: '107.15'}
+    - {component: C1, subcomponent: investigation_hr, amount: '857.22'}
+    - {component: C1, subcomponent: outside_investigator, amount: '6500.00'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '228.59'}
+    - {component: C4, subcomponent: internal_hr_hours, amount: '321.46'}
+    - {component: C4, subcomponent: internal_hr_hours, amount: '1339.41'}
+    - {component: C4, subcomponent: outside_counsel, amount: '19500.00'}
+    - {component: C4, subcomponent: settlement, amount: '45000.00'}
+    - {component: C7, subcomponent: policy_retention, amount: '10000.00'}
+    - {component: C7-offset, subcomponent: insurer_paid_credited, amount: '-30000.00'}
+  gross: '83925.95'
+  offset: '-30000.00'
+  net: '53925.95'
+  cost_incomplete: false

@@ -20,7 +20,8 @@ import yaml
 from fastapi.testclient import TestClient
 
 from template_fixture import write_template
-from test_accounts_engagements import ANALYST, CLIENT, LEAD, SAMPLE, Installation
+from test_accounts_engagements import ANALYST, CLIENT, LEAD, OWNER, SAMPLE, Installation
+from wri_engine.adapters.base import Severity
 from wri_engine.adapters.county_hr_csv import DEFAULT_MAPPING
 from wri_engine.adapters.template import (
     NON_REPRESENTED,
@@ -36,6 +37,7 @@ from wri_engine.adapters.template import (
 from wri_engine.api.main import create_app
 from wri_engine.api.state import SOURCE_MARKER
 from wri_engine.costing.engine import run_costing
+from wri_engine.schema import CoverageMethod
 from wri_engine.settings import Settings
 
 AS_OF = date(2026, 9, 17)
@@ -282,10 +284,10 @@ def write(directory, table, rows, file=None):
         writer.writerows(rows)
 
 
-def load(tmp_path, employees, actions, mapping=None):
+def load(tmp_path, employees, actions, mapping=None, sector=None):
     write(tmp_path, "employees", employees)
     write(tmp_path, "actions", actions)
-    adapter = TemplateAdapter(mapping=mapping)
+    adapter = TemplateAdapter(mapping=mapping, sector=sector)
     return adapter, adapter.load(tmp_path)
 
 
@@ -920,3 +922,320 @@ def test_template_files_can_be_uploaded_in_one_step(site, loaded, org, run, tmp_
     )
     assert response.status_code == 200, response.text
     assert site.net(site.engagement, LEAD) == run.net
+
+
+# ---------------------------------------------------------------------------
+# the private-sector intake
+# ---------------------------------------------------------------------------
+PRIVATE_EMPLOYEE = {
+    **EMPLOYEE,
+    "coverage_method": "temp_agency",
+    "flsa_status": "exempt",
+}
+PRIVATE_ACTION = {
+    **ACTION,
+    "action_type": "suspension",
+    "suspension_days": "2",
+    "suspension_start_date": "2025-06-16",
+    "outside_investigator_hours": "9.5",
+    "written_conduct_policy": "N",
+}
+
+
+def test_a_private_engagement_loads_every_wage_under_the_private_multiplier(tmp_path):
+    """One private-industry multiplier covers everyone. A client file that marks someone
+    sworn -- a mapped code, or a column left over from another engagement -- must not pull a
+    state-government multiplier into a company's figures."""
+    sworn = {**EMPLOYEE, "employee_id": "E2", "is_sworn": "Y"}
+    adapter, data = load(tmp_path, [EMPLOYEE, sworn], [ACTION], sector="private_sector")
+    assert adapter.sector == "private_sector"
+    assert {e.benefits_group for e in data.employees} == {"private_all"}
+
+
+def test_a_public_engagement_still_splits_sworn_from_civilian(tmp_path):
+    """The seam must not have moved the public sector's own behaviour."""
+    sworn = {**EMPLOYEE, "employee_id": "E2", "is_sworn": "Y"}
+    _, data = load(tmp_path, [EMPLOYEE, sworn], [ACTION])
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {"E1": "civilian", "E2": "sworn_public_safety"}
+
+
+def test_a_turnover_profile_the_sector_does_not_run_is_reported_and_replaced(tmp_path):
+    """Pricing a warehouse hire at deputy recruitment cost would overstate the figure. The
+    profile falls back to the cheapest the sector runs, and the substitution is reported."""
+    row = {**EMPLOYEE, "turnover_profile": "sworn_deputy"}
+    adapter, data = load(tmp_path, [row], [ACTION], sector="private_sector")
+    assert data.employees[0].turnover_profile == "civilian_standard"
+    issue = next(i for i in adapter.report.issues if i.rule_id == "turnover_profile_not_in_sector")
+    assert issue.severity is not Severity.BLOCKING
+    assert issue.entity_id == "E1"
+    assert "sworn_deputy" in issue.message and "civilian_standard" in issue.message
+    assert adapter.report.blocking == []
+
+
+def test_the_same_profile_is_untouched_in_a_public_engagement(tmp_path):
+    row = {**EMPLOYEE, "turnover_profile": "sworn_deputy"}
+    adapter, data = load(tmp_path, [row], [ACTION])
+    assert data.employees[0].turnover_profile == "sworn_deputy"
+    assert "turnover_profile_not_in_sector" not in adapter.report.counts_by_rule()
+
+
+def test_the_private_columns_load_from_the_template(tmp_path):
+    """Everything the private components need comes off the template: how a post is covered,
+    an outside investigator's hours, whether a written policy backed an unpaid suspension,
+    what an insurer paid, and what a separation cost."""
+    write(
+        tmp_path,
+        "appeals",
+        [
+            {
+                "appeal_id": "AP1",
+                "action_id": "A1",
+                "forum": "agency_charge",
+                "filed_date": "2025-07-01",
+                "resolution_date": "2026-01-15",
+                "outcome": "settled",
+                "settlement_amount": "45000",
+                "outside_counsel_hours": "60",
+                "insurance_retention_paid": "25000",
+                "insurer_paid_amount": "30000",
+            }
+        ],
+    )
+    write(
+        tmp_path,
+        "separations",
+        [
+            {
+                "employee_id": "E1",
+                "separation_date": "2026-02-02",
+                "separation_reason": "removal_for_cause",
+                "linked_action_id": "A1",
+                "separation_agreement": "Y",
+                "severance_amount": "8000",
+                "unemployment_claim_filed": "Y",
+                "unemployment_benefits_charged": "6240",
+            }
+        ],
+    )
+    adapter, data = load(tmp_path, [PRIVATE_EMPLOYEE], [PRIVATE_ACTION], sector="private_sector")
+    assert adapter.report.blocking == []
+    employee, action = data.employees[0], data.actions[0]
+    assert employee.coverage_method == CoverageMethod.TEMP_AGENCY
+    assert action.outside_investigator_hours == Decimal("9.5")
+    assert action.written_conduct_policy is False
+    appeal = data.appeals[0]
+    assert (appeal.insurance_retention_paid, appeal.insurer_paid_amount) == (
+        Decimal(25000),
+        Decimal(30000),
+    )
+    separation = next(s for s in data.separations if s.linked_action_id == "A1")
+    assert separation.separation_agreement is True
+    assert separation.severance_amount == Decimal(8000)
+    assert separation.unemployment_claim_filed is True
+    assert separation.unemployment_benefits_charged == Decimal(6240)
+    # A retention recorded beside a settlement is ambiguous, and is reported rather than
+    # resolved by guessing which way the policy runs.
+    assert "retention_recorded_with_payout" in adapter.report.counts_by_rule()
+
+
+def test_blank_private_columns_leave_the_public_behaviour_exactly_as_it_was(tmp_path):
+    """Every new column is optional, and a file without them costs as it did before they
+    existed: a post covered by overtime, no outside investigator, and an unpaid suspension
+    treated as made under a written policy -- the case that keeps the employee's credit."""
+    _, data = load(tmp_path, [EMPLOYEE], [ACTION])
+    employee, action = data.employees[0], data.actions[0]
+    assert employee.coverage_method == CoverageMethod.OVERTIME
+    assert action.outside_investigator_hours == Decimal(0)
+    assert action.written_conduct_policy is True
+
+
+def test_an_unreadable_coverage_method_names_the_choices(tmp_path):
+    """A code the template does not know is a mapping gap, reported with what to map it to,
+    never guessed at."""
+    row = {**EMPLOYEE, "coverage_method": "agency_temp"}
+    adapter, data = load(tmp_path, [row], [ACTION], sector="private_sector")
+    assert data.employees == []
+    issue = next(i for i in adapter.report.issues if i.field == "coverage_method")
+    assert "temp_agency" in issue.message
+
+
+# ---------------------------------------------------------------------------
+# occupational groups: which benefits multiplier loads a private wage
+# ---------------------------------------------------------------------------
+def test_an_occupation_group_selects_that_groups_own_multiplier(tmp_path, assumptions):
+    """A service worker's wage carries far less in benefits than a production worker's, and
+    the BLS publishes a figure for each. The template column routes each person to theirs."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1", "occupation_group": "service"},
+        {
+            **EMPLOYEE,
+            "employee_id": "E2",
+            "job_family": "Plant Operative",
+            "occupation_group": "Production Transportation",
+        },
+    ]
+    adapter, data = load(tmp_path, rows, [ACTION], sector="private_sector")
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {"E1": "private_service", "E2": "private_production_transportation"}
+    assert "defaulted_occupation_group" not in adapter.report.counts_by_rule()
+    # The job family built from the file carries the same group as the people in it.
+    assert adapter.org.role_families["plant_operative"].benefits_group == (
+        "private_production_transportation"
+    )
+
+    run = run_costing(
+        data,
+        as_of=AS_OF,
+        org=adapter.org,
+        assumptions=assumptions,
+        sector="private_sector",
+    )
+    assert run.sector == "private_sector"
+    service = assumptions.value("private_benefits_multiplier_service")
+    assert service < assumptions.value("private_benefits_multiplier_all")
+
+
+def test_a_missing_occupation_group_uses_the_average_and_says_so(tmp_path):
+    """Blank is allowed, because not every client's file says what kind of work a job is.
+    The all-occupations figure is the published answer to "occupation unknown" -- but it
+    overstates service staff and understates production staff, so the report says how many
+    people it was used for rather than leaving the reader to assume none."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1"},
+        {**EMPLOYEE, "employee_id": "E2", "occupation_group": "sales_office"},
+    ]
+    adapter, data = load(tmp_path, rows, [ACTION], sector="private_sector")
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {"E1": "private_all", "E2": "private_sales_office"}
+    issue = next(i for i in adapter.report.issues if i.rule_id == "defaulted_occupation_group")
+    assert issue.severity is Severity.WARNING
+    assert issue.message.startswith("1 employee(s)")
+    assert "private_benefits_multiplier_all" in issue.message
+    assert adapter.report.blocking == []
+
+
+def test_a_public_engagement_ignores_the_occupation_group(tmp_path):
+    """A county's split is sworn against civilian. The column is not an error there, and it
+    must neither change a figure nor raise a warning about a multiplier the county never
+    uses."""
+    row = {**EMPLOYEE, "occupation_group": "service"}
+    adapter, data = load(tmp_path, [row], [ACTION])
+    assert data.employees[0].benefits_group == "civilian"
+    assert "defaulted_occupation_group" not in adapter.report.counts_by_rule()
+    blank_adapter, _ = load(tmp_path, [EMPLOYEE], [ACTION])
+    assert "defaulted_occupation_group" not in blank_adapter.report.counts_by_rule()
+
+
+def test_an_unreadable_occupation_group_names_the_choices(tmp_path):
+    row = {**EMPLOYEE, "occupation_group": "hospitality"}
+    adapter, data = load(tmp_path, [row], [ACTION], sector="private_sector")
+    assert data.employees == []
+    issue = next(i for i in adapter.report.issues if i.field == "occupation_group")
+    assert "service" in issue.message and "sales_office" in issue.message
+
+
+# ---------------------------------------------------------------------------
+# the occupation group selected for the engagement
+# ---------------------------------------------------------------------------
+def test_the_engagements_selection_loads_everyone_the_file_does_not_classify(tmp_path):
+    """The user selects construction for the engagement; the file says nothing per person.
+    Everyone is loaded at the construction multiplier, and a row that does name its own
+    group -- the office clerk on a building firm's payroll -- keeps it."""
+    rows = [
+        {**EMPLOYEE, "employee_id": "E1"},
+        {**EMPLOYEE, "employee_id": "E2", "occupation_group": "sales_office"},
+    ]
+    write(tmp_path, "employees", rows)
+    write(tmp_path, "actions", [ACTION])
+    adapter = TemplateAdapter(sector="private_sector", occupation_group="construction_maintenance")
+    data = adapter.load(tmp_path)
+    groups = {e.employee_id: e.benefits_group for e in data.employees}
+    assert groups == {
+        "E1": "private_construction_maintenance",
+        "E2": "private_sales_office",
+    }
+    counts = adapter.report.counts_by_rule()
+    assert "defaulted_occupation_group" not in counts
+    issue = next(
+        i for i in adapter.report.issues if i.rule_id == "occupation_group_from_engagement"
+    )
+    assert issue.message.startswith("1 employee(s)")
+    assert "private_benefits_multiplier_construction_maintenance" in issue.message
+    assert adapter.report.blocking == []
+
+
+def test_a_selection_means_nothing_to_a_public_engagement(tmp_path):
+    write(tmp_path, "employees", [EMPLOYEE])
+    write(tmp_path, "actions", [ACTION])
+    adapter = TemplateAdapter(occupation_group="service")
+    data = adapter.load(tmp_path)
+    assert adapter.occupation_group is None
+    assert data.employees[0].benefits_group == "civilian"
+
+
+def test_changing_the_selection_changes_the_figures(tmp_path):
+    """The whole point, end to end: the same file, the same engagement, and a different
+    cost because the user selected a different kind of work."""
+    site = Installation(tmp_path / "install")
+    e = site.http.post(
+        "/engagements",
+        json={
+            "name": "n",
+            "client_name": "Builder",
+            "sector": "private_sector",
+            "occupation_group": "sales_office",
+        },
+        headers=site.auth(OWNER),
+    ).json()["id"]
+    folder = tmp_path / "files"
+    folder.mkdir()
+    write(folder, "employees", [EMPLOYEE])
+    write(folder, "actions", [ACTION])
+    write(
+        folder,
+        "admin_leave",
+        [
+            {
+                "employee_id": "E1",
+                "action_id": "A1",
+                "start_date": "2025-06-02",
+                "end_date": "2025-06-04",
+                "paid": "Y",
+            }
+        ],
+    )
+    files = [("files", (p.name, p.read_bytes(), "text/csv")) for p in sorted(folder.iterdir())]
+    response = site.http.post(
+        f"/engagements/{e}/datasets/upload",
+        params={"source": "wri_template"},
+        files=files,
+        headers=site.auth(OWNER),
+    )
+    assert response.status_code == 200, response.text
+
+    def leave_cost() -> Decimal:
+        state = site.runtime.workspaces.get(e)
+        return sum((i.amount for i in state.run().line_items if i.component == "C2"), Decimal("0"))
+
+    def group() -> str:
+        state = site.runtime.workspaces.get(e)
+        state.ensure_loaded()
+        return state.dataset.employees[0].benefits_group
+
+    # $41,600 / 2,080 = $20.00/hr; three 8-hour shifts of paid leave = 24 hrs.
+    hours_at_base = Decimal(24) * Decimal(20)
+    assert group() == "private_sales_office"
+    assert leave_cost() == (hours_at_base * Decimal("1.3977")).quantize(Decimal("0.01"))
+
+    url = f"/engagements/{e}/occupation-group"
+    put = site.http.put(
+        url, json={"occupation_group": "construction_maintenance"}, headers=site.auth(OWNER)
+    )
+    assert put.status_code == 200
+    assert group() == "private_construction_maintenance"
+    assert leave_cost() == (hours_at_base * Decimal("1.4538")).quantize(Decimal("0.01"))
+
+    site.http.put(url, json={"occupation_group": None}, headers=site.auth(OWNER))
+    assert group() == "private_all"
+    assert leave_cost() == (hours_at_base * Decimal("1.4287")).quantize(Decimal("0.01"))

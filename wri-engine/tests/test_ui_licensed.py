@@ -359,3 +359,62 @@ def test_the_demo_still_offers_the_role_picker(tmp_path):
     finally:
         srv.should_exit = True
         thread.join(timeout=5)
+
+
+def test_the_occupation_group_is_selected_on_screen_and_can_be_changed(server):
+    """A private-sector user picks the kind of work when opening the engagement, sees the
+    multiplier each choice brings, and can change the selection afterwards."""
+    url, store = server
+    at = sign_in(open_app(url), OWNER)
+    # Public sector is what the chooser opens on, and it offers no occupation group.
+    assert labelled(at.selectbox, "Sector").value == "public_sector"
+    assert "Client's occupation group" not in [s.label for s in at.selectbox]
+    assert "A government employer" in texts(at)
+
+    labelled(at.selectbox, "Sector").set_value("private_sector")
+    at.run()
+    # The description and the groups both follow the sector as soon as it is chosen.
+    assert "A company." in texts(at) and "A government employer" not in texts(at)
+    picker = labelled(at.selectbox, "Client's occupation group")
+    assert picker.options[0].startswith("Not selected (all-occupations average) - x1.4287")
+    assert "Sales and office - x1.3977" in picker.options
+    assert "Construction, maintenance and natural resources - x1.4538" in picker.options
+    picker.set_value("construction_maintenance")
+    at.run()
+    labelled(at.text_input, "Engagement name").input("Site discipline review")
+    labelled(at.text_input, "Client name").input("Ridgeline Builders")
+    labelled(at.button, "Open engagement").click()
+    at.run()
+    assert not at.exception, at.exception
+    owner = store.get_user_by_email(OWNER[0])
+    (engagement, _role) = store.engagements_for(owner)[0]
+    assert (engagement.sector, engagement.occupation_group) == (
+        "private_sector",
+        "construction_maintenance",
+    )
+
+    at = go(at, "Engagement")
+    current = labelled(at.selectbox, "Occupation group")
+    assert current.value == "construction_maintenance"
+    current.set_value("sales_office")
+    labelled(at.button, "Save").click()
+    at.run()
+    assert not at.exception, at.exception
+    assert store.get_engagement(engagement.id).occupation_group == "sales_office"
+    assert labelled(at.selectbox, "Occupation group").value == "sales_office"
+
+
+def test_a_public_engagement_shows_no_occupation_group(server):
+    url, store = server
+    at = sign_in(open_app(url), OWNER)
+    labelled(at.text_input, "Engagement name").input("FY26 review")
+    labelled(at.text_input, "Client name").input("Pine Valley County")
+    labelled(at.button, "Open engagement").click()
+    at.run()
+    assert not at.exception, at.exception
+    owner = store.get_user_by_email(OWNER[0])
+    (engagement, _role) = store.engagements_for(owner)[0]
+    # A user who touches neither chooser gets what they always got.
+    assert (engagement.sector, engagement.occupation_group) == ("public_sector", None)
+    at = go(at, "Engagement")
+    assert "Occupation group" not in [s.label for s in at.selectbox]

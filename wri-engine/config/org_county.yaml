@@ -509,7 +509,10 @@ taxonomies:
 
   investigation_types: [supervisory, hr, internal_affairs]
   deciding_official_levels: [supervisor, division_head, department_head, county_administrator]
-  appeal_forums: [grievance_step, arbitration, civil_service_board, court]
+  # Shared across sectors. The last three are the routes a private employer without a
+  # union contract faces; a public employer can face an agency charge too.
+  appeal_forums: [grievance_step, arbitration, civil_service_board, court,
+                  agency_charge, demand_letter, mediation]
   appeal_outcomes: [sustained, mitigated, overturned, settled, pending]
   separation_reasons:
     - voluntary_resignation

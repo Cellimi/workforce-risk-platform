@@ -1,0 +1,154 @@
+name: "Private-sector occupational groups: a service worker is not loaded like a manager"
+description: >
+  A line cook is sent home on pay for three shifts while a complaint is looked at, then given
+  a written reprimand. The cook's wage is loaded at the service-occupations multiplier, the
+  kitchen manager's at the management and professional one, and the HR officer -- who is in
+  nobody's file -- at the all-occupations figure. Three multipliers in one small action, each
+  from its own published BLS series.
+sector: private_sector
+as_of: 2026-11-12
+action_under_test: A1
+
+org:
+  departments:
+    - id: kitchen
+      name: "Kitchen"
+      locations: ["Harbour Street"]
+      role_families:
+        - id: line_cook
+          name: "Line Cook"
+          job_titles: ["Line Cook"]
+          job_class_code: "KT-200"
+          pay_grade: line_cook
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: non_exempt
+          schedule: civilian_5x8
+          benefits_group: private_service
+          turnover_profile: civilian_standard
+          is_supervisory: false
+        - id: kitchen_manager
+          name: "Kitchen Manager"
+          job_titles: ["Kitchen Manager"]
+          job_class_code: "KT-600"
+          pay_grade: kitchen_manager
+          headcount: 1
+          is_sworn: false
+          minimum_staffing_role: false
+          flsa_status: exempt
+          schedule: civilian_5x8
+          benefits_group: private_management_professional
+          turnover_profile: civilian_skilled
+          is_supervisory: true
+  entry_salaries:
+    line_cook: 35360
+    kitchen_manager: 58240
+
+employees:
+  - employee_id: E1
+    department: "Kitchen"
+    role_family: line_cook
+    job_title: "Line Cook"
+    job_class_code: "KT-200"
+    pay_grade: line_cook
+    pay_step: 1
+    annual_base_salary: 37440
+    hourly_base_rate: 18.00
+    flsa_status: non_exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    coverage_method: none
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_service
+    turnover_profile: civilian_standard
+    work_location: "Harbour Street"
+    supervisor_id: E2
+    hire_date: 2023-04-17
+  - employee_id: E2
+    department: "Kitchen"
+    role_family: kitchen_manager
+    job_title: "Kitchen Manager"
+    job_class_code: "KT-600"
+    pay_grade: kitchen_manager
+    pay_step: 1
+    annual_base_salary: 62400
+    hourly_base_rate: 30.00
+    flsa_status: exempt
+    bargaining_unit: "Non-represented"
+    is_sworn: false
+    minimum_staffing_role: false
+    coverage_method: none
+    standard_shift_hours: 8
+    annual_paid_hours: 2080
+    schedule_id: civilian_5x8
+    benefits_group: private_management_professional
+    turnover_profile: civilian_skilled
+    work_location: "Harbour Street"
+    hire_date: 2018-09-10
+
+actions:
+  - action_id: A1
+    employee_id: E1
+    incident_date: 2026-08-03
+    decision_date: 2026-08-10
+    misconduct_category: workplace_conduct
+    misconduct_subtype: "Discourtesy to a customer"
+    action_type: written_reprimand
+    suspension_days: 0
+    was_investigated: false
+    deciding_official_level: supervisor
+
+admin_leave:
+  - leave_id: L1
+    employee_id: E1
+    action_id: A1
+    start_date: 2026-08-04
+    end_date: 2026-08-06
+    paid: true
+
+# ---------------------------------------------------------------------------
+# HAND CALCULATION
+# ---------------------------------------------------------------------------
+# THREE MULTIPLIERS, EACH FROM ITS OWN BLS SERIES (private industry, 2026 Q2):
+#   service occupations                     $23.73 / $18.26 = 1.2996
+#   management, professional and related    $78.88 / $54.06 = 1.4591
+#   all occupations (the fallback)          $46.89 / $32.82 = 1.4287
+#
+# Cook E1:     $37,440 / 2,080 = $18.00/hr base x 1.2996 = $23.3928/hr loaded.
+# Manager E2:  $62,400 / 2,080 = $30.00/hr base x 1.4591 = $43.773/hr loaded.
+# HR reference:        $78,000 / 2,080 = $37.50     x 1.4287 = $53.57625/hr.
+# Supervisor-level deciding official, not named on the record, so the reference salary:
+#                      $85,000 x 1.4287 / 2,080 = $58.384375/hr.
+# The two reference rates use the all-occupations figure because nobody knows what kind of
+# work a person who is not in the file does; that is what the fallback is for.
+#
+# C1 supervisor   4 hrs x $43.773     = $175.092    -> $175.09
+# C1 HR           2 hrs x $53.57625   = $107.1525   -> $107.15
+# C1 deciding     1 hr  x $58.384375  = $58.384375  -> $58.38
+#
+# C2 PAID LEAVE. Tuesday 4 to Thursday 6 August 2026 is three scheduled 8-hour shifts.
+#   3 shifts x 8 hrs x $23.3928 = $561.4272 -> $561.43
+#
+#   THE POINT OF THIS CASE: at the all-occupations multiplier the same leave would have been
+#   3 x 8 x $18.00 x 1.4287 = $617.20. Loading a service worker at the average overstates
+#   this line by $55.77, about a tenth, and it does so on every hour of every service
+#   worker's leave in the client's file.
+#
+# No cover (the post has no staffing requirement), no suspension, no challenge, no removal.
+#
+# Gross = Net = $175.09 + $107.15 + $58.38 + $561.43 = $902.05
+
+expected:
+  line_items:
+    - {component: C1, subcomponent: deciding_hours, amount: '58.38'}
+    - {component: C1, subcomponent: hr_hours, amount: '107.15'}
+    - {component: C1, subcomponent: supervisor_hours, amount: '175.09'}
+    - {component: C2, subcomponent: paid_admin_leave, amount: '561.43'}
+  gross: '902.05'
+  offset: '0.00'
+  net: '902.05'
+  cost_incomplete: false

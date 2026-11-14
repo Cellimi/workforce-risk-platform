@@ -55,6 +55,10 @@ _NON_REPRESENTED_FORUMS = ("civil_service_board",)
 _DAYS_PER_YEAR = Decimal("365")
 
 
+#: Component codes this module can emit. Read by `SectorPack.component_codes`.
+PRODUCES = ("C4",)
+
+
 def compute(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:
     employee = ctx.employee_for(action)
     if employee is None:

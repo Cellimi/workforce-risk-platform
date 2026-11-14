@@ -148,10 +148,10 @@ def test_scenario_rejects_an_unknown_assumption(client):
 
 def test_assumptions_endpoint_reports_the_sign_off_state(client):
     body = client.get("/assumptions", headers=headers("admin")).json()
-    # The owner signed off on the whole registry, so nothing is pending. The field stays in
-    # the response because the next customer's registry will start out full of placeholders.
-    assert body["placeholder_count"] == 0
+    # The owner has now reviewed the whole registry: the public-sector values on 2026-11-12
+    # and the private-sector ones on 2026-11-13, so the review queue is empty.
     assert body["count"] > 150
+    assert body["placeholder_count"] == 0
     assert body["editable"] is True
     assert client.get("/assumptions", headers=headers("executive")).json()["editable"] is False
     sample = next(a for a in body["assumptions"] if a["id"] == "benefits_multiplier_civilian")
@@ -191,8 +191,11 @@ def test_markdown_export_leads_with_the_headline(client):
     text = client.get("/exports/summary.md", headers=headers("executive")).text
     assert text.startswith("# Harlow County")
     assert "per year" in text
-    # The export must not overstate what sign-off means.
-    assert "sign-off is not verification" in text
+    # The export must not overstate what sign-off means. The standing sentence is read from
+    # the registry, so it reports a blanket sign-off only while one actually holds -- and the
+    # caveat that sign-off is not verification stands either way.
+    assert "Sign-off is not verification" in text
+    assert "signed off on every assumption" in text
     assert "TBD-MIKE" not in text
 
 

@@ -15,15 +15,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from wri_engine.costing.assumptions import AssumptionSet
 from wri_engine.orgconfig import OrgConfig
 from wri_engine.schema import CanonicalDataset, Employee
 
-_BENEFITS_ASSUMPTION = {
-    "sworn_public_safety": "benefits_multiplier_sworn",
-    "civilian": "benefits_multiplier_civilian",
-}
+if TYPE_CHECKING:  # see the note in costing/context.py
+    from wri_engine.sectors import SectorPack
 
 
 @dataclass(frozen=True)
@@ -41,10 +40,19 @@ class Rate:
 class RateBook:
     """Every rate the engine needs, derived once per dataset."""
 
-    def __init__(self, data: CanonicalDataset, org: OrgConfig, assumptions: AssumptionSet):
+    def __init__(
+        self,
+        data: CanonicalDataset,
+        org: OrgConfig,
+        assumptions: AssumptionSet,
+        pack: SectorPack | None = None,
+    ):
+        from wri_engine.sectors import get_pack
+
         self.data = data
         self.org = org
         self.a = assumptions
+        self.pack = pack or get_pack()
         self._employees = data.employees_by_id()
         self._role_location_base: dict[tuple[str, str], Decimal] = {}
         self._role_base: dict[str, Decimal] = {}
@@ -81,8 +89,16 @@ class RateBook:
 
     # -- per employee ------------------------------------------------------
     def benefits_multiplier(self, employee: Employee) -> tuple[Decimal, str]:
-        assumption_id = _BENEFITS_ASSUMPTION.get(
-            employee.benefits_group, "benefits_multiplier_civilian"
+        """The multiplier that turns a wage into a loaded cost, for this employee's sector.
+
+        State and local government loads a wage far more heavily than private industry
+        does, so the sector pack -- not a module-level dictionary -- decides which
+        assumption applies. An employee whose benefits group the pack does not recognise
+        falls back to the pack's default rather than to a public-sector figure.
+        """
+        mapping = self.pack.benefits_assumption_by_group
+        assumption_id = (
+            mapping.get(employee.benefits_group) or mapping[self.pack.default_benefits_group]
         )
         return self.a.value(assumption_id), assumption_id
 
@@ -116,9 +132,18 @@ class RateBook:
 
     # -- reference rates for people who are not in the extract -------------
     def _reference_loaded(self, salary_assumption_id: str, description: str) -> Rate:
+        """Load a reference salary for someone who is not in the extract.
+
+        HR staff and senior deciding officials are rarely in a discipline file, so their
+        hours are priced off a reference salary. The multiplier that loads it has to be the
+        SECTOR's, not a fixed civilian one: a company's HR officer does not carry a state
+        pension, and charging one at a government multiplier would overstate every action
+        in a private engagement.
+        """
         salary = self.a.value(salary_assumption_id)
         hours = self.a.value("c1_reference_annual_hours")
-        multiplier = self.a.value("benefits_multiplier_civilian")
+        multiplier_id = self.pack.benefits_assumption_by_group[self.pack.default_benefits_group]
+        multiplier = self.a.value(multiplier_id)
         return Rate(
             amount=(salary / hours) * multiplier,
             basis=(
@@ -128,7 +153,7 @@ class RateBook:
             assumption_ids=(
                 salary_assumption_id,
                 "c1_reference_annual_hours",
-                "benefits_multiplier_civilian",
+                multiplier_id,
             ),
         )
 

@@ -54,6 +54,45 @@ _SUSPENSION_DAY_RANGE: dict[ActionType, tuple[int, int]] = {
 }
 
 
+class CoverageMethod(StrEnum):
+    """How an employer covers a post while the employee is away or the seat is empty.
+
+    `OVERTIME` is what a minimum-staffing public post does: a peer works the shift. A
+    private employer more often brings in an agency temp, which is billed at a marked-up
+    rate rather than at a peer's overtime rate. `NONE` means the work simply waits.
+    """
+
+    OVERTIME = "overtime"
+    TEMP_AGENCY = "temp_agency"
+    NONE = "none"
+
+
+class OccupationGroup(StrEnum):
+    """The five broad occupational groups the BLS publishes compensation costs for.
+
+    A private employer's benefits cost per wage dollar differs a good deal by the kind of
+    work: a service worker's wage carries far less in benefits than a production worker's.
+    These are the groups in the Employer Costs for Employee Compensation series, so a
+    client's job families can be mapped to a multiplier with a published source behind it.
+    """
+
+    MANAGEMENT_PROFESSIONAL = "management_professional"
+    SALES_OFFICE = "sales_office"
+    SERVICE = "service"
+    CONSTRUCTION_MAINTENANCE = "construction_maintenance"
+    PRODUCTION_TRANSPORTATION = "production_transportation"
+
+
+#: What a person choosing a group is shown. The wording follows the BLS group titles.
+OCCUPATION_GROUP_LABELS: dict[OccupationGroup, str] = {
+    OccupationGroup.MANAGEMENT_PROFESSIONAL: "Management, professional and related",
+    OccupationGroup.SALES_OFFICE: "Sales and office",
+    OccupationGroup.SERVICE: "Service",
+    OccupationGroup.CONSTRUCTION_MAINTENANCE: "Construction, maintenance and natural resources",
+    OccupationGroup.PRODUCTION_TRANSPORTATION: "Production, transportation and material moving",
+}
+
+
 class InvestigationType(StrEnum):
     SUPERVISORY = "supervisory"
     HR = "hr"
@@ -68,10 +107,24 @@ class DecidingOfficialLevel(StrEnum):
 
 
 class AppealForum(StrEnum):
+    """Where a disciplined employee can challenge the action.
+
+    The first four are the public-sector routes. The last three are the ones a private
+    employer without a union contract faces instead: a charge filed with an enforcement
+    agency, a lawyer's demand letter before any filing, and mediation. `COURT` covers
+    litigation defence in both sectors.
+
+    One vocabulary, not two. A public employer can face an agency charge as readily as a
+    private one; what differs is which routes the sector's data actually contains.
+    """
+
     GRIEVANCE_STEP = "grievance_step"
     ARBITRATION = "arbitration"
     CIVIL_SERVICE_BOARD = "civil_service_board"
     COURT = "court"
+    AGENCY_CHARGE = "agency_charge"
+    DEMAND_LETTER = "demand_letter"
+    MEDIATION = "mediation"
 
 
 class AppealOutcome(StrEnum):
@@ -99,7 +152,13 @@ class SeparationReason(StrEnum):
 
 
 class CostComponent(StrEnum):
-    """The five cost components, plus the negative-by-design offset lines."""
+    """The cost components, plus the negative-by-design offset lines.
+
+    C1-C5 are what any employer spends on a discipline action. C6 and C7 only ever carry a
+    figure when the record shows the event happened, which in practice means a private
+    employer: a separation agreement, an unemployment claim, or a liability policy. Nothing
+    here is sector-specific by construction -- the data decides.
+    """
 
     C1_PROCESSING = "C1"
     C2_ADMIN_LEAVE = "C2"
@@ -108,6 +167,9 @@ class CostComponent(StrEnum):
     C4_APPEALS = "C4"
     C5_TURNOVER = "C5"
     C5_OFFSET = "C5-offset"
+    C6_SEPARATION = "C6"
+    C7_INSURANCE = "C7"
+    C7_OFFSET = "C7-offset"
 
 
 COMPONENT_LABELS: dict[CostComponent, str] = {
@@ -118,6 +180,9 @@ COMPONENT_LABELS: dict[CostComponent, str] = {
     CostComponent.C4_APPEALS: "Appeals & grievances",
     CostComponent.C5_TURNOVER: "Removal turnover",
     CostComponent.C5_OFFSET: "Vacancy salary savings",
+    CostComponent.C6_SEPARATION: "Separation agreements & unemployment",
+    CostComponent.C7_INSURANCE: "Employment practices liability",
+    CostComponent.C7_OFFSET: "Insurer-paid amounts",
 }
 
 #: The components that record money the county did NOT spend. They are the only ones
@@ -126,5 +191,5 @@ COMPONENT_LABELS: dict[CostComponent, str] = {
 #: Defined once, here. Anything that needs to know "is this an offset?" asks this set --
 #: never `== C3_OFFSET`, which was the bug that made adding C5-offset a six-file change.
 OFFSET_COMPONENTS: frozenset[CostComponent] = frozenset(
-    {CostComponent.C3_OFFSET, CostComponent.C5_OFFSET}
+    {CostComponent.C3_OFFSET, CostComponent.C5_OFFSET, CostComponent.C7_OFFSET}
 )

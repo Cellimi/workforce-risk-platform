@@ -123,8 +123,13 @@ def test_placeholders_are_listed(tmp_path):
     assert {a.id for a in loaded.placeholders} == {"pending"}
 
 
-def test_the_live_registry_has_no_placeholders_left(assumptions):
-    assert assumptions.placeholders == []
+def test_the_live_registry_holds_no_unreviewed_placeholder(assumptions):
+    """The owner has reviewed every value in the registry: the public-sector ones on
+    2026-11-12 and the private-sector ones on 2026-11-13. Anything pending here is new work
+    he has not seen, and `tests/test_config_consistency.py` holds the checklist it must be
+    on."""
+    assert [a.id for a in assumptions.placeholders] == []
+    assert all(a.status in ("confirmed", "researched") for a in assumptions.assumptions.values())
 
 
 def test_records_expose_the_effective_value(assumptions):

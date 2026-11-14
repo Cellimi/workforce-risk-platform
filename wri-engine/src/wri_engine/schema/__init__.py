@@ -1,13 +1,16 @@
 from wri_engine.schema.enums import (
     COMPONENT_LABELS,
+    OCCUPATION_GROUP_LABELS,
     OFFSET_COMPONENTS,
     ActionType,
     AppealForum,
     AppealOutcome,
     CostComponent,
+    CoverageMethod,
     DecidingOfficialLevel,
     FLSAStatus,
     InvestigationType,
+    OccupationGroup,
     SeparationReason,
 )
 from wri_engine.schema.models import (
@@ -22,6 +25,7 @@ from wri_engine.schema.models import (
 
 __all__ = [
     "COMPONENT_LABELS",
+    "OCCUPATION_GROUP_LABELS",
     "OFFSET_COMPONENTS",
     "ActionType",
     "AdminLeavePeriod",
@@ -31,11 +35,13 @@ __all__ = [
     "CanonicalDataset",
     "CostComponent",
     "CostLineItem",
+    "CoverageMethod",
     "DecidingOfficialLevel",
     "DisciplineAction",
     "Employee",
     "FLSAStatus",
     "InvestigationType",
+    "OccupationGroup",
     "Separation",
     "SeparationReason",
 ]

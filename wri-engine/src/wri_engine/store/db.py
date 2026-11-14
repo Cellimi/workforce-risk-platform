@@ -27,17 +27,23 @@ from sqlalchemy import (
     String,
     create_engine,
     delete,
+    inspect,
     select,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from wri_engine.access.roles import Role
+from wri_engine.sectors import get_pack, sector_ids
 from wri_engine.store.passwords import DUMMY_HASH, hash_password, verify_password
 
 MAX_FAILED_LOGINS = 5
 LOCKOUT_MINUTES = 15
-SECTORS = ("public_sector",)
+#: The sectors an engagement may be opened for. Read from the installed cost models rather
+#: than listed here, so the server can never refuse a sector the engine can actually cost --
+#: or accept one it cannot.
+SECTORS = sector_ids()
 
 
 class AuthError(Exception):
@@ -79,6 +85,9 @@ class _Engagement(Base):
     name: Mapped[str] = mapped_column(String(200))
     client_name: Mapped[str] = mapped_column(String(200))
     sector: Mapped[str] = mapped_column(String(40))
+    #: The kind of work the client's people mostly do, where the sector loads benefits by
+    #: occupation. Null means not selected: the all-occupations figure is used.
+    occupation_group: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(20), default="open")
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
@@ -118,6 +127,7 @@ class EngagementRecord:
     sector: str
     status: str
     created_at: datetime
+    occupation_group: str | None = None
 
 
 @dataclass(frozen=True)
@@ -135,8 +145,37 @@ def _user(row: _User) -> UserRecord:
 
 def _engagement(row: _Engagement) -> EngagementRecord:
     return EngagementRecord(
-        row.id, row.name, row.client_name, row.sector, row.status, row.created_at
+        row.id,
+        row.name,
+        row.client_name,
+        row.sector,
+        row.status,
+        row.created_at,
+        row.occupation_group,
     )
+
+
+def check_occupation_group(sector: str, occupation_group: str | None) -> str | None:
+    """The selection as it will be stored, or a ValueError the caller can show.
+
+    Only a sector whose cost model loads benefits by occupation offers the selection, and
+    only the groups that model has a multiplier for can be chosen. Blank means "not
+    selected", which is always allowed.
+    """
+    if not occupation_group:
+        return None
+    offered = get_pack(sector).benefits_group_by_occupation
+    if not offered:
+        raise ValueError(
+            f"the {sector} cost model does not load benefits by occupation group, so one "
+            f"cannot be selected"
+        )
+    if occupation_group not in offered:
+        raise ValueError(
+            f"occupation group {occupation_group!r} is not one of: "
+            f"{', '.join(str(group) for group in offered)}"
+        )
+    return str(occupation_group)
 
 
 def _hash_token(token: str) -> str:
@@ -159,7 +198,22 @@ class Store:
                 kwargs["poolclass"] = StaticPool
         self.engine = create_engine(database_url, **kwargs)
         Base.metadata.create_all(self.engine)
+        self._upgrade_schema()
         self._session = sessionmaker(self.engine, expire_on_commit=False)
+
+    def _upgrade_schema(self) -> None:
+        """Add columns introduced after an installation's database was first created.
+
+        `create_all` makes a missing table but never alters an existing one, so an
+        installation that already holds engagements would otherwise fail on the first read.
+        Each step adds one nullable column and is skipped once the column is there.
+        """
+        columns = {c["name"] for c in inspect(self.engine).get_columns("engagements")}
+        if "occupation_group" not in columns:
+            with self.engine.begin() as connection:
+                connection.execute(
+                    text("ALTER TABLE engagements ADD COLUMN occupation_group VARCHAR(40)")
+                )
 
     def close(self) -> None:
         """Release every database connection. Called when the API shuts down."""
@@ -258,7 +312,13 @@ class Store:
 
     # -- engagements ---------------------------------------------------------
     def create_engagement(
-        self, *, name: str, client_name: str, sector: str, created_by: int
+        self,
+        *,
+        name: str,
+        client_name: str,
+        sector: str,
+        created_by: int,
+        occupation_group: str | None = None,
     ) -> EngagementRecord:
         if sector not in SECTORS:
             raise ValueError(
@@ -266,15 +326,30 @@ class Store:
             )
         if not name.strip() or not client_name.strip():
             raise ValueError("an engagement needs a name and a client name")
+        occupation_group = check_occupation_group(sector, occupation_group)
         with self._session.begin() as db:
             row = _Engagement(
                 id=secrets.token_hex(8),
                 name=name.strip(),
                 client_name=client_name.strip(),
                 sector=sector,
+                occupation_group=occupation_group,
                 created_by=created_by,
             )
             db.add(row)
+            db.flush()
+            return _engagement(row)
+
+    def set_occupation_group(
+        self, engagement_id: str, occupation_group: str | None
+    ) -> EngagementRecord:
+        """Change, or clear, the engagement's occupation group. Unlike the sector it can be
+        changed later: it selects a multiplier, not a cost model."""
+        with self._session.begin() as db:
+            row = db.get(_Engagement, engagement_id)
+            if row is None:
+                raise KeyError(engagement_id)
+            row.occupation_group = check_occupation_group(row.sector, occupation_group)
             db.flush()
             return _engagement(row)
 

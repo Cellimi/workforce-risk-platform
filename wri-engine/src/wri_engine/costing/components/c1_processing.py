@@ -39,6 +39,14 @@ _ACTOR_LABEL = {
 }
 
 
+#: Component codes this module can emit. Read by `SectorPack.component_codes`.
+PRODUCES = ("C1",)
+
+#: Coefficients this module needs beyond the ones every sector shares. Declared here so the
+#: engine's preflight finds a missing one by name before a run starts.
+REQUIRES_ASSUMPTIONS = ("c1_outside_investigator_hourly_rate",)
+
+
 def compute(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:
     employee = ctx.employee_for(action)
     if employee is None:
@@ -72,7 +80,42 @@ def compute(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:
         )
 
     items.extend(_investigation(action, ctx))
+    items.extend(_outside_investigator(action, ctx))
     return items
+
+
+def _outside_investigator(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:
+    """A firm brought in from outside to run the investigation.
+
+    Public employers normally use an internal investigator, so their records leave this at
+    zero and no line item appears. A private employer facing a harassment complaint
+    routinely retains outside counsel or a specialist firm instead, precisely so the
+    investigation is independent of the managers involved -- and that is billed by the hour
+    on top of whatever internal time the matter still takes.
+    """
+    if action.outside_investigator_hours <= 0:
+        return []
+    employee = ctx.employee_for(action)
+    rate_id = "c1_outside_investigator_hourly_rate"
+    rate = ctx.value(rate_id)
+    return [
+        CostLineItem(
+            action_id=action.action_id,
+            employee_id=employee.employee_id,
+            component=CostComponent.C1_PROCESSING,
+            subcomponent="outside_investigator",
+            amount=money(action.outside_investigator_hours * rate),
+            formula=(
+                f"Outside investigator retained for this matter: "
+                f"{action.outside_investigator_hours} hrs x ${rate:,.2f}/hr"
+            ),
+            inputs={
+                "hours": str(action.outside_investigator_hours),
+                "hourly_rate": str(rate),
+            },
+            assumption_ids=[rate_id],
+        )
+    ]
 
 
 def _investigation(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:

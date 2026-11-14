@@ -260,6 +260,37 @@ def resolved_appeal_has_date(data: CanonicalDataset, org: OrgConfig) -> Iterator
             )
 
 
+def insurance_retention_may_double_count(data: CanonicalDataset, org: OrgConfig) -> Iterator[Issue]:
+    """A retention recorded next to a settlement is ambiguous, so say so.
+
+    The employer's retention is normally the first slice of a payout the insurer then tops
+    up. Where the settlement is recorded as well, C7 leaves the retention alone to avoid
+    counting that slice twice -- which is right if the retention sits inside the settlement
+    and understates the matter if it sits outside it, for instance where the policy applies
+    the retention to defence costs only. Only the client's own policy says which, so this
+    reports the records it affects instead of guessing.
+    """
+    for appeal in data.appeals:
+        if appeal.insurance_retention_paid <= 0:
+            continue
+        if appeal.settlement_amount <= 0 and appeal.back_pay_awarded <= 0:
+            continue
+        yield Issue(
+            rule_id="retention_recorded_with_payout",
+            severity=Severity.WARNING,
+            entity="appeal",
+            entity_id=appeal.appeal_id,
+            field="insurance_retention_paid",
+            message=(
+                f"appeal {appeal.appeal_id} records a retention of "
+                f"${appeal.insurance_retention_paid:,.2f} and a payout as well, so the "
+                f"retention is treated as part of that payout and is not counted a second "
+                f"time. If the policy applies the retention on top of the payout, record "
+                f"the employer's share in the settlement instead"
+            ),
+        )
+
+
 #: Every rule, in the order the report presents them.
 RULES = [
     orphan_actions,
@@ -273,6 +304,7 @@ RULES = [
     orphan_appeals,
     orphan_separations,
     resolved_appeal_has_date,
+    insurance_retention_may_double_count,
 ]
 
 

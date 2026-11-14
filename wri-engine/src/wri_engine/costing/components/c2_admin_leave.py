@@ -18,6 +18,9 @@ from __future__ import annotations
 from wri_engine.costing.context import CostContext, money
 from wri_engine.schema import CostComponent, CostLineItem, DisciplineAction
 
+#: Component codes this module can emit. Read by `SectorPack.component_codes`.
+PRODUCES = ("C2",)
+
 
 def compute(action: DisciplineAction, ctx: CostContext) -> list[CostLineItem]:
     employee = ctx.employee_for(action)

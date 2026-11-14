@@ -203,6 +203,7 @@ def engagement_page(api: EngineClient) -> None:
         cells[0].metric("Your role", ROLE_LABELS.get(current["your_role"], current["your_role"]))
         cells[1].metric("Sector", current["sector"].replace("_", " ").capitalize())
         cells[2].metric("Opened", current["created_at"][:10])
+        _occupation_group(api, current)
         if current["your_role"] == "admin":
             _members(api)
     else:
@@ -273,20 +274,101 @@ def _members(api: EngineClient) -> None:
                     _error(exc)
 
 
+NOT_SELECTED = "Not selected (all-occupations average)"
+
+
+def _group_label(groups: list[dict], unselected: dict | None, group_id: str | None) -> str:
+    """How one choice reads in the list: its name and the multiplier it brings."""
+    if group_id is None:
+        return f"{NOT_SELECTED} - x{unselected['multiplier']}" if unselected else NOT_SELECTED
+    group = next(g for g in groups if g["id"] == group_id)
+    return f"{group['label']} - x{group['multiplier']}"
+
+
+def _occupation_group(api: EngineClient, current: dict) -> None:
+    """Show the engagement's occupation group and, for its admin, let them change it."""
+    pack = next((p for p in _sector_choices(api) if p["id"] == current["sector"]), None)
+    groups = (pack or {}).get("occupation_groups") or []
+    if not groups:
+        return  # this sector does not load benefits by occupation
+    unselected = pack.get("no_occupation_group")
+    st.subheader("Occupation group")
+    st.caption(
+        "The kind of work this client's people mostly do. It decides the benefits multiplier "
+        "that loads every wage, so the same salary costs a different amount to carry in "
+        "sales than in construction. An employee whose own row names a group keeps it."
+    )
+    selected = current.get("occupation_group")
+    if current["your_role"] != "admin":
+        st.write(_group_label(groups, unselected, selected))
+        return
+    options = [None, *(g["id"] for g in groups)]
+    with st.form("occupation_group"):
+        choice = st.selectbox(
+            "Occupation group",
+            options,
+            index=options.index(selected) if selected in options else 0,
+            format_func=lambda g: _group_label(groups, unselected, g),
+        )
+        if st.form_submit_button("Save"):
+            try:
+                api.set_occupation_group(choice)
+            except ApiError as exc:
+                _error(exc)
+                return
+            refresh(api)
+            st.rerun()
+
+
+def _sector_choices(api: EngineClient) -> list[dict]:
+    """The sectors the server will accept. If the call fails, fall back to the public-sector
+    model alone rather than offering a sector the server would refuse."""
+    try:
+        return api.sectors()
+    except ApiError:
+        return [
+            {
+                "id": "public_sector",
+                "label": "Public sector",
+                "description": "County and municipal employers.",
+                "components": [],
+            }
+        ]
+
+
 def _new_engagement(api: EngineClient) -> None:
     st.subheader("Open a new engagement")
+    packs = _sector_choices(api)
+    labels = {p["id"]: p["label"] for p in packs}
+    # The two choices sit outside the form on purpose. A form does not redraw until it is
+    # submitted, and both the description and the occupation groups depend on the sector.
+    sector = st.selectbox(
+        "Sector",
+        list(labels),
+        format_func=lambda s: labels[s],
+        help="Which cost model the engagement runs. It cannot be changed afterwards.",
+        key="new_engagement_sector",
+    )
+    chosen = next(p for p in packs if p["id"] == sector)
+    st.caption(f"{chosen['description']} Components: {', '.join(chosen['components'])}.")
+    groups = chosen.get("occupation_groups") or []
+    occupation_group = None
+    if groups:
+        occupation_group = st.selectbox(
+            "Client's occupation group",
+            [None, *(g["id"] for g in groups)],
+            format_func=lambda g: _group_label(groups, chosen.get("no_occupation_group"), g),
+            help="The kind of work the client's people mostly do. It decides the benefits "
+            "multiplier that loads every wage, so the same salary costs a different amount "
+            "to carry in sales than in construction. It can be changed later.",
+            key="new_engagement_occupation_group",
+        )
     with st.form("new_engagement", clear_on_submit=True):
         name = st.text_input("Engagement name", placeholder="FY26 discipline cost review")
         client_name = st.text_input("Client name", placeholder="Pine Valley County")
-        sector = st.selectbox(
-            "Sector",
-            ["public_sector"],
-            format_func=lambda s: s.replace("_", " ").capitalize(),
-            help="The private-sector cost model is not available yet.",
-        )
         if st.form_submit_button("Open engagement", type="primary"):
             try:
-                created = api.create_engagement(name, client_name, sector)
+                created = api.create_engagement(name, client_name, sector, occupation_group)
             except ApiError as exc:
                 _error(exc)
                 return
