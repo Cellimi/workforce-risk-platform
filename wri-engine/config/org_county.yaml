@@ -11,8 +11,9 @@ agency:
   id: harlow_county
   name: "Harlow County"
   fictional: true
-  # TBD-MIKE: final fictional county name (open item 7).
-  name_status: TBD-MIKE
+  # Confirmed by the owner on 2026-11-12. Harlow County is invented and must stay invented:
+  # rule 4 in CLAUDE.md forbids a real agency, county or union name anywhere in this project.
+  name_status: confirmed
   fiscal_year_start_month: 7
   headcount_target: 2500
 

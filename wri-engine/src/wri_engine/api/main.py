@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,16 @@ from wri_engine.access.roles import (
     project_identifier,
     require,
 )
+from wri_engine.adapters.template import (
+    SOURCE_ID as TEMPLATE_SOURCE,
+)
+from wri_engine.adapters.template import (
+    MappingError,
+    parse_mapping,
+    suggest_mapping,
+    template_spec,
+    template_zip,
+)
 from wri_engine.aggregation.rollups import (
     DIMENSIONS,
     build_matrix,
@@ -57,7 +68,7 @@ from wri_engine.aggregation.rollups import (
     summarize,
 )
 from wri_engine.api.context import Ctx, Runtime, get_ctx
-from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces
+from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
 from wri_engine.costing.assumptions import MissingAssumptionError
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.settings import Settings
@@ -177,7 +188,9 @@ class LoadRequest(BaseModel):
     path: str | None = Field(
         None, description="Demo mode only: a folder inside the synthetic data directory"
     )
-    source: str = Field("county_hr_csv", description="Adapter id")
+    source: str | None = Field(
+        None, description="Adapter id. Blank reloads the files the way they were last loaded."
+    )
 
 
 #: Upload names are restricted to plain file names with these extensions.
@@ -222,7 +235,7 @@ def load_dataset(
     state = ctx.state
     _guard(ctx, Capability.MANAGE_DATA, "/datasets/load")
     _audit(ctx, "/datasets/load", detail=body.model_dump())
-    if body.source not in ADAPTERS:
+    if body.source is not None and body.source not in ADAPTERS:
         raise HTTPException(400, f"unknown source {body.source!r}. Available: {sorted(ADAPTERS)}")
     if ctx.engagement is not None:
         if body.path is not None:
@@ -239,18 +252,8 @@ def load_dataset(
     return _load_response(ctx, report)
 
 
-@router.post("/datasets/upload", tags=["datasets"])
-async def upload_dataset(
-    files: list[UploadFile] = File(..., description="The source export files"),
-    source: str = Query("county_hr_csv"),
-    ctx: Ctx = Depends(get_ctx),
-) -> dict:
-    """Replace this engagement's source files with the uploaded ones, then load them."""
-    _guard(ctx, Capability.MANAGE_DATA, "/datasets/upload")
-    if ctx.engagement is None:
-        raise HTTPException(400, "uploads belong to an engagement; demo mode has none")
-    if source not in ADAPTERS:
-        raise HTTPException(400, f"unknown source {source!r}. Available: {sorted(ADAPTERS)}")
+async def _read_uploads(ctx: Ctx, files: list[UploadFile]) -> dict[str, bytes]:
+    """Read uploaded files into memory after checking their names and sizes."""
     names = [f.filename or "" for f in files]
     bad = [n for n in names if not _UPLOAD_NAME.match(n)]
     if bad or len(set(names)) != len(names):
@@ -259,56 +262,233 @@ async def upload_dataset(
             "file names must be unique plain names ending in .csv or .json; rejected: "
             + ", ".join(repr(n) for n in bad or names),
         )
-    limit = ctx.max_upload_bytes
     payloads: dict[str, bytes] = {}
     for upload in files:
-        data = await upload.read(limit + 1)
-        if len(data) > limit:
+        data = await upload.read(ctx.max_upload_bytes + 1)
+        if len(data) > ctx.max_upload_bytes:
             raise HTTPException(413, f"{upload.filename} is larger than the upload limit")
         payloads[upload.filename] = data
+    return payloads
+
+
+def _replace_files(directory: Path, payloads: dict[str, bytes]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for old in directory.iterdir():
+        if old.is_file():
+            old.unlink()
+    for name, data in payloads.items():
+        (directory / name).write_bytes(data)
+
+
+def _dry_run(ctx: Ctx, directory: Path, source: str, mapping: dict | None):
+    """Load a folder without touching the engagement's current dataset. Returns the adapter
+    and what it read."""
+    adapter = make_adapter(source, mapping=mapping, client_name=ctx.state.client_name)
+    try:
+        return adapter, adapter.load(directory)
+    except MappingError:
+        raise
+    except Exception as exc:  # whatever the adapter could not read
+        raise HTTPException(
+            422, f"the files could not be read; nothing was changed: {exc}"
+        ) from None
+
+
+def _require_usable(adapter, staged) -> None:
+    """The adapters report problems rather than raising, so a load with no usable employee
+    or discipline records is refused here, with its reasons."""
+    if not staged.employees or not staged.actions:
+        raise HTTPException(
+            422,
+            {
+                "message": (
+                    "there are no usable employee or discipline records; nothing was changed"
+                ),
+                "counts_by_rule": adapter.report.as_dict()["counts_by_rule"],
+                "first_issues": [i.as_dict() for i in adapter.report.issues[:10]],
+            },
+        )
+
+
+def _commit(ctx: Ctx, staging: Path, source: str, mapping: dict | None) -> dict:
+    """Make the staged files the engagement's dataset, recording how they are read."""
+    target = ctx.state.default_source
+    for old in target.iterdir():
+        if old.is_file():
+            old.unlink()
+    for new in staging.iterdir():
+        if new.is_file():
+            shutil.copyfile(new, target / new.name)
+    write_marker(target, source, mapping)
+    return _load_response(ctx, ctx.state.load())
+
+
+def _engagement_only(ctx: Ctx, what: str) -> None:
+    if ctx.engagement is None:
+        raise HTTPException(400, f"{what} belongs to an engagement; demo mode has none")
+
+
+@router.post("/datasets/upload", tags=["datasets"])
+async def upload_dataset(
+    files: list[UploadFile] = File(..., description="The source export files"),
+    source: str = Query(
+        "county_hr_csv",
+        description="`wri_template` for files already in the WRI intake template layout",
+    ),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """Replace this engagement's dataset in one step, for files already in a layout the
+    engine knows. A client export in its own layout goes through `/intake/...` instead."""
+    _guard(ctx, Capability.MANAGE_DATA, "/datasets/upload")
+    _engagement_only(ctx, "an upload")
+    if source not in ADAPTERS:
+        raise HTTPException(400, f"unknown source {source!r}. Available: {sorted(ADAPTERS)}")
+    payloads = await _read_uploads(ctx, files)
     _audit(
         ctx,
         "/datasets/upload",
         detail={"files": {n: len(d) for n, d in payloads.items()}, "source": source},
     )
-    # Stage the new files and prove the adapter can read them before the engagement's
-    # current files are touched, so a bad upload never destroys a good dataset.
-    target = ctx.state.default_source
-    staging = target.parent / "incoming"
+    # Stage the new files and prove they can be read before the engagement's current files
+    # are touched, so a bad upload never destroys a good dataset.
+    staging = ctx.state.default_source.parent / "incoming"
     shutil.rmtree(staging, ignore_errors=True)
-    staging.mkdir(parents=True)
     try:
-        for name, data in payloads.items():
-            (staging / name).write_bytes(data)
-        adapter = ADAPTERS[source](org=ctx.state.org)
-        try:
-            staged = adapter.load(staging)
-        except Exception as exc:  # whatever the adapter could not read
-            raise HTTPException(
-                422, f"the uploaded files could not be read; nothing was changed: {exc}"
-            ) from None
-        if not staged.employees or not staged.actions:
-            # The adapter reports problems rather than raising, so an upload with no usable
-            # employee or discipline records is refused here, with its reasons.
-            raise HTTPException(
-                422,
-                {
-                    "message": (
-                        "the upload has no usable employee or discipline records; "
-                        "nothing was changed"
-                    ),
-                    "counts_by_rule": adapter.report.as_dict()["counts_by_rule"],
-                },
-            )
-        for old in target.iterdir():
-            if old.is_file():
-                old.unlink()
-        for new in staging.iterdir():
-            new.replace(target / new.name)
+        _replace_files(staging, payloads)
+        adapter, staged = _dry_run(ctx, staging, source, None)
+        _require_usable(adapter, staged)
+        return _commit(ctx, staging, source, None)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-    report = ctx.state.load(None, source)
-    return _load_response(ctx, report)
+
+
+# ---------------------------------------------------------------------------
+# intake: a client export in its own layout
+# ---------------------------------------------------------------------------
+@router.get("/intake/template", tags=["intake"])
+def intake_template(ctx: Ctx = Depends(get_ctx)) -> dict:
+    """The standard intake template: every table and field, what it means, what is required
+    and which values are allowed."""
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/intake/template")
+    return template_spec()
+
+
+@router.get("/intake/template.zip", tags=["intake"])
+def intake_template_zip(ctx: Ctx = Depends(get_ctx)) -> Response:
+    """Blank template files and a plain-language field guide, to send to a client."""
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/intake/template.zip")
+    _audit(ctx, "/intake/template.zip")
+    return Response(
+        template_zip(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="wri_intake_template.zip"'},
+    )
+
+
+def _draft_mapping(ctx: Ctx) -> dict | None:
+    path = ctx.workspaces.draft_mapping_file(ctx.engagement.id)
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def _intake_view(ctx: Ctx) -> dict:
+    directory = ctx.workspaces.intake_dir(ctx.engagement.id)
+    if not directory.exists() or not any(directory.glob("*.csv")):
+        return {"files": {}, "draft_mapping": _draft_mapping(ctx), "suggestion": None}
+    suggestion = suggest_mapping(directory)
+    return {
+        "files": suggestion.pop("files"),
+        "draft_mapping": _draft_mapping(ctx),
+        "suggestion": suggestion,
+    }
+
+
+@router.get("/intake", tags=["intake"])
+def intake_status(ctx: Ctx = Depends(get_ctx)) -> dict:
+    """What has been uploaded for mapping, the saved draft mapping, and a suggested one."""
+    _guard(ctx, Capability.MANAGE_DATA, "/intake")
+    _engagement_only(ctx, "intake")
+    _audit(ctx, "/intake")
+    return _intake_view(ctx)
+
+
+@router.post("/intake/files", tags=["intake"])
+async def intake_files(
+    files: list[UploadFile] = File(..., description="The client's export, as received"),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """Upload a client export in whatever layout it arrived in. Nothing is costed and the
+    engagement's current dataset is untouched. The reply lists the columns found and a
+    suggested mapping onto the template to review."""
+    _guard(ctx, Capability.MANAGE_DATA, "/intake/files")
+    _engagement_only(ctx, "intake")
+    payloads = await _read_uploads(ctx, files)
+    if not any(name.lower().endswith(".csv") for name in payloads):
+        raise HTTPException(400, "upload at least one .csv file")
+    _audit(ctx, "/intake/files", detail={"files": {n: len(d) for n, d in payloads.items()}})
+    _replace_files(ctx.workspaces.intake_dir(ctx.engagement.id), payloads)
+    ctx.workspaces.draft_mapping_file(ctx.engagement.id).unlink(missing_ok=True)
+    return _intake_view(ctx)
+
+
+class MappingRequest(BaseModel):
+    mapping: dict = Field(..., description="See `suggested_mapping` from /intake/files")
+
+
+def _preview(ctx: Ctx, mapping: dict) -> tuple[dict, bool]:
+    directory = ctx.workspaces.intake_dir(ctx.engagement.id)
+    if not directory.exists() or not any(directory.glob("*.csv")):
+        raise HTTPException(409, "upload the client's files to /intake/files first")
+    try:
+        adapter, staged = _dry_run(ctx, directory, TEMPLATE_SOURCE, mapping)
+    except MappingError as exc:
+        raise HTTPException(400, f"the mapping is not valid: {exc}") from None
+    report = adapter.report.as_dict()
+    usable = bool(staged.employees and staged.actions)
+    return (
+        {
+            "ready_to_commit": usable,
+            "counts": {
+                "employees": len(staged.employees),
+                "actions": len(staged.actions),
+                "admin_leave_periods": len(staged.leave_periods),
+                "appeals": len(staged.appeals),
+                "separations": len(staged.separations),
+            },
+            "actions_that_would_be_excluded": report["excluded_actions"],
+            "validation": {**report, "issues": report["issues"][:200]},
+        },
+        usable,
+    )
+
+
+@router.put("/intake/mapping", tags=["intake"])
+def intake_mapping(body: MappingRequest, ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Save a draft mapping and see what it would load. Nothing is committed: repeat until
+    the preview is right."""
+    _guard(ctx, Capability.MANAGE_DATA, "/intake/mapping")
+    _engagement_only(ctx, "intake")
+    preview, _ = _preview(ctx, body.mapping)
+    normalized = parse_mapping(body.mapping).as_dict()
+    ctx.workspaces.draft_mapping_file(ctx.engagement.id).write_text(
+        json.dumps(normalized, indent=2, sort_keys=True)
+    )
+    _audit(ctx, "/intake/mapping", detail={"ready_to_commit": preview["ready_to_commit"]})
+    return {"mapping": normalized, **preview}
+
+
+@router.post("/intake/commit", tags=["intake"])
+def intake_commit(ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Make the uploaded files, read through the saved mapping, this engagement's dataset."""
+    _guard(ctx, Capability.MANAGE_DATA, "/intake/commit")
+    _engagement_only(ctx, "intake")
+    mapping = _draft_mapping(ctx)
+    if mapping is None:
+        raise HTTPException(409, "save a mapping with PUT /intake/mapping first")
+    directory = ctx.workspaces.intake_dir(ctx.engagement.id)
+    adapter, staged = _dry_run(ctx, directory, TEMPLATE_SOURCE, mapping)
+    _require_usable(adapter, staged)
+    _audit(ctx, "/intake/commit", detail={"files": sorted(p.name for p in directory.iterdir())})
+    return _commit(ctx, directory, TEMPLATE_SOURCE, mapping)
 
 
 @router.get("/datasets/validation", tags=["datasets"])
@@ -771,6 +951,7 @@ def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
         "C3-offset": "C3-offset Unpaid suspension savings",
         "C4": "C4 Appeals and grievances",
         "C5": "C5 Removal turnover",
+        "C5-offset": "C5-offset Vacancy salary savings",
     }
     for key, label in labels.items():
         lines.append(f"| {label} | {money(s['component_totals'].get(key, '0'))} |")
@@ -804,8 +985,10 @@ def _summary_markdown(s: dict[str, Any], agency: str, caption: str) -> str:
         "---",
         "",
         "Every figure above decomposes into line items that name their formula, their inputs "
-        "and the assumptions they used. Assumptions still marked `TBD-MIKE` are owner "
-        "placeholders and must be confirmed before this is shown externally.",
+        "and the assumptions they used. The owner has signed off on every assumption in the "
+        "registry, but sign-off is not verification: most values are still professional "
+        "estimates carrying low or medium confidence, and the Assumptions view shows the "
+        "source and confidence behind each one.",
         "",
     ]
     return "\n".join(lines)
@@ -833,7 +1016,16 @@ def _installation_salt(settings: Settings) -> str:
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     demo = settings.auth_mode == "demo"
+    runtime = Runtime(settings=settings)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        yield
+        if runtime.store is not None:
+            runtime.store.close()
+
     app = FastAPI(
+        lifespan=lifespan,
         title="WRI Engine - Discipline Cost Baseline",
         version="0.2.0",
         description=(
@@ -842,7 +1034,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "produced it." + ("\n\n" + CAPTION if demo else "")
         ),
     )
-    runtime = Runtime(settings=settings)
     app.state.runtime = runtime
 
     @app.get("/health", tags=["meta"])

@@ -161,6 +161,10 @@ class Store:
         Base.metadata.create_all(self.engine)
         self._session = sessionmaker(self.engine, expire_on_commit=False)
 
+    def close(self) -> None:
+        """Release every database connection. Called when the API shuts down."""
+        self.engine.dispose()
+
     # -- users ---------------------------------------------------------------
     def create_user(
         self, email: str, password: str, *, name: str = "", is_firm_admin: bool = False

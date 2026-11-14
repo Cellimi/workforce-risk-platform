@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from wri_engine.api.main import create_app
+from wri_engine.api.state import SOURCE_MARKER
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.settings import Settings
 from wri_engine.store import AuthError, Store, hash_password, verify_password
@@ -352,7 +353,8 @@ def test_a_bad_upload_leaves_the_existing_dataset_alone(staffed):
     assert detail["counts_by_rule"]["missing_source_file"] >= 1
     assert staffed.net(e) == before
     source = staffed.runtime.workspaces.source_dir(e)
-    assert {p.name for p in source.iterdir()} == {p.name for p in SAMPLE.iterdir() if p.is_file()}
+    kept = {p.name for p in source.iterdir()} - {SOURCE_MARKER}
+    assert kept == {p.name for p in SAMPLE.iterdir() if p.is_file()}
     assert not (source.parent / "incoming").exists()
 
 

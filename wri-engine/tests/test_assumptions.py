@@ -104,14 +104,26 @@ def test_yaml_floats_survive_as_exact_decimals(assumptions):
 
 
 def test_placeholders_are_listed(tmp_path):
-    """A TBD-MIKE entry is reported as a placeholder; a confirmed one is not. Uses its own
-    registry so the test does not depend on how many placeholders the live file holds."""
-    loaded = load_assumptions(write(tmp_path, [BASE, {**BASE, "id": "y", "status": "confirmed"}]))
-    assert {a.id for a in loaded.placeholders} == {"x"}
+    """The placeholder mechanism, tested against a fixture rather than the live registry.
+
+    The live file has no placeholders left -- the owner signed it off -- so asserting on it
+    would test the data, not the code. The mechanism still has to work for the next customer,
+    whose registry will start out full of them.
+    """
+    loaded = load_assumptions(
+        write(
+            tmp_path,
+            [
+                {**BASE, "id": "pending", "status": "TBD-MIKE"},
+                {**BASE, "id": "signed_off", "status": "confirmed"},
+                {**BASE, "id": "sourced", "status": "researched"},
+            ],
+        )
+    )
+    assert {a.id for a in loaded.placeholders} == {"pending"}
 
 
-def test_live_registry_has_no_placeholders(assumptions):
-    """Every coefficient was signed off by the owner on 2026-11-12."""
+def test_the_live_registry_has_no_placeholders_left(assumptions):
     assert assumptions.placeholders == []
 
 

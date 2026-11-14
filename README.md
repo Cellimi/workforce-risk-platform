@@ -1,4 +1,27 @@
-# 🛡️ Workforce Risk Intelligence Platform — MVP
+# Workforce Risk Intelligence
+
+> **Published for viewing. Not licensed for use.** Copyright (c) 2026 Michael V. Celli.
+> All rights reserved — see [LICENSE](LICENSE). Reading this repository grants no right to
+> use, copy, modify or distribute the code.
+>
+> **All data here is synthetic and depicts a fictional county.** Nothing in this repository
+> is derived from any real agency's records.
+
+This repository holds **two separate projects**. They share no code, and they are at very
+different stages. Don't mistake one for the other.
+
+| | What it is | Status |
+|---|---|---|
+| [**`wri-engine/`**](wri-engine/) | **Phase 1 of the WRI engine: the fully loaded cost of discipline.** Joins HR records to discipline records and reports what discipline costs, with every dollar traceable to its formula and the assumption behind it. Canonical schema, source adapters, cost engine, assumptions registry, suppression and role gating, FastAPI service, Streamlit demo. 146 tests. | **Current work.** Start here. |
+| **the root directory** (`app.py`, `models/`, `utils/`, `data/`) | The **earlier MVP**: a forecasting prototype that predicts unit-level risk 30–90 days out. Described below. | Prototype. Superseded in direction by `wri-engine/`; kept for reference. |
+
+The engine is the product direction. The MVP was an earlier exploration, and its forecasting
+and risk-scoring approach is *not* what `wri-engine/` does — Phase 1 is deliberately a cost
+baseline with no prediction or scoring in it at all.
+
+---
+
+# The earlier MVP — forecasting prototype
 
 A predictive analytics tool that ingests HR and operational data, forecasts workforce risks 30–90 days out, ranks organizational units by risk level, and generates leadership-ready executive summaries.
 
@@ -152,3 +175,12 @@ This is an MVP prototype for validation and demos:
 ---
 
 *Built to the MVP brief for the Workforce Risk Intelligence Platform.*
+
+---
+
+## License
+
+Copyright (c) 2026 Michael V. Celli. All rights reserved. See [LICENSE](LICENSE).
+
+The code in this repository is **published for viewing, not licensed for use**. `wri-engine/`
+carries its own copy of the same license so that directory remains self-contained.

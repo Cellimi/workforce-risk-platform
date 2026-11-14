@@ -14,8 +14,22 @@ or a resignation in lieu of removal. Three rules bound it:
 What it counts, itemized so each piece stands on its own:
 
 *Vacancy period.* For a minimum-staffing post, the seat is covered by overtime until the
-replacement reaches solo duty. For every other role the seat simply sits empty, and the cost
-is the share of that position's output nobody delivers.
+replacement reaches solo duty -- and the removed employee's own salary stops, which is
+credited back as a **C5-offset** line item over exactly the same shifts. Charging the
+overtime without crediting the salary would overstate the cost, and would be inconsistent
+with how C3 already treats an unpaid suspension.
+
+For every other role the seat simply sits empty, and the cost is the share of that position's
+output nobody delivers. Those roles get **no salary offset**, because
+`c5_vacancy_productivity_loss_factor` is defined as a NET figure: the value of the work
+nobody did over and above the salary already saved. The assumption's notes ask the owner to
+confirm that reading -- if the factor is meant as gross lost output, a civilian offset is
+needed too.
+
+A position that is **abolished** produces no C5 line items at all, so it has no offset
+either: nobody is hired, no overtime is worked, and the salary saving belongs to the
+abolished post rather than to the discipline action. A **resignation in lieu of removal**
+follows the same path as a removal, offset included.
 
 *Recruiting and selection.* Advertising, recruiter hours, testing, interview panel time, and
 pre-employment screening -- background investigation, polygraph, psychological evaluation,
@@ -119,6 +133,9 @@ class _Builder:
             return []
         base = self.ctx.rates.backfill_base_rate(self.employee)
         ot_rate, ot_ids, ot_note = self.ctx.rates.overtime_rate(base)
+        burden_id = "c5_vacancy_salary_burden_multiplier"
+        burden = self.ctx.value(burden_id)
+        saved = hours * self.employee.hourly_base_rate * burden
         return [
             self._item(
                 "vacancy_coverage_overtime",
@@ -137,7 +154,31 @@ class _Builder:
                     "basis": self.vacancy_basis,
                 },
                 assumption_ids=[*ot_ids, *self.vacancy_assumptions],
-            )
+            ),
+            self._item(
+                "vacancy_salary_saved",
+                -saved,
+                component=CostComponent.C5_OFFSET,
+                formula=(
+                    f"Salary no longer paid to the removed employee during the "
+                    f"{self.vacancy_days}-day vacancy: {shifts} shifts x "
+                    f"{self.employee.standard_shift_hours} hrs x "
+                    f"${self.employee.hourly_base_rate:,.2f} base x {burden} "
+                    f"wage-scaling burden. Health and OPEB for the vacant seat are not "
+                    f"counted as saved."
+                ),
+                inputs={
+                    "vacancy_days": self.vacancy_days,
+                    # Identical to the overtime line above by construction: both read the
+                    # same `shifts`, so the credit covers exactly the period charged.
+                    "scheduled_shifts": str(shifts),
+                    "unpaid_hours": str(hours),
+                    "hourly_base_rate": str(money(self.employee.hourly_base_rate)),
+                    "burden_multiplier": str(burden),
+                    "basis": self.vacancy_basis,
+                },
+                assumption_ids=[burden_id, *self.vacancy_assumptions],
+            ),
         ]
 
     def _vacancy_productivity_loss(self) -> list[CostLineItem]:
@@ -396,11 +437,12 @@ class _Builder:
         formula: str,
         inputs: dict,
         assumption_ids: list[str],
+        component: CostComponent = CostComponent.C5_TURNOVER,
     ) -> CostLineItem:
         return CostLineItem(
             action_id=self.action.action_id,
             employee_id=self.employee.employee_id,
-            component=CostComponent.C5_TURNOVER,
+            component=component,
             subcomponent=subcomponent,
             amount=money(amount),
             formula=formula,

@@ -7,6 +7,14 @@ name = "wri-engine"
 version = "0.2.0"
 description = "Workforce Risk Intelligence - Phase 1: fully loaded cost of discipline"
 readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "Michael V. Celli"}]
+classifiers = [
+    "License :: Other/Proprietary License",
+    # Guard rail: setuptools/twine refuse to upload anything carrying this classifier.
+    # This package is proprietary and must never reach a public index.
+    "Private :: Do Not Upload",
+]
 # Target is Python 3.12; 3.11 is supported so the project runs on older toolchains.
 requires-python = ">=3.11"
 dependencies = [
@@ -38,7 +46,14 @@ pythonpath = ["src"]
 filterwarnings = ["error::DeprecationWarning:wri_engine.*"]
 
 [tool.coverage.run]
-source = ["wri_engine.costing", "wri_engine.aggregation"]
+source = [
+    "wri_engine.costing",
+    "wri_engine.aggregation",
+    "wri_engine.adapters",
+    "wri_engine.access",
+    "wri_engine.store",
+    "wri_engine.api",
+]
 
 [tool.ruff]
 line-length = 100

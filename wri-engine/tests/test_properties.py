@@ -12,17 +12,103 @@ from hypothesis import strategies as st
 
 from wri_engine.aggregation.rollups import build_matrix
 from wri_engine.costing.engine import run_costing
-from wri_engine.schema import CostComponent
+from wri_engine.schema import OFFSET_COMPONENTS
 
 MODES = ("low", "base", "high")
 
 
-def test_only_the_offset_may_be_negative(run):
+def test_only_offset_components_may_be_negative(run):
+    """Every member of OFFSET_COMPONENTS is <= 0; every other component is >= 0."""
     for item in run.line_items:
-        if item.component == CostComponent.C3_OFFSET:
+        if item.component in OFFSET_COMPONENTS:
             assert item.amount <= 0, f"{item.subcomponent} offset must not be positive"
         else:
             assert item.amount >= 0, f"{item.subcomponent} must not be negative"
+
+
+def test_offset_components_are_the_only_ones_excluded_from_gross(run):
+    """Guards the definition itself: gross + offset must partition the line items."""
+    from decimal import Decimal as D
+
+    everything = sum((i.amount for i in run.line_items), D("0"))
+    assert run.gross + run.offset == everything
+
+
+def test_both_offsets_actually_occur_in_the_dataset(run):
+    """If one stopped being emitted, the tests above would pass vacuously."""
+    seen = {i.component for i in run.line_items if i.component in OFFSET_COMPONENTS}
+    assert seen == set(OFFSET_COMPONENTS), f"only saw {seen}"
+
+
+def test_vacancy_charge_and_credit_cover_the_same_shifts(run):
+    """Per action, every vacancy overtime line must be mirrored by an offset over an
+    identical shift count. A mismatch means the county is credited for a different period
+    than it was charged for."""
+    for action in run.action_costs:
+        charges = [i for i in action.line_items if i.subcomponent == "vacancy_coverage_overtime"]
+        credits = [i for i in action.line_items if i.subcomponent == "vacancy_salary_saved"]
+        assert len(charges) == len(credits), action.action_id
+        for charge, credit in zip(charges, credits, strict=True):
+            assert charge.inputs["scheduled_shifts"] == credit.inputs["scheduled_shifts"], (
+                f"{action.action_id}: charged {charge.inputs['scheduled_shifts']} shifts "
+                f"but credited {credit.inputs['scheduled_shifts']}"
+            )
+            assert charge.inputs["vacancy_days"] == credit.inputs["vacancy_days"]
+
+
+def test_offset_cannot_exceed_the_overtime_at_base_assumptions(run):
+    """A structural bound, not a coincidence.
+
+    offset / overtime = own_base / (avg_base x 1.5), because both sides carry the same
+    1.0765 burden at base values. The FLSA premium of 1.5 therefore caps the ratio, and
+    within one pay grade the widest step spread is 1.025^9 = 1.2489, so the ceiling is
+    1.2489 / 1.5 = 0.833. Golden case 10 sits exactly at it.
+    """
+    for action in run.action_costs:
+        charges = {
+            i.action_id: i
+            for i in action.line_items
+            if i.subcomponent == "vacancy_coverage_overtime"
+        }
+        for item in action.line_items:
+            if item.subcomponent != "vacancy_salary_saved":
+                continue
+            charge = charges[item.action_id]
+            assert abs(item.amount) < charge.amount, (
+                f"{action.action_id}: the vacancy credit exceeded the charge at base "
+                f"assumptions, which the 1.5x FLSA premium should make impossible"
+            )
+
+
+def test_offset_can_exceed_the_overtime_once_the_burdens_diverge(loaded, org, assumptions):
+    """The other half of the bound, and the reason the vacancy burden has its own id.
+
+    Push the vacancy burden to its high bound (pension stops with the pay) while the
+    overtime burden stays at base, and the credit can overtake the charge. The engine must
+    handle that without complaint -- a negative net vacancy is a real outcome, not an error.
+    """
+    from datetime import date
+
+    data, report = loaded
+    result = run_costing(
+        data,
+        as_of=date(2026, 9, 17),
+        org=org,
+        assumptions=assumptions,
+        overrides={"c5_vacancy_salary_burden_multiplier": 2.5},
+        excluded_action_ids=report.blocked_action_ids,
+    )
+    pairs = [
+        (
+            next(i for i in ac.line_items if i.subcomponent == "vacancy_coverage_overtime"),
+            next(i for i in ac.line_items if i.subcomponent == "vacancy_salary_saved"),
+        )
+        for ac in result.action_costs
+        if any(i.subcomponent == "vacancy_salary_saved" for i in ac.line_items)
+    ]
+    assert pairs, "no minimum-staffing vacancies in the sample to test"
+    assert any(abs(credit.amount) > charge.amount for charge, credit in pairs)
+    assert result.net == result.gross + result.offset
 
 
 def test_net_equals_gross_plus_offset(run):
@@ -124,4 +210,4 @@ def test_scenario_overrides_never_break_the_invariants(overrides, loaded, org, a
         assert overrides.get("c5_washout_rate_sworn_deputy", Decimal("0")) >= 1, exc
         return
     assert result.net == result.gross + result.offset
-    assert all(i.amount >= 0 for i in result.line_items if i.component != CostComponent.C3_OFFSET)
+    assert all(i.amount >= 0 for i in result.line_items if i.component not in OFFSET_COMPONENTS)

@@ -146,9 +146,12 @@ def test_scenario_rejects_an_unknown_assumption(client):
     assert response.status_code == 400
 
 
-def test_assumptions_endpoint_flags_placeholders(client):
+def test_assumptions_endpoint_reports_the_sign_off_state(client):
     body = client.get("/assumptions", headers=headers("admin")).json()
+    # The owner signed off on the whole registry, so nothing is pending. The field stays in
+    # the response because the next customer's registry will start out full of placeholders.
     assert body["placeholder_count"] == 0
+    assert body["count"] > 150
     assert body["editable"] is True
     assert client.get("/assumptions", headers=headers("executive")).json()["editable"] is False
     sample = next(a for a in body["assumptions"] if a["id"] == "benefits_multiplier_civilian")
@@ -188,7 +191,9 @@ def test_markdown_export_leads_with_the_headline(client):
     text = client.get("/exports/summary.md", headers=headers("executive")).text
     assert text.startswith("# Harlow County")
     assert "per year" in text
-    assert "TBD-MIKE" in text
+    # The export must not overstate what sign-off means.
+    assert "sign-off is not verification" in text
+    assert "TBD-MIKE" not in text
 
 
 def test_audit_log_records_role_endpoint_and_filters(client, tmp_path):

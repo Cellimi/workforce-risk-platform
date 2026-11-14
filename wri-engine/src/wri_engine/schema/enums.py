@@ -99,7 +99,7 @@ class SeparationReason(StrEnum):
 
 
 class CostComponent(StrEnum):
-    """The five cost components, plus the one negative-by-design offset line."""
+    """The five cost components, plus the negative-by-design offset lines."""
 
     C1_PROCESSING = "C1"
     C2_ADMIN_LEAVE = "C2"
@@ -107,6 +107,7 @@ class CostComponent(StrEnum):
     C3_OFFSET = "C3-offset"
     C4_APPEALS = "C4"
     C5_TURNOVER = "C5"
+    C5_OFFSET = "C5-offset"
 
 
 COMPONENT_LABELS: dict[CostComponent, str] = {
@@ -116,4 +117,14 @@ COMPONENT_LABELS: dict[CostComponent, str] = {
     CostComponent.C3_OFFSET: "Unpaid suspension salary savings",
     CostComponent.C4_APPEALS: "Appeals & grievances",
     CostComponent.C5_TURNOVER: "Removal turnover",
+    CostComponent.C5_OFFSET: "Vacancy salary savings",
 }
+
+#: The components that record money the county did NOT spend. They are the only ones
+#: allowed to be negative, they are excluded from gross, and they are what `offset` sums.
+#:
+#: Defined once, here. Anything that needs to know "is this an offset?" asks this set --
+#: never `== C3_OFFSET`, which was the bug that made adding C5-offset a six-file change.
+OFFSET_COMPONENTS: frozenset[CostComponent] = frozenset(
+    {CostComponent.C3_OFFSET, CostComponent.C5_OFFSET}
+)

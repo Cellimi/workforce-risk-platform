@@ -35,6 +35,12 @@ layer is disposable.
 12. **One engagement never sees another's data.** Client files live in the engagement's own
     folder, reached only through `Workspaces`. Client HR data does not go in the database.
 
+13. **A client's export is read through a mapping, never edited.** The mapping is data saved
+    with the engagement. When a detail is missing, take the lighter assumption and report
+    it (investigation type defaults to supervisory); when a cost cannot be counted, report
+    which cases and why (a removal with no linked separation has no turnover cost). Never
+    fill a gap upward and never drop a cost silently.
+
 ## Style
 
 - Prefer small, readable functions. Each component module in `costing/components/` must be

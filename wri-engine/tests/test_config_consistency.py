@@ -38,6 +38,77 @@ def test_every_role_family_has_a_configured_turnover_profile(org, assumptions):
         assumptions.get(f"c5_academy_weeks_{role.turnover_profile}")
 
 
+def test_the_vacancy_salary_burden_assumption_exists(assumptions):
+    """C5 references it for every minimum-staffing vacancy, so a missing id would take the
+    whole engine down rather than degrade quietly."""
+    assumption = assumptions.get("c5_vacancy_salary_burden_multiplier")
+    assert assumption.unit == "ratio"
+    assert assumption.value >= 1, "a burden multiplier below 1 would credit less than the wage"
+    assert assumption.status == "confirmed"
+    assert "OPEN ITEM 3" in assumption.notes
+
+
+def test_the_registry_is_fully_signed_off(assumptions):
+    """The owner approved the whole registry on 2026-11-12, so nothing is left pending."""
+    pending = sorted(a.id for a in assumptions.placeholders)
+    assert not pending, f"{len(pending)} assumptions still awaiting sign-off: {pending[:5]}"
+
+
+def test_sign_off_did_not_inflate_confidence(assumptions):
+    """Approving a number is not the same as verifying it.
+
+    Most values are still the owner's professional estimates. `status` records who signed
+    off; `confidence` records how much weight the figure bears, and sign-off must not quietly
+    raise it. If this ever fails, someone has conflated the two and the registry has stopped
+    telling the truth about where its numbers come from.
+    """
+    low = [a for a in assumptions.assumptions.values() if a.confidence == "low"]
+    assert len(low) >= 80, (
+        f"only {len(low)} low-confidence assumptions remain; confidence should not have "
+        f"moved when the owner signed off on the values"
+    )
+    owner_estimates = [
+        a for a in assumptions.assumptions.values() if "Owner professional estimate" in a.source
+    ]
+    assert len(owner_estimates) >= 100
+    for assumption in owner_estimates:
+        assert assumption.status != "researched", (
+            f"{assumption.id} is an owner estimate but claims 'researched', which asserts a "
+            f"cited source it does not have"
+        )
+
+
+def test_researched_assumptions_were_not_downgraded(assumptions):
+    """`researched` is a stronger claim than `confirmed` -- it names a source. A blanket
+    sign-off must not flatten it away."""
+    researched = {a.id for a in assumptions.assumptions.values() if a.status == "researched"}
+    assert "benefits_multiplier_civilian" in researched
+    assert len(researched) >= 13
+
+
+def test_every_assumption_names_the_owner_who_signed_it_off(assumptions):
+    for assumption in assumptions.assumptions.values():
+        assert assumption.owner == "Michael V. Celli", assumption.id
+
+
+def test_the_two_wage_burden_assumptions_are_separate_ids(assumptions):
+    """They start equal on purpose, but must stay independently settable: a vacancy and a
+    suspension are different events and the employer may stop different things."""
+    suspension = assumptions.get("c3_unpaid_suspension_burden_multiplier")
+    vacancy = assumptions.get("c5_vacancy_salary_burden_multiplier")
+    assert suspension.id != vacancy.id
+    assert suspension.value == vacancy.value
+
+
+def test_the_civilian_loss_factor_records_its_net_interpretation(assumptions):
+    """Civilian vacancies get no salary offset, which is only correct if the factor is a NET
+    figure. That reading has to be written down where the number lives."""
+    for profile in ("civilian_skilled", "civilian_standard"):
+        notes = assumptions.get(f"c5_vacancy_productivity_loss_factor_{profile}").notes
+        assert "NET figure" in notes
+        assert "CONFIRM THE INTERPRETATION" in notes
+
+
 def test_every_role_family_has_a_benefits_multiplier(org, assumptions):
     for role in org.role_families.values():
         assert role.benefits_group in {"civilian", "sworn_public_safety"}
@@ -97,8 +168,21 @@ def test_headcount_is_around_the_configured_target(org):
 
 
 def test_no_real_agency_names_appear_in_config(org):
-    """Guardrail for the 'fictional agency only' rule."""
+    """Guardrail for the 'fictional agency only' rule (CLAUDE.md rule 4).
+
+    A banned list is a floor, not a proof: it catches the names most likely to be pasted in
+    by accident, and the `fictional` flag has to stay true whatever else changes.
+    """
     text = str(org.raw).lower()
     for banned in ("fraternal order of police", "teamsters", "afscme", "seiu", "county of "):
         assert banned not in text, f"config mentions {banned!r}"
     assert org.raw["agency"]["fictional"] is True
+
+
+def test_the_agency_name_is_settled(org):
+    """Harlow County was confirmed by the owner on 2026-11-12. If the name is ever reopened,
+    the docs that quote it have to be reopened with it."""
+    agency = org.raw["agency"]
+    assert agency["name"] == "Harlow County"
+    assert agency["name_status"] == "confirmed"
+    assert agency["fictional"] is True
