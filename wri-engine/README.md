@@ -57,9 +57,9 @@ Five pages, and a role selector in the sidebar that changes what each role is al
 
 ## Everything below is detail
 
-`make test` runs 146 tests with a coverage gate on the cost and aggregation code.
-This project is self-contained and shares no code with the earlier MVP at the root of this
-repository.
+`make test` runs the test suite with a coverage gate on the cost and aggregation code.
+This project is self-contained and shares no code with the February 2026 prototype kept in
+`legacy/` at the top of this repository.
 
 ---
 

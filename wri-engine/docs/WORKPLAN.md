@@ -16,8 +16,10 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 
 1. **Branches.** Pull requests are stacked and not yet merged:
    `main` <- #2 `claude/assumptions-signoff` <- #3 `claude/login-engagements`
-   <- #4 `claude/intake-template` <- #5 `claude/licensed-screen`.
-   Start new work on a new branch from the top of the stack (now `claude/licensed-screen`),
+   <- #4 `claude/intake-template` <- #5 `claude/licensed-screen`
+   <- #6 `claude/private-sector-cost-model` <- `claude/single-project-layout`.
+   Start new work on a new branch from the top of the stack (now
+   `claude/single-project-layout`),
    and open its pull request **against that branch**, extending the stack. Once the stack is
    merged, branch from and target `main`.
 2. **Retired branch.** `claude/wri-phase1-discipline-cost-n73knl` is retired. Everything on it,
@@ -36,6 +38,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 |---|---|---|
 | Screen for the licensed product | Chat session | Done, PR #5 |
 | Private-sector cost model | Claude Code session | Done, PR against `claude/licensed-screen`, `claude/private-sector-cost-model` |
+| One project in the repository (retire the February prototype) | Claude Code session | Step 1 done, `claude/single-project-layout`. Step 2 waits for the stack to merge: see below |
 | Engagement license keys | (unclaimed) | |
 
 ## Where things stand
@@ -63,6 +66,25 @@ asserts it line item by line item. 311 tests, 95.6% coverage.
 7. **Install package.** Container install, configuration guide, upgrade path.
 8. **Phases 2 and 3** (hotspot detection; intervention cost-benefit). Out of scope until
    Phase 1 is in use: see "Phase boundary" in `CLAUDE.md`.
+
+## One project in the repository
+
+The repository used to hold two projects side by side: the engine in `wri-engine/` and, at
+the top level, the first prototype from February 2026 (a dashboard forecasting unit-level
+risk). The owner asked for the repository to show one WRI, keeping the prototype for
+reference.
+
+- **Step 1, done.** The prototype moved to `legacy/` with its own README, and the top-level
+  README now describes one product. Nothing under `wri-engine/` moved, so no open pull
+  request is disturbed. The prototype was run from its new folder to check it still works.
+- **Step 2, not started: move the engine to the top level.** Do this only once every open
+  pull request in the stack has merged, because it renames every file the stack touches.
+  When it is done: move the contents of `wri-engine/` up, merge its `.gitignore` and
+  `README.md` with the top-level ones, drop the duplicate `LICENSE`, and fix the paths in
+  `Makefile`, `pyproject.toml`, `CLAUDE.md` and the docs. One commit, nothing else in it.
+- **The prototype's features are not being ported.** Forecasting, risk scoring and
+  intervention recommendations are Phases 2 and 3 (see "Phase boundary" in `CLAUDE.md`). If
+  they are taken up, they are built in the engine on its data, not lifted from `legacy/`.
 
 ## Private-sector cost model
 
