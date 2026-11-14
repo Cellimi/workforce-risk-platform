@@ -64,7 +64,7 @@ average base rate for deputy at North District)
 **Puts every coefficient in a file, not in code.** 166 assumptions in
 `config/assumptions.yaml`, each with a source, a confidence level, low/base/high bounds, an
 owner and a status. Asking for an assumption that is not there is a hard error, never a
-silent default. 151 are still owner placeholders and are marked `TBD-MIKE`.
+silent default. The owner signed off on all 151 former placeholders on 2026-11-12.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
@@ -158,7 +158,8 @@ make lint     # ruff
 
 ## Before this is shown externally
 
-`config/assumptions.yaml` marks 151 values `TBD-MIKE`. The ones that move the headline most:
+The owner signed off on every value in `config/assumptions.yaml` on 2026-11-12. The ones that
+move the headline most, and that a customer's own figures should replace first:
 
 1. The **sworn benefits multiplier** (currently an owner estimate; confirm against BLS ECEC
    Table 3, protective service occupations).
