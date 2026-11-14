@@ -1,0 +1,9 @@
+# Read by `streamlit run` when started from wri-engine/ (as `make ui` does).
+
+[client]
+# Hide Streamlit's developer controls (Deploy, rerun, settings) from people using the
+# product. "developer" brings them back while working on the screen.
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false

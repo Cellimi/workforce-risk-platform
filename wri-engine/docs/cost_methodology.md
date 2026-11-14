@@ -97,9 +97,15 @@ behind a number*; it does not change *where the number came from*. The `source` 
    base value is higher. The figure to confirm it against is ECEC Table 3 (state and local
    government by occupational group, "protective service"); `bls.gov` was unreachable from
    the build environment, so 1.75 is an owner estimate with **low** confidence and its low
-   bound deliberately set to the all-occupations figure. The owner has approved 1.75 as the
-   working value, so the engine runs on it — but it remains an estimate rather than a cited
-   figure, and it scales every public-safety number in the model. **This is open item 1.**
+   bound deliberately set to the all-occupations figure. The owner accepted 1.75 on
+   2026-11-12 as the working value and chose not to block the project on sourcing it, so the
+   engine runs on it — but it remains an estimate rather than a cited figure, its confidence
+   stays **low**, and it scales every public-safety number in the model.
+
+   Because its low bound is the all-occupations multiplier, running the model in **low mode**
+   shows what the figures look like if the public-safety premium turns out to be nil. That is
+   the honest way to present a number nobody has verified: show the range, not just the
+   point.
 
 ### Rates for people who are not in the extract
 

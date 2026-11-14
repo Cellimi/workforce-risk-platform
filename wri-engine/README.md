@@ -25,9 +25,9 @@ items that each name their own formula, the values used, and the assumption behi
 ```bash
 make install          # create the virtual environment and install dependencies
 make generate         # build the synthetic county dataset
-make test             # 249 tests, coverage gate
+make test             # 260 tests, coverage gate
 make api              # terminal one: the engine in demo mode (http://localhost:8000/docs)
-make ui               # terminal two: the demo (http://localhost:8501)
+make ui               # terminal two: the screen (http://localhost:8501)
 ```
 
 Needs Python 3.11 or newer, and nothing else. `make api` and `make ui` run at the same time,
@@ -76,10 +76,26 @@ with the role their membership gives them.
 
 ```bash
 wri-admin create-user you@firm.example --name "You" --firm-admin   # once, on the server
-make serve
+make serve                                                          # terminal one
+make ui                                                             # terminal two
 ```
 
-Then, over the API (`/docs` lists everything):
+Open <http://localhost:8501> and sign in. The screen asks the server which mode it is in, so
+the same `make ui` serves the demo and a licensed installation.
+
+| Page | Who sees it | What it does |
+|---|---|---|
+| Engagement | everyone | Members and roles (engagement lead); new engagements and user accounts (firm administrator) |
+| Load data | engagement lead | Template download, upload, column matching, code translation, preview, commit |
+| Executive summary, Cost matrix, Data quality | everyone | The results, labelled with the client's name |
+| Drill-down | lead and analyst | One action, every line item |
+| Assumptions | everyone | The registry; the lead also sets client-specific values, each with a reason |
+
+A page a role cannot use is not offered, but the server is what refuses it. Choices made on
+**Load data** are saved to the engagement when the mapping is checked; reloading the page
+before then loses them. Reloading also signs you out.
+
+Everything the screen does is also available over the API (`/docs` lists it):
 
 | Step | Endpoint |
 |---|---|
@@ -125,8 +141,8 @@ takes the lighter assumption and says so (an investigation of unknown type is co
 supervisory inquiry), and when a cost cannot be counted it says which cases and why (a
 removal with no recorded separation carries no replacement cost).
 
-Not built yet: a screen for the licensed mode (the Streamlit app talks to demo mode only),
-single sign-on, the private-sector cost model, and engagement license keys.
+Not built yet: single sign-on, the private-sector cost model, engagement license keys, and a
+white-labelled client report.
 
 ---
 
@@ -274,10 +290,12 @@ to run. What approval does **not** do is turn an estimate into a measurement. Th
 ones most worth replacing with the customer's own figures, because they move the headline
 most and are the least grounded:
 
-1. The **sworn benefits multiplier**, 1.75. Approved, but still unsourced and marked low
-   confidence — the civilian figure beside it comes from BLS ECEC and this one does not.
-   Verify against ECEC Table 3, protective service occupations. It scales every
-   public-safety figure in the model, so it is the single value most worth getting right.
+1. The **sworn benefits multiplier**, 1.75. The owner accepted it on 2026-11-12 as the
+   working value and chose not to block on sourcing it, so the engine runs on it. It is
+   still an estimate rather than a cited figure, still marked low confidence, and it scales
+   every public-safety number in the model — the civilian multiplier beside it comes from
+   BLS ECEC and this one does not. Verifying it against ECEC Table 3, protective service
+   occupations, remains the single highest-value thing anyone could do to this registry.
 2. **C1 processing and investigation hours**.
 3. **Outside counsel rate and the county's arbitration cost share**.
 4. **Whether overtime is pensionable**, which drives the C3 overtime burden.
