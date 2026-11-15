@@ -9,16 +9,28 @@ Everything in a `ReportContent` is something the caller was already allowed to s
 
 * the matrix arrives **already suppressed**, built by the API with the caller's own
   disclosure ledger, exactly as the on-screen matrix is (CLAUDE.md rule 10);
-* the data-quality section carries counts by rule and nothing else -- no employee id and no
-  action id ever reaches a deliverable;
-* nothing here is record level.
+* the data-quality section carries counts by rule and nothing else;
+* the copy for the client is aggregates only: no employee id and no action id reaches it.
 
-`build_report` is a pure function: no I/O, no clock read. The date the report was prepared is
-passed in.
+There is one exception, and it is a different file. A caller entitled to record-level detail
+may ask for the **working papers**: the same workbook with every action and every line item
+added (`RecordSection`). It is assembled only when the API has already checked that
+entitlement, and the identifiers in it arrive here already masked for the caller, so nothing
+in this module decides who may see what. A `ReportContent` with no `records` is the client's
+copy; one with `records` is never the client's copy, and its file name says so.
+
+Wording for the client is settled here too. The registry records who estimated a value
+("Owner professional estimate"); a report a consulting firm hands its client says
+"Professional estimate". `client_wording` makes that change in one place, so the PDF and
+the workbook cannot word a source differently, and the registry is left as the record it is.
+
+`build_report` and `build_records` are pure functions: no I/O, no clock read. The date the
+report was prepared is passed in.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -26,7 +38,13 @@ from decimal import Decimal
 from wri_engine.aggregation.rollups import Matrix, summarize
 from wri_engine.costing.assumptions import AssumptionSet
 from wri_engine.costing.engine import CostRun
-from wri_engine.schema import COMPONENT_LABELS, OFFSET_COMPONENTS, CanonicalDataset, CostComponent
+from wri_engine.schema import (
+    COMPONENT_LABELS,
+    OFFSET_COMPONENTS,
+    CanonicalDataset,
+    CostComponent,
+    CostLineItem,
+)
 
 CENT = Decimal("0.01")
 PRODUCT_NAME = "Workforce Risk Intelligence"
@@ -48,6 +66,27 @@ ASSUMPTION_NOTE = (
     "where one exists, is better than either. Appendix B lists the values this engagement "
     "uses in place of the defaults, with the reason given for each."
 )
+
+
+#: The registry's words for who stands behind a value, and the words a client reads.
+#: Order matters: the longer phrase is replaced before the shorter one inside it.
+CLIENT_WORDING = (
+    ("Owner professional estimate, accepted by the owner on", "Professional estimate, accepted on"),
+    ("Owner professional estimate", "Professional estimate"),
+)
+RECORDS_NOTE = (
+    "WORKING PAPERS - RECORD LEVEL. This copy lists every action and every line item behind "
+    "the figures. It is for the engagement team. It is not the client's copy: the client's "
+    "workbook is the one without the Actions and Line items sheets."
+)
+
+
+def client_wording(source: str) -> str:
+    """A source as a client should read it. Only the attribution changes; the citation,
+    the caveats and everything else in the text are left exactly as the registry has them."""
+    for registry_words, client_words in CLIENT_WORDING:
+        source = source.replace(registry_words, client_words)
+    return source
 
 
 @dataclass(frozen=True)
@@ -150,6 +189,54 @@ class QualityRow:
 
 
 @dataclass(frozen=True)
+class ActionRow:
+    """One costed action. `employee` is the identifier the caller may see, already masked
+    where their role requires it."""
+
+    action_id: str
+    employee: str
+    decision_date: str
+    department: str
+    role: str
+    misconduct: str
+    action_type: str
+    gross: Decimal
+    offset: Decimal
+    net: Decimal
+    still_accruing: bool
+
+
+@dataclass(frozen=True)
+class LineItemRow:
+    """One explainable amount: what it is, how it was worked out, and what it rests on."""
+
+    action_id: str
+    employee: str
+    component: str
+    component_label: str
+    subcomponent: str
+    amount: Decimal
+    formula: str
+    assumption_ids: str
+    still_accruing: bool
+
+
+@dataclass(frozen=True)
+class RecordSection:
+    """Every action and line item behind a report's figures: the working papers.
+
+    Amounts are carried unrounded, exactly as the engine produced them, so the sheet sums to
+    the report's totals and not to something a cent away.
+    """
+
+    #: "real" or "masked": which kind of employee identifier this copy carries.
+    identifiers: str
+    actions: list[ActionRow]
+    line_items: list[LineItemRow]
+    note: str = RECORDS_NOTE
+
+
+@dataclass(frozen=True)
 class ReportContent:
     # -- whose it is and what it covers
     branding: Branding
@@ -197,6 +284,8 @@ class ReportContent:
     method_note: str = METHOD_NOTE
     assumption_note: str = ASSUMPTION_NOTE
     title: str = REPORT_TITLE
+    #: The working papers. None in the client's copy, which is aggregates only.
+    records: RecordSection | None = None
     extra: dict = field(default_factory=dict)
 
     @property
@@ -210,7 +299,9 @@ class ReportContent:
         """A safe file name: letters, digits and underscores from the client's name."""
         cleaned = "".join(ch if ch.isalnum() else "_" for ch in self.client_name.lower())
         cleaned = "_".join(part for part in cleaned.split("_") if part)
-        return f"{cleaned or 'client'}_cost_of_discipline"
+        stem = f"{cleaned or 'client'}_cost_of_discipline"
+        # The two copies must never be mistaken for each other in a folder or an email.
+        return f"{stem}_working_papers" if self.records else stem
 
 
 def _money(value) -> Decimal:
@@ -299,11 +390,63 @@ def _assumptions_used(
                 high=record.high,
                 status=record.status,
                 confidence=record.confidence,
-                source=record.source,
+                source=client_wording(record.source),
                 overridden=assumption_id in effective.overrides,
             )
         )
     return rows
+
+
+def build_records(
+    run: CostRun,
+    *,
+    identifiers: str,
+    identify: Callable[[str], str],
+    explain: Callable[[CostLineItem], str],
+) -> RecordSection:
+    """List every action and line item of a run, dearest action first.
+
+    Who may see what is not decided here. `identify` turns an employee id into the one the
+    caller may see, and `explain` returns a line item's formula with any colleague it names
+    masked the same way; both come from the access layer by way of the API.
+    """
+    actions = sorted(run.action_costs, key=lambda a: (-a.net, a.action_id))
+    action_rows, item_rows = [], []
+    for action in actions:
+        shown_as = identify(action.employee_id)
+        d = action.dimensions
+        action_rows.append(
+            ActionRow(
+                action_id=action.action_id,
+                employee=shown_as,
+                decision_date=str(d.get("decision_date", "")),
+                department=str(d.get("department_label", d.get("department", ""))),
+                role=str(d.get("role_family_label", d.get("role_family", ""))),
+                misconduct=str(
+                    d.get("misconduct_category_label", d.get("misconduct_category", ""))
+                ),
+                action_type=str(d.get("action_type_label", d.get("action_type", ""))),
+                gross=action.gross,
+                offset=action.offset,
+                net=action.net,
+                still_accruing=action.cost_incomplete,
+            )
+        )
+        for item in action.line_items:
+            item_rows.append(
+                LineItemRow(
+                    action_id=item.action_id,
+                    employee=shown_as,
+                    component=str(item.component),
+                    component_label=COMPONENT_LABELS[item.component],
+                    subcomponent=item.subcomponent,
+                    amount=item.amount,
+                    formula=explain(item),
+                    assumption_ids=", ".join(item.assumption_ids),
+                    still_accruing=item.cost_incomplete,
+                )
+            )
+    return RecordSection(identifiers=identifiers, actions=action_rows, line_items=item_rows)
 
 
 def build_report(
@@ -329,6 +472,7 @@ def build_report(
     caption: str,
     standing: str,
     generated_on: date,
+    records: RecordSection | None = None,
 ) -> ReportContent:
     """Assemble a deliverable's content from runs the caller is already entitled to.
 
@@ -410,4 +554,5 @@ def build_report(
         registry_size=len(default_assumptions.assumptions),
         overrides=overrides,
         standing=standing,
+        records=records,
     )

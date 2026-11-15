@@ -41,14 +41,15 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Offer sales and office work as separate occupation selections | Claude Code session | Done (PR #10). The owner reviewed the two values on 2026-11-14 |
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
-| Engagement license keys | Claude Code session | Done, `claude/license-keys` (built on `claude/approve-sales-office-values`, PR #12) |
+| Engagement license keys | Claude Code session | Done, PR #13 |
+| Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, `claude/report-record-sheet` |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 365 tests, 95.9% coverage.
+asserts it line item by line item. 377 tests, 96.0% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -120,12 +121,12 @@ signing key should never exist anywhere but the owner's own machine and its back
   2. Back up `wri_license_signing_key.pem` somewhere offline. If it is lost, no new key can
      be issued for installed products; if it is copied, anyone can issue them.
   3. Give installations `wri_license_public_key.pem` as `config/license_public_key.pem`.
-     Whether that file is committed here or shipped only in the install package is the
-     owner's call; it is safe to publish, and committing it turns enforcement on for every
-     checkout run in licensed mode.
+     **Decided by the owner on 2026-11-15: it ships only in the install package and is not
+     committed here.** `.gitignore` lists it, so a checkout of the source is never licensed
+     by accident.
 
 **Left for the install package (item 7):** shipping the verification key, and saying in the
-configuration guide where it goes.
+configuration guide where it goes. This is now a requirement of that item, not an option.
 
 ## Client deliverables
 
@@ -154,14 +155,35 @@ only the seven public-sector components, so a private engagement's separation an
 costs were in the totals but missing from the breakdown. A component is now listed whenever
 the run has money against it. Public output is unchanged.
 
-Not done, and worth a decision from the owner:
+Decided by the owner on 2026-11-15 and built in `claude/report-record-sheet`:
 
-1. **No record-level export.** The workbook is aggregates only. A sheet of line items for
-   the engagement lead and analyst is a larger disclosure surface than this change should
-   open without being asked.
-2. **Wording in Appendix A.** A source such as "Owner professional estimate" is the
-   registry's own text and reads as the product owner's, not the consulting firm's. Whether
-   a client-facing report should say "professional estimate" instead is a wording call.
+1. **Record-level export: yes.** Built as the **working papers**, a separate download and
+   not a sheet in the client's copy. `report.xlsx?records=true` adds an Actions sheet and a
+   Line items sheet for a caller with `view_records` (engagement lead and analyst); a
+   client reader gets 403. The ordinary workbook stays aggregates only for everyone, the
+   lead included, so there is always a copy that is safe to send on and the two cannot be
+   mistaken: the file name ends `_working_papers` and the first sheet says what it is.
+   Identifiers follow the drill-down's rule: real for the lead, masked for the analyst.
+   Why separate: one workbook with a record sheet would have meant the lead deleting a
+   sheet by hand before every send, which is use limitation left to memory.
+2. **Wording in Appendix A: "Professional estimate".** `client_wording` in
+   `reporting/content.py` rewords the attribution on the way into a report; the registry
+   keeps "Owner professional estimate" as its record of who estimated the value. Two other
+   pieces of internal wording still reach Appendix A unchanged and are the owner's to rule
+   on: "(Section 5.2 starting defaults)" on 22 values and "OPEN ITEM 2 - ..." on 2.
+
+Found and fixed in the same change, because the working papers would have multiplied it:
+**the drill-down showed an analyst a real employee id.** A C1 formula names the supervisor
+or the deciding official ("supervisor E00483 (Sheriff's Sergeant): ..."). The subject's id
+was masked for an analyst and that one was not. Both are now masked, in the formula and in
+the stored inputs, with the same code that person carries everywhere else
+(`project_named_colleagues` in `access/roles.py`). Only the exact phrase that names them is
+rewritten, so a client whose ids are plain numbers never has "30 hrs" turned into a code.
+The engagement lead's view is unchanged. Not masked, and worth knowing: the colleague's job
+title stays in the sentence, as the subject's department and role already do.
+
+Not done:
+
 3. **One layout.** No choice of colours, fonts or page size per firm; the logo and name are
    the branding.
 4. **The report's matrix is always employee type by misconduct type**, the screen's default.

@@ -196,9 +196,14 @@ def report_downloads(api: EngineClient) -> None:
     if prepared and prepared["key"] != key:
         prepared = None
         st.session_state.pop("report_files", None)
+    # Offered to the roles that already have the drill-down. The server decides; an
+    # executive who asked anyway would be refused there.
+    with_records = current_role() != "executive"
     if st.button("Prepare the report"):
         try:
             prepared = {"key": key, "pdf": api.report_pdf(mode()), "xlsx": api.report_xlsx(mode())}
+            if with_records:
+                prepared["records"] = api.report_xlsx(mode(), records=True)
         except ApiError as exc:
             st.error(str(exc))
             return
@@ -218,6 +223,24 @@ def report_downloads(api: EngineClient) -> None:
             file_name=f"{name}_cost_of_discipline.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+        if prepared.get("records"):
+            st.markdown("**For the engagement team only**")
+            st.caption(
+                "The working papers are the same workbook with every action and every line "
+                "item added. They are not the client's copy. Send the client the two files "
+                "above."
+                + (
+                    ""
+                    if current_role() == "admin"
+                    else " Employee identifiers in your copy are masked."
+                )
+            )
+            st.download_button(
+                "Download the working papers (Excel, record level)",
+                prepared["records"],
+                file_name=f"{name}_cost_of_discipline_working_papers.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
 
 def executive_summary(api: EngineClient) -> None:

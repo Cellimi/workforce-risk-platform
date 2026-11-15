@@ -467,3 +467,209 @@ def test_a_private_engagements_report_carries_its_own_components(tmp_path):
         f"/engagements/{site.engagement}/exports/summary.md", headers=site.auth(OWNER)
     ).text
     assert "C6 Separation agreements & unemployment" in markdown
+
+
+# ---------------------------------------------------------------------------
+# the working papers: the same workbook with every record behind it
+# ---------------------------------------------------------------------------
+REAL_ID = re.compile(r"\bE\d{5}\b")
+MASKED_ID = re.compile(r"^EMP-[0-9A-F]{8}$")
+RECORD_SHEETS = ["Actions", "Line items"]
+
+
+def working_papers(demo, who: str, **params):
+    return demo.get("/exports/report.xlsx", params={"records": "true", **params}, headers=role(who))
+
+
+def every_string(book):
+    for sheet in book.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            for value in row:
+                if isinstance(value, str):
+                    yield sheet.title, value
+
+
+@pytest.fixture(scope="module")
+def analyst_papers(demo):
+    response = working_papers(demo, "hr_analyst")
+    assert response.status_code == 200, response.text
+    assert (
+        'filename="harlow_county_cost_of_discipline_working_papers.xlsx"'
+        in response.headers["content-disposition"]
+    )
+    return load_workbook(io.BytesIO(response.content))
+
+
+def test_the_clients_copy_has_no_records_whoever_downloads_it(demo):
+    """Asking for nothing extra gets the client's copy. The engagement lead's download is
+    the same aggregates-only workbook the client reader gets, so it is safe to send on."""
+    for who in ("executive", "hr_analyst", "admin"):
+        book = load_workbook(
+            io.BytesIO(demo.get("/exports/report.xlsx", headers=role(who)).content)
+        )
+        assert not set(RECORD_SHEETS) & set(book.sheetnames), who
+        assert not any(REAL_ID.search(v) or "EMP-" in v for _, v in every_string(book)), who
+
+
+def test_a_role_without_the_drill_down_cannot_have_the_working_papers(demo, firm_site):
+    refused = working_papers(demo, "executive")
+    assert refused.status_code == 403
+    assert "not permitted to view records" in refused.json()["detail"]
+    assert report(firm_site, CLIENT, "xlsx", records="true").status_code == 403
+    assert report(firm_site, OUTSIDER, "xlsx", records="true").status_code == 404
+    for who in (LEAD, ANALYST):
+        assert report(firm_site, who, "xlsx", records="true").status_code == 200, who
+    # Producing them is on the record, told apart from producing the client's copy.
+    produced = [
+        e["detail"] for e in firm_site.store.usage_log() if e["event"] == "report_generated"
+    ]
+    assert produced == [{"format": "xlsx", "mode": "base", "records": True}] * 2
+
+
+def test_the_working_papers_add_up_to_the_report(analyst_papers, demo_summary):
+    """Every action and every line item, summing to the cent to the figures the report
+    gives. The sheets carry the engine's own amounts, not rounded copies of them."""
+    book = analyst_papers
+    assert book.sheetnames[-2:] == RECORD_SHEETS
+    actions = [r for r in sheet_rows(book, "Actions")[1:] if r[1]]
+    items = [r for r in sheet_rows(book, "Line items")[1:] if r[1]]
+    assert len(actions) == demo_summary["actions_costed"]
+    assert {r[0] for r in items} == {r[0] for r in actions}
+
+    def total(rows, column):
+        return sum((Decimal(str(r[column])) for r in rows), Decimal(0)).quantize(Decimal("0.01"))
+
+    assert total(actions, 7) == Decimal(demo_summary["total_gross"])
+    assert total(actions, 8) == Decimal(demo_summary["total_offset"])
+    assert total(actions, 9) == Decimal(demo_summary["total_net"])
+    assert total(items, 5) == Decimal(demo_summary["total_net"])
+    # Dearest action first, and each line item says how it was worked out and on what.
+    nets = [Decimal(str(r[9])) for r in actions]
+    assert nets == sorted(nets, reverse=True)
+    assert all(r[6] for r in items)
+    assert any("benefits_multiplier_sworn" in (r[7] or "") for r in items)
+
+
+def test_an_analysts_working_papers_hold_no_real_employee_id(analyst_papers):
+    """An analyst sees masked identifiers. That has to hold for the supervisor or deciding
+    official a formula names, not only for the person disciplined."""
+    book = analyst_papers
+    leaked = [(sheet, v) for sheet, v in every_string(book) if REAL_ID.search(v)]
+    assert leaked == []
+    actions = [r for r in sheet_rows(book, "Actions")[1:] if r[1]]
+    assert all(MASKED_ID.match(r[1]) for r in actions)
+    formulas = [r[6] for r in sheet_rows(book, "Line items")[1:] if r[6]]
+    assert any(re.search(r"supervisor EMP-[0-9A-F]{8} \(", f) for f in formulas)
+    summary = " ".join(str(v) for row in sheet_rows(book, "Summary") for v in row if v)
+    assert "WORKING PAPERS - RECORD LEVEL" in summary
+    assert "identifiers in this copy are masked" in summary
+
+
+def test_the_leads_working_papers_carry_the_clients_own_ids(demo):
+    book = load_workbook(io.BytesIO(working_papers(demo, "admin").content))
+    actions = [r for r in sheet_rows(book, "Actions")[1:] if r[1]]
+    assert all(REAL_ID.fullmatch(r[1]) for r in actions)
+    formulas = [r[6] for r in sheet_rows(book, "Line items")[1:] if r[6]]
+    assert any(re.search(r"supervisor E\d{5} \(", f) for f in formulas)
+    summary = " ".join(str(v) for row in sheet_rows(book, "Summary") for v in row if v)
+    assert "identifiers in this copy are the client's own" in summary
+
+
+def test_a_masked_colleague_is_the_same_code_everywhere(demo, analyst_papers):
+    """The supervisor named in a formula carries the code that same person has as the
+    subject of their own action, so an analyst can still follow a person through the data."""
+    from wri_engine.access.roles import pseudonymize
+
+    by_id = STATE.dataset.employees_by_id()
+    disciplined = {a.employee_id for a in STATE.dataset.actions}
+    both = next(
+        e for e in STATE.dataset.employees if e.employee_id in disciplined
+        and e.supervisor_id in disciplined and e.supervisor_id in by_id
+    )  # fmt: skip
+    code = pseudonymize(both.supervisor_id)
+    rows = sheet_rows(analyst_papers, "Line items")[1:]
+    assert any(f"supervisor {code} (" in (r[6] or "") for r in rows)
+    assert any(r[1] == code for r in sheet_rows(analyst_papers, "Actions")[1:])
+
+
+def test_the_drill_down_masks_a_named_colleague_for_an_analyst(demo):
+    """The on-screen drill-down had the same gap the working papers would have had: the
+    subject's id was masked and the supervisor's, in the formula beside it, was not."""
+    listed = demo.get("/costs/actions", params={"limit": 2000}, headers=role("admin")).json()
+    checked = 0
+    for action in listed["actions"][:120]:
+        url = f"/costs/actions/{action['action_id']}"
+        seen = demo.get(url, headers=role("hr_analyst")).text
+        assert not REAL_ID.search(seen), action["action_id"]
+        full = demo.get(url, headers=role("admin")).json()
+        if any("supervisor E" in item["formula"] for item in full["line_items"]):
+            checked += 1
+            assert "supervisor EMP-" in seen
+            # Masked in the stored values behind the formula as well as in the sentence.
+            analyst = demo.get(url, headers=role("hr_analyst")).json()
+            bases = [i["inputs"].get("rate_basis", "") for i in analyst["line_items"]]
+            assert any("supervisor EMP-" in b for b in bases)
+    assert checked > 20
+
+
+def test_masking_a_colleague_touches_only_the_phrase_that_names_them():
+    """A client's employee ids can be plain numbers. Masking supervisor 30 must not turn
+    "30 hrs" into a code."""
+    from wri_engine.access.roles import Role, project_named_colleagues, pseudonymize
+    from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_phrase
+
+    text = "Supervisor time on a removal: 30 hrs x $68.95/hr (supervisor 30 (Sergeant): $39.40)"
+    named = [(SUPERVISOR, "30"), (DECIDING_OFFICIAL, "8")]
+    masked = project_named_colleagues(Role.HR_ANALYST, text, named, colleague_phrase)
+    assert masked == text.replace("supervisor 30 (", f"supervisor {pseudonymize('30')} (")
+    assert "30 hrs" in masked
+    assert project_named_colleagues(Role.ADMIN, text, named, colleague_phrase) == text
+    assert project_named_colleagues(Role.HR_ANALYST, "no one named", named, colleague_phrase) == (
+        "no one named"
+    )
+
+
+def test_every_text_cell_in_the_working_papers_is_stored_as_text(demo):
+    """Formulas and department names come from the client's records. None may be run as a
+    spreadsheet formula, whatever it starts with."""
+    book = load_workbook(io.BytesIO(working_papers(demo, "admin").content))
+    for name in RECORD_SHEETS:
+        for row in book[name].iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str):
+                    assert cell.data_type == "s", (name, cell.coordinate)
+
+
+def test_the_working_papers_follow_the_sensitivity_mode(demo):
+    high = demo.get("/costs/summary", params={"mode": "high"}, headers=role("admin")).json()
+    book = load_workbook(io.BytesIO(working_papers(demo, "admin", mode="high").content))
+    actions = [r for r in sheet_rows(book, "Actions")[1:] if r[1]]
+    net = sum((Decimal(str(r[9])) for r in actions), Decimal(0)).quantize(Decimal("0.01"))
+    assert net == Decimal(high["total_net"])
+
+
+# ---------------------------------------------------------------------------
+# wording for the client
+# ---------------------------------------------------------------------------
+def test_a_clients_report_says_professional_estimate_not_whose(demo_pdf, demo_book):
+    """The registry records who estimated a value. A report a consulting firm hands its
+    client says "professional estimate" and leaves the rest of the source as it is."""
+    from wri_engine.costing.assumptions import load_assumptions
+    from wri_engine.reporting import client_wording
+
+    text = pdf_text(demo_pdf)
+    assert "Professional estimate" in text
+    assert "Owner professional estimate" not in text and "by the owner" not in text
+    sources = [r[9] for r in sheet_rows(demo_book, "Assumptions used")[1:] if r[9]]
+    assert sum(1 for s in sources if s.startswith("Professional estimate")) > 50
+    assert not any("Owner professional" in s or "by the owner" in s for s in sources)
+
+    registry = load_assumptions()
+    sworn = registry.get("benefits_multiplier_sworn").source
+    # The registry itself is untouched, and only the attribution changes on the way out.
+    assert sworn.startswith("Owner professional estimate, accepted by the owner on")
+    worded = client_wording(sworn)
+    assert worded.startswith("Professional estimate, accepted on 2026-11-12")
+    assert worded.split("accepted on", 1)[1] == sworn.split("accepted by the owner on", 1)[1]
+    cited = registry.get("benefits_multiplier_civilian").source
+    assert client_wording(cited) == cited

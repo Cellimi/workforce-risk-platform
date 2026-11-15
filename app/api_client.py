@@ -130,9 +130,11 @@ class EngineClient:
         """The report for the client, carrying the firm's name and logo."""
         return self._request("GET", "/exports/report.pdf", params={"mode": mode}).content
 
-    def report_xlsx(self, mode: str = "base") -> bytes:
-        """The workbook that goes with the report."""
-        return self._request("GET", "/exports/report.xlsx", params={"mode": mode}).content
+    def report_xlsx(self, mode: str = "base", records: bool = False) -> bytes:
+        """The workbook that goes with the report. With `records`, the working papers:
+        the same workbook plus every action and line item, for roles the server allows."""
+        params = {"mode": mode, "records": "true"} if records else {"mode": mode}
+        return self._request("GET", "/exports/report.xlsx", params=params).content
 
     # -- the firm's name and logo (licensed mode) ----------------------------
     def firm(self) -> dict:
