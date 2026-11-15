@@ -47,7 +47,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 |
 | An audit log that shows when it has been edited | Claude Code session | Done, PR #17 |
 | Fixed dependency versions and a smaller image | Claude Code session | Done, PR #18 |
-| Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, `claude/single-sign-on` |
+| Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, PR #19 |
+| Phase 2, step 1: hotspot detection (units whose discipline rate stands out) | Claude Code session | In progress, `claude/phase2-hotspots` (built on PR #19) |
 
 ## Where things stand
 
