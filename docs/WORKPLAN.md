@@ -43,10 +43,11 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
 | Engagement license keys | Claude Code session | Done, PR #13 |
 | Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
-| Install package: container install, configuration guide, upgrade path | Claude Code session | Done, `claude/install-package` |
-| Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 (built on PR #15) |
-| An audit log that shows when it has been edited | Claude Code session | Done, PR #17 (built on PR #16) |
-| Fixed dependency versions and a smaller image | Claude Code session | Done, `claude/pinned-dependencies` (built on PR #17) |
+| Install package: container install, configuration guide, upgrade path | Claude Code session | Done, PR #15 |
+| Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 |
+| An audit log that shows when it has been edited | Claude Code session | Done, PR #17 |
+| Fixed dependency versions and a smaller image | Claude Code session | Done, PR #18 |
+| Single sign-on (OpenID Connect, any provider) | Claude Code session | In progress, `claude/single-sign-on` |
 
 ## Where things stand
 
