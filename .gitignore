@@ -58,3 +58,8 @@ coverage.xml
 # an installation. Ignored by name as a last line of defence, not as the control.
 wri_license_signing_key.pem
 *signing_key*.pem
+
+# The verification key that switches license enforcement on. Safe to publish, but by the
+# owner's decision it ships only in the install package, so a checkout of the source is
+# never licensed by accident.
+/config/license_public_key.pem

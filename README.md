@@ -142,6 +142,20 @@ both:
 - **Text a person typed stays text.** An override's reason or a client's name is never run
   as a spreadsheet formula and never read as layout markup.
 
+Where the registry says who estimated a value ("Owner professional estimate"), the report
+says "Professional estimate". Only that attribution is reworded; citations and caveats are
+printed as the registry has them, and the registry itself is unchanged.
+
+**The working papers are a third file, and not for the client.** The engagement lead and
+the analyst, the two roles that already have the drill-down, are also offered the same
+workbook with two more sheets: every action, and every line item with how it was worked
+out and the assumptions it used (`report.xlsx?records=true`). The sheets sum to the cent to
+the report's totals. Its file name ends `_working_papers`, its first sheet says what it is,
+and a client reader who asks for it is refused by the server. The lead's copy carries the
+client's own employee ids; the analyst's carries masked ones, including for a supervisor or
+deciding official that a formula names. Whoever downloads the ordinary workbook, lead
+included, gets the aggregates-only copy that is safe to send on.
+
 A firm administrator sets the firm's name and logo once, on the **Engagement** page. The
 logo must be a PNG or a JPEG of 512 KB at most; it is checked as a picture when uploaded,
 and an SVG is refused. With neither set, reports carry the product's name.
@@ -184,7 +198,9 @@ holds; it never contacts anyone, so it works on a network with no way out.
 
 It is switched on by installing the verification key, at `config/license_public_key.pem` or
 wherever `WRI_LICENSE_PUBLIC_KEY_FILE` points. Without one nothing is enforced and the
-product runs as before. The synthetic walkthrough is never licensed.
+product runs as before. The synthetic walkthrough is never licensed. The verification key
+is not kept in this repository: it ships with the install package, so a checkout of the
+source is never licensed by accident.
 
 | An engagement whose key is | Can |
 |---|---|
@@ -365,6 +381,7 @@ the signed-in user's membership.
 | `POST /scenarios/run` | Re-run with overridden assumptions; nothing on disk changes |
 | `GET /exports/matrix.csv`, `GET /exports/summary.md` | Exports |
 | `GET /exports/report.pdf`, `GET /exports/report.xlsx` | The report for the client and the workbook beside it |
+| `GET /exports/report.xlsx?records=true` | The working papers: the workbook plus every action and line item (role-gated, as the drill-down is) |
 | `GET /firm`, `PUT /firm`, `PUT /firm/logo`, `DELETE /firm/logo` | The consulting firm's name and logo (firm administrator sets them) |
 
 ---

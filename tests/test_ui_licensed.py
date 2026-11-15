@@ -478,6 +478,34 @@ def test_the_firm_sets_its_name_and_the_report_is_offered_for_download(server):
     assert "Download the workbook (Excel)" in downloads
     prepared = at.session_state["report_files"]
     assert prepared["pdf"].startswith(b"%PDF") and prepared["xlsx"].startswith(b"PK")
+    # The engagement team also gets the working papers, as a separate file, told apart
+    # from what goes to the client.
+    assert "Download the working papers (Excel, record level)" in downloads
+    assert prepared["records"].startswith(b"PK") and prepared["records"] != prepared["xlsx"]
+    assert "They are not the client's copy" in texts(at)
+
+
+def test_a_client_reader_is_not_offered_the_working_papers(server):
+    url, store = server
+    owner = store.get_user_by_email(OWNER[0])
+    engagement = store.create_engagement(
+        name="FY26 review",
+        client_name="Pine Valley County",
+        sector="public_sector",
+        created_by=owner.id,
+    )
+    _upload_sample(url, store, engagement.id)
+    store.set_member(engagement.id, store.get_user_by_email(READER[0]).id, "executive")
+
+    at = sign_in(open_app(url), READER)
+    at = go(at, "Executive summary")
+    labelled(at.button, "Prepare the report").click()
+    at.run()
+    assert not at.exception, at.exception
+    downloads = [d.proto.label for d in at.get("download_button")]
+    assert "Download the workbook (Excel)" in downloads
+    assert "Download the working papers (Excel, record level)" not in downloads
+    assert "records" not in at.session_state["report_files"]
 
 
 # ---------------------------------------------------------------------------

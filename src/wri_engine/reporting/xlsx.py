@@ -4,6 +4,12 @@ The report is for reading; this is for working in. It carries the same figures -
 rendered from one `ReportContent` -- plus what a page cannot hold: every cell of the cost
 matrix, and every assumption with its bounds.
 
+There are two copies. The client's copy is aggregates only. The **working papers** are the
+same workbook with two more sheets, Actions and Line items, listing every record behind the
+figures; they are written only when the content carries a `RecordSection`, which the API
+builds only for a caller entitled to record-level detail. This module does not decide that.
+It lays out what it is given, and marks the working papers as such on the first sheet.
+
 Two things are done to every cell on purpose:
 
 * **Money stays `Decimal`** all the way into the file, and is shown to the cent by the
@@ -24,6 +30,7 @@ from openpyxl.utils import get_column_letter
 from wri_engine.reporting.content import PRODUCT_NAME, ReportContent
 
 MONEY = "#,##0.00;[Red]-#,##0.00"
+WARNING = Font(bold=True, color="9B1C1C")
 SHARE = "0.0%"
 HEADER_FILL = PatternFill("solid", fgColor="243B53")
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -96,6 +103,21 @@ def _summary(book: Workbook, content: ReportContent) -> None:
     _put(sheet, end, 1, content.method_note, font=MUTED)
     _put(sheet, end + 1, 1, content.assumption_note, font=MUTED)
     _put(sheet, end + 2, 1, content.standing, font=MUTED)
+    if content.records:
+        _put(sheet, end + 4, 1, content.records.note, font=WARNING)
+        _put(
+            sheet,
+            end + 5,
+            1,
+            "Employee identifiers in this copy are "
+            + (
+                "the client's own."
+                if content.records.identifiers == "real"
+                else "masked: the same person is the same code throughout, and the code "
+                "cannot be turned back into an id."
+            ),
+            font=WARNING,
+        )
     _widths(sheet, [38, 40])
 
 
@@ -275,6 +297,83 @@ def _overrides(book: Workbook, content: ReportContent) -> None:
     _widths(sheet, [46, 12, 12, 16, 70, 30, 12])
 
 
+def _actions(book: Workbook, content: ReportContent) -> None:
+    sheet = book.create_sheet("Actions")
+    _header(
+        sheet,
+        1,
+        [
+            "Action",
+            "Employee",
+            "Decided",
+            "Department",
+            "Role",
+            "Misconduct",
+            "Action taken",
+            "Gross",
+            "Savings",
+            "Net",
+            "Still accruing",
+        ],
+    )
+    row = 2
+    for a in content.records.actions:
+        _put(sheet, row, 1, a.action_id)
+        _put(sheet, row, 2, a.employee)
+        _put(sheet, row, 3, a.decision_date)
+        _put(sheet, row, 4, a.department)
+        _put(sheet, row, 5, a.role)
+        _put(sheet, row, 6, a.misconduct)
+        _put(sheet, row, 7, a.action_type)
+        _put(sheet, row, 8, a.gross, number_format=MONEY)
+        _put(sheet, row, 9, a.offset, number_format=MONEY)
+        _put(sheet, row, 10, a.net, number_format=MONEY)
+        _put(sheet, row, 11, "yes" if a.still_accruing else "")
+        row += 1
+    # The report's own totals, not a sum worked out here: the rows above add up to them.
+    _put(sheet, row, 1, "Total", font=BOLD)
+    _put(sheet, row, 8, content.gross, number_format=MONEY, font=BOLD)
+    _put(sheet, row, 9, content.offset, number_format=MONEY, font=BOLD)
+    _put(sheet, row, 10, content.net, number_format=MONEY, font=BOLD)
+    _put(sheet, row + 2, 1, content.records.note, font=WARNING)
+    _widths(sheet, [14, 16, 12, 34, 28, 30, 22, 16, 16, 16, 14])
+
+
+def _line_items(book: Workbook, content: ReportContent) -> None:
+    sheet = book.create_sheet("Line items")
+    _header(
+        sheet,
+        1,
+        [
+            "Action",
+            "Employee",
+            "Code",
+            "Component",
+            "What",
+            "Amount",
+            "How it was worked out",
+            "Assumptions used",
+            "Still accruing",
+        ],
+    )
+    row = 2
+    for item in content.records.line_items:
+        _put(sheet, row, 1, item.action_id)
+        _put(sheet, row, 2, item.employee)
+        _put(sheet, row, 3, item.component)
+        _put(sheet, row, 4, item.component_label)
+        _put(sheet, row, 5, item.subcomponent.replace("_", " "))
+        _put(sheet, row, 6, item.amount, number_format=MONEY)
+        _put(sheet, row, 7, item.formula)
+        _put(sheet, row, 8, item.assumption_ids)
+        _put(sheet, row, 9, "yes" if item.still_accruing else "")
+        row += 1
+    _put(sheet, row, 1, "Net", font=BOLD)
+    _put(sheet, row, 6, content.net, number_format=MONEY, font=BOLD)
+    _put(sheet, row + 2, 1, content.records.note, font=WARNING)
+    _widths(sheet, [14, 16, 11, 34, 28, 16, 110, 60, 14])
+
+
 def render_xlsx(content: ReportContent) -> bytes:
     """Write a report's content as a workbook and return the file's bytes."""
     book = Workbook()
@@ -289,6 +388,10 @@ def render_xlsx(content: ReportContent) -> bytes:
     _quality(book, content)
     _assumptions(book, content)
     _overrides(book, content)
+    if content.records:
+        _actions(book, content)
+        _line_items(book, content)
+        book.properties.title = f"{book.properties.title} - working papers"
     buffer = io.BytesIO()
     book.save(buffer)
     return buffer.getvalue()

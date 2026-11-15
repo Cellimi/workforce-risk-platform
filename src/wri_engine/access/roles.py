@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from collections.abc import Callable
 from enum import StrEnum
 
 
@@ -96,3 +97,30 @@ def project_identifier(role: Role, employee_id: str) -> str:
     if allows(role, Capability.VIEW_REAL_IDENTIFIERS):
         return employee_id
     return pseudonymize(employee_id)
+
+
+def project_named_colleagues(
+    role: Role,
+    text: str,
+    named: list[tuple[str, str]],
+    phrase: Callable[[str, str], str],
+) -> str:
+    """Mask the colleagues a piece of explanation names, for a role that may not see real
+    identifiers.
+
+    A formula can name someone other than the person disciplined: "supervisor E00483
+    (Sergeant): $39.40 base x ...". Masking the subject's id and leaving the supervisor's in
+    the sentence beside it would hand an analyst a real identifier.
+
+    `named` lists who the record says could be named, as `(label, employee_id)`; `phrase`
+    is the costing layer's own wording for naming one (`"supervisor E00483 ("`). Exactly
+    that phrase is rewritten and nothing else in the text is touched, so an id that happens
+    to be a number is never confused with an hour count or a rate.
+    """
+    if allows(role, Capability.VIEW_REAL_IDENTIFIERS):
+        return text
+    for label, employee_id in named:
+        real = phrase(label, employee_id)
+        if real in text:
+            text = text.replace(real, phrase(label, pseudonymize(employee_id)))
+    return text

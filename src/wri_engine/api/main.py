@@ -50,6 +50,7 @@ from wri_engine.access.roles import (
     Capability,
     allows,
     project_identifier,
+    project_named_colleagues,
     require,
 )
 from wri_engine.adapters.template import (
@@ -73,11 +74,13 @@ from wri_engine.api.context import Ctx, Runtime, get_ctx
 from wri_engine.api.licensing import require_within_size
 from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
 from wri_engine.costing.assumptions import MissingAssumptionError
+from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_phrase
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
     OverrideRow,
     ReportContent,
+    build_records,
     build_report,
     render_pdf,
     render_xlsx,
@@ -645,6 +648,30 @@ def list_actions(
     }
 
 
+def _explainer(ctx: Ctx):
+    """A function that returns a piece of a line item's explanation as this caller may read
+    it.
+
+    A formula can name the supervisor or the deciding official by employee id. For a role
+    that sees masked identifiers those are masked too, with the same code that person has
+    everywhere else. Who could be named is read from the record, not guessed from the text.
+    """
+    role, dataset = ctx.role, ctx.state.dataset
+    employees = dataset.employees_by_id()
+    officials = {a.action_id: a.deciding_official_id for a in dataset.actions}
+
+    def explain(item, text: str) -> str:
+        named = []
+        subject = employees.get(item.employee_id)
+        if subject and subject.supervisor_id:
+            named.append((SUPERVISOR, subject.supervisor_id))
+        if officials.get(item.action_id):
+            named.append((DECIDING_OFFICIAL, officials[item.action_id]))
+        return project_named_colleagues(role, text, named, colleague_phrase)
+
+    return explain
+
+
 @router.get("/costs/actions/{action_id}", tags=["costs"])
 def action_detail(
     action_id: str,
@@ -665,6 +692,7 @@ def action_detail(
         raise HTTPException(404, f"action {action_id!r} was not costed (unknown or excluded)")
     assumptions = state.effective_assumptions.with_mode(mode)
     used = sorted({a for item in action.line_items for a in item.assumption_ids})
+    explain = _explainer(ctx)
     return {
         "caption": _caption(ctx),
         "action_id": action.action_id,
@@ -678,6 +706,11 @@ def action_detail(
             {
                 **item.model_dump(mode="json"),
                 "employee_id": project_identifier(role, item.employee_id),
+                "formula": explain(item, item.formula),
+                "inputs": {
+                    key: explain(item, value) if isinstance(value, str) else value
+                    for key, value in item.model_dump(mode="json")["inputs"].items()
+                },
                 "component_label": str(item.component),
             }
             for item in action.line_items
@@ -970,16 +1003,31 @@ def export_summary(
 REPORT_ROWS, REPORT_COLS = "role_family", "misconduct_category"
 
 
-def _report_content(ctx: Ctx, mode: str) -> ReportContent:
+def _report_content(ctx: Ctx, mode: str, records: bool = False) -> ReportContent:
     """Assemble a deliverable for this caller.
 
     Everything in it is something the caller could already see on screen: the matrix is
     built with their own disclosure ledger and suppressed before it gets here, and the
     data-quality section carries counts, never an employee or an action id.
+
+    `records` adds the working papers: every action and line item, which the caller could
+    already open one at a time in the drill-down. The endpoint must have checked
+    `VIEW_RECORDS` before asking for them; identifiers are masked here exactly as the
+    drill-down masks them.
     """
     state = ctx.state
     state.ensure_loaded()
     runs = {name: state.run(mode=name) for name in ("low", "base", "high")}
+    record_section = None
+    if records:
+        require(ctx.role, Capability.VIEW_RECORDS)  # belt and braces; the endpoint guards
+        explain = _explainer(ctx)
+        record_section = build_records(
+            runs[mode],
+            identifiers="real" if allows(ctx.role, Capability.VIEW_REAL_IDENTIFIERS) else "masked",
+            identify=lambda employee_id: project_identifier(ctx.role, employee_id),
+            explain=lambda item: explain(item, item.formula),
+        )
     matrix = build_matrix(
         runs[mode],
         rows=REPORT_ROWS,
@@ -1029,6 +1077,7 @@ def _report_content(ctx: Ctx, mode: str) -> ReportContent:
         caption=_caption(ctx),
         standing=_assumption_standing(state.effective_assumptions),
         generated_on=date.today(),
+        records=record_section,
     )
 
 
@@ -1056,14 +1105,25 @@ def export_report_pdf(
 @router.get("/exports/report.xlsx", tags=["exports"])
 def export_report_xlsx(
     mode: str = Query("base", pattern="^(low|base|high)$"),
+    records: bool = Query(
+        False,
+        description="Add the working papers: every action and line item. Needs a role that "
+        "may see record-level detail; the client's copy is the one without them.",
+    ),
     ctx: Ctx = Depends(get_ctx),
 ) -> Response:
     """The workbook that goes with the report: the same figures, plus every matrix cell and
-    every assumption with its bounds."""
+    every assumption with its bounds. With `records=true`, the working papers."""
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.xlsx")
-    _audit(ctx, "/exports/report.xlsx", detail={"mode": mode})
-    content = _report_content(ctx, mode)
-    _usage(ctx, "report_generated", format="xlsx", mode=mode)
+    detail = {"mode": mode}
+    usage = {"format": "xlsx", "mode": mode}
+    if records:
+        _guard(ctx, Capability.VIEW_RECORDS, "/exports/report.xlsx")
+        detail["records"] = True
+        usage["records"] = True
+    _audit(ctx, "/exports/report.xlsx", detail=detail)
+    content = _report_content(ctx, mode, records=records)
+    _usage(ctx, "report_generated", **usage)
     return _download(
         render_xlsx(content),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

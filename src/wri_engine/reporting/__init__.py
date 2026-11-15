@@ -7,8 +7,11 @@ rendered from the same `ReportContent`, so the two files cannot disagree.
 from wri_engine.reporting.content import (
     Branding,
     OverrideRow,
+    RecordSection,
     ReportContent,
+    build_records,
     build_report,
+    client_wording,
 )
 from wri_engine.reporting.pdf import render_pdf
 from wri_engine.reporting.xlsx import render_xlsx
@@ -16,8 +19,11 @@ from wri_engine.reporting.xlsx import render_xlsx
 __all__ = [
     "Branding",
     "OverrideRow",
+    "RecordSection",
     "ReportContent",
+    "build_records",
     "build_report",
+    "client_wording",
     "render_pdf",
     "render_xlsx",
 ]

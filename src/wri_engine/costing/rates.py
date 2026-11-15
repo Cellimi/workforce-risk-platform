@@ -25,6 +25,22 @@ if TYPE_CHECKING:  # see the note in costing/context.py
     from wri_engine.sectors import SectorPack
 
 
+#: The two colleagues a rate's explanation can name. The API masks exactly these phrases
+#: for a role that may not see real identifiers, so the wording is defined once, here.
+SUPERVISOR = "supervisor"
+DECIDING_OFFICIAL = "deciding official"
+
+
+def colleague_phrase(label: str, employee_id: str) -> str:
+    """How an explanation begins to name a colleague: `supervisor E00483 (`."""
+    return f"{label} {employee_id} ("
+
+
+def named_colleague(label: str, employee_id: str, job_title: str) -> str:
+    """`supervisor E00483 (Sheriff's Sergeant)`."""
+    return f"{colleague_phrase(label, employee_id)}{job_title})"
+
+
 @dataclass(frozen=True)
 class Rate:
     """A dollars-per-hour figure that knows where it came from."""
@@ -168,7 +184,8 @@ class RateBook:
             rate = self.loaded_hourly(official)
             return Rate(
                 amount=rate.amount,
-                basis=f"deciding official {official_id} ({official.job_title}): {rate.basis}",
+                basis=f"{named_colleague(DECIDING_OFFICIAL, official_id, official.job_title)}: "
+                f"{rate.basis}",
                 assumption_ids=rate.assumption_ids,
             )
         return self._reference_loaded(
@@ -184,7 +201,8 @@ class RateBook:
             rate = self.loaded_hourly(supervisor)
             return Rate(
                 amount=rate.amount,
-                basis=f"supervisor {supervisor_id} ({supervisor.job_title}): {rate.basis}",
+                basis=f"{named_colleague(SUPERVISOR, supervisor_id, supervisor.job_title)}: "
+                f"{rate.basis}",
                 assumption_ids=rate.assumption_ids,
             )
         role = self.org.role_families.get(employee.role_family)
