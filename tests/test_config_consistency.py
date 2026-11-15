@@ -204,12 +204,10 @@ def test_researched_assumptions_were_not_downgraded(assumptions):
 #: on AWAITING_OWNER_REVIEW. This is the list to read and then delete from: once the owner
 #: has reviewed one, remove its id here.
 #:
-#: The two halves of the sales and office group, split out on 2026-11-14 at the owner's
-#: request. Do not delete the set when it empties.
-RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = {
-    "private_benefits_multiplier_sales",
-    "private_benefits_multiplier_office_admin",
-}
+#: Empty, because the owner has reviewed every researched value: the five broad groups on
+#: 2026-11-13 and the two halves of sales and office on 2026-11-14. Add to it, do not
+#: delete it.
+RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = set()
 
 #: The five broad occupational groups. Their multipliers were reviewed by the owner on
 #: 2026-11-13, and their lowest and highest figures bound the all-occupations fallback.
@@ -221,6 +219,12 @@ BROAD_OCCUPATION_GROUPS = (
     OccupationGroup.PRODUCTION_TRANSPORTATION,
 )
 OCCUPATION_GROUP_MULTIPLIERS = {f"private_benefits_multiplier_{g}" for g in BROAD_OCCUPATION_GROUPS}
+#: Every occupational multiplier the owner has reviewed: the broad five, and the two halves
+#: of sales and office he reviewed on 2026-11-14.
+REVIEWED_GROUP_MULTIPLIERS = OCCUPATION_GROUP_MULTIPLIERS | {
+    "private_benefits_multiplier_sales",
+    "private_benefits_multiplier_office_admin",
+}
 
 
 def test_researched_values_awaiting_review_are_real_and_cited(assumptions):
@@ -237,7 +241,8 @@ def test_every_group_on_offer_is_either_reviewed_or_listed_for_review(assumption
     """A selection the screen offers must never rest on a figure nobody has been asked to
     look at: each group's multiplier is one the owner reviewed, or it is on the list."""
     offered = {f"private_benefits_multiplier_{g}" for g in OccupationGroup}
-    assert offered == OCCUPATION_GROUP_MULTIPLIERS | RESEARCHED_AWAITING_OWNER_REVIEW
+    assert offered == REVIEWED_GROUP_MULTIPLIERS | RESEARCHED_AWAITING_OWNER_REVIEW
+    assert not REVIEWED_GROUP_MULTIPLIERS & RESEARCHED_AWAITING_OWNER_REVIEW
 
 
 def test_the_two_halves_of_sales_and_office_straddle_the_combined_figure(assumptions):
@@ -254,10 +259,10 @@ def test_the_two_halves_of_sales_and_office_straddle_the_combined_figure(assumpt
 
 
 def test_the_reviewed_group_multipliers_still_stand_on_their_series(assumptions):
-    """The owner's review does not turn a sourced figure into a sign-off. Each of the five
-    stays `researched`, still names the two BLS series it is the ratio of, and no longer
-    claims to be awaiting anything."""
-    for assumption_id in sorted(OCCUPATION_GROUP_MULTIPLIERS):
+    """The owner's review does not turn a sourced figure into a sign-off. Each one stays
+    `researched`, still names the two BLS series it is the ratio of, and no longer claims
+    to be awaiting anything."""
+    for assumption_id in sorted(REVIEWED_GROUP_MULTIPLIERS):
         assumption = assumptions.get(assumption_id)
         assert assumption.status == "researched", assumption_id
         assert "CMU201" in assumption.source and "CMU202" in assumption.source, assumption_id
