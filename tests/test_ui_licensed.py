@@ -645,3 +645,23 @@ def test_an_installation_without_a_verification_key_shows_nothing_about_keys(ser
     assert not at.exception, at.exception
     at = go(at, "Engagement")
     assert "License key" not in [s.value for s in at.subheader]
+
+
+def test_a_firm_administrator_sees_whether_the_audit_log_holds(server, monkeypatch, tmp_path):
+    from wri_engine.access.audit import AuditLog
+    from wri_engine.api import main
+
+    monkeypatch.setattr(main, "AUDIT", AuditLog(tmp_path / "audit.jsonl"))
+    url, store = server
+    at = sign_in(open_app(url), OWNER)
+    assert not at.exception, at.exception
+    assert "Audit log" in [s.value for s in at.subheader]
+    assert any(m.value.startswith("Intact:") for m in at.success)
+    head = main.AUDIT.check()
+    shown = [c.value for c in at.code]
+    assert any(
+        v.startswith(f"{head.head_seq - 1}:") or v.startswith(f"{head.head_seq}:") for v in shown
+    )
+
+    at = sign_in(open_app(url), LEAD)
+    assert "Audit log" not in [s.value for s in at.subheader]

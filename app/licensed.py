@@ -224,6 +224,8 @@ def engagement_page(api: EngineClient) -> None:
         st.divider()
         _usage_log(api)
         st.divider()
+        _audit_log(api)
+        st.divider()
         _users(api)
 
 
@@ -345,6 +347,35 @@ def _usage_log(api: EngineClient) -> None:
         file_name="wri_usage_log.jsonl",
         mime="application/x-ndjson",
     )
+
+
+def _audit_log(api: EngineClient) -> None:
+    """Whether the record of who asked for what has been edited since it was written."""
+    st.subheader("Audit log")
+    st.caption(
+        "Every request is recorded: who asked, for what, and whether it was allowed. Each "
+        "entry is tied to the one before it, so an entry changed, removed or inserted "
+        "afterwards shows here. Note the head down somewhere outside this server from time "
+        "to time; it is how entries removed from the end, or a log rebuilt from scratch, "
+        "are noticed later."
+    )
+    try:
+        found = api.audit_check()
+    except ApiError as exc:
+        _error(exc)
+        return
+    head = f"{found['head']['seq']}:{found['head']['hash']}"
+    if found["intact"]:
+        st.success(f"Intact: {found['entries']:,} entries.")
+    else:
+        st.error(
+            f"The audit log does not hold together ({len(found['problems'])} problem(s)). "
+            "Ask whoever runs the server to run ./wri audit."
+        )
+        for problem in found["problems"][:5]:
+            st.caption(problem)
+    st.code(head, language=None)
+    st.caption("The head: the last entry's number and fingerprint.")
 
 
 NOT_SELECTED = "Not selected (all-occupations average)"

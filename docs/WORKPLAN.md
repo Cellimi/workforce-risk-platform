@@ -44,14 +44,15 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Engagement license keys | Claude Code session | Done, PR #13 |
 | Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
 | Install package: container install, configuration guide, upgrade path | Claude Code session | Done, `claude/install-package` |
-| Disclosure ledgers that survive a restart | Claude Code session | Done, `claude/persistent-disclosure-ledger` (built on `claude/install-package`, PR #15) |
+| Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 (built on PR #15) |
+| An audit log that shows when it has been edited | Claude Code session | Done, `claude/tamper-evident-audit-log` (built on PR #16) |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 421 tests, 96.1% coverage.
+asserts it line item by line item. 439 tests, 96.1% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -61,7 +62,8 @@ series, state and local service occupations and public administration, bracket i
 1. **Hardening (PR #3).** Sign-in with local accounts, roles from engagement membership, a
    database, isolated engagement workspaces, per-engagement assumption overrides recorded with
    who and why. Disclosure ledgers now survive a restart (see "Disclosure ledgers" below).
-   Remaining: single sign-on, an audit log the application cannot edit.
+   The audit log now shows when it has been edited (see "Audit log" below).
+   Remaining: single sign-on.
 2. **Data intake (PR #4).** Standard intake template; a mapping saved per engagement so a
    client's file is never edited; staged upload, suggested mapping, preview, commit.
    Loading rules: a missing detail takes the lighter assumption and is reported; a cost that
@@ -140,6 +142,29 @@ stand-in 0.3.1 with a higher data version; the old image pointed at the upgraded
    firm's own scheduler. The guide says so.
 8. **The version is now 0.3.0** (was 0.2.0, unchanged since before the private-sector
    model). It is read from one place and shown at `/health` and by `./wri status`.
+
+## Audit log
+
+Every request was already written to `audit_log.jsonl`, one line each. Nothing stopped a line
+being changed or removed afterwards without trace. Now each entry carries a sequence number,
+the hash of the entry before and its own hash (`src/wri_engine/hashchain.py`, shared with the
+license usage log). `wri-admin audit` (`./wri audit` in an installation), `wri-admin status`
+and the firm administrator's Engagement page say whether it holds together.
+
+- **What shows:** an entry changed, removed, inserted or moved; a line cut short by a crash
+  (reported, and the log carries on after it).
+- **What needs a head noted earlier:** entries removed from the end, or the whole log
+  rebuilt by someone with full access to the server. `--expect-head SEQ:HASH` checks the
+  log still holds an entry noted earlier. The install guide tells the firm to note the head
+  somewhere outside the server from time to time.
+- **Older logs:** lines written before this change are kept as they are and protected as
+  one block: the first chained entry carries a hash of everything before it.
+- **Not done: writing the log anywhere the server's administrators cannot reach** (a
+  separate log server, write-once storage). That is the step from tamper-evident to
+  tamper-proof. It depends on what each firm runs, so it is a configuration item for the
+  install package, not engine code. Raise it if a licensee asks.
+- One process writes the log. The install runs one API worker, so that holds; a second
+  worker would need the chain's position kept somewhere both can see.
 
 ## Disclosure ledgers
 

@@ -71,7 +71,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/sectors/` | One pack per sector: which components run, which benefits multiplier, which coefficient ids must exist |
 | `src/wri_engine/costing/` | Assumptions loader, components C1-C7, engine orchestration |
 | `src/wri_engine/aggregation/` | Rollups + small-group suppression |
-| `src/wri_engine/access/` | Role definitions, enforcement, audit log |
+| `src/wri_engine/access/` | Role definitions, enforcement, the audit log (chained with `wri_engine/hashchain.py`, as the license usage log is) |
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/api/` | FastAPI app |

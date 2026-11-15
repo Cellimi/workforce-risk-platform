@@ -47,6 +47,13 @@ class Settings:
     def engagements_dir(self) -> Path:
         return Path(self.data_dir) / "engagements"
 
+    @property
+    def audit_log_path(self) -> Path:
+        """Where the access audit log is written: `WRI_AUDIT_LOG` if set, otherwise beside
+        the database in the data directory."""
+        named = os.environ.get("WRI_AUDIT_LOG", "").strip()
+        return Path(named).expanduser() if named else Path(self.data_dir) / "audit_log.jsonl"
+
     @staticmethod
     def _license_public_key() -> str:
         """`WRI_LICENSE_PUBLIC_KEY_FILE` if set, otherwise `config/license_public_key.pem`
