@@ -53,7 +53,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 439 tests, 96.1% coverage.
+asserts it line item by line item. 442 tests, 96.1% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -165,7 +165,18 @@ and the firm administrator's Engagement page say whether it holds together.
   tamper-proof. It depends on what each firm runs, so it is a configuration item for the
   install package, not engine code. Raise it if a licensee asks.
 - One process writes the log. The install runs one API worker, so that holds; a second
-  worker would need the chain's position kept somewhere both can see.
+  worker would need the chain's position kept somewhere both can see. If the file is not as
+  the product left it (put back from a backup, or written to by something else), the next
+  entry carries on from what the file holds.
+- **A version from before this change, run against a chained log, appends unchained lines,
+  and the check reports each one.** That is accurate, and it will happen to a developer who
+  runs an older checkout against the same `data/` folder. It is why the tests now write to
+  a log of their own (`tests/conftest.py`) and never to `data/audit_log.jsonl`. Found the
+  hard way: a full test run on an older branch left such lines in the local log, and a
+  screen test on the newer branch then failed on it.
+- The API now writes the log where `wri-admin audit` and the backup read it (the
+  installation's data directory, or `WRI_AUDIT_LOG`). Before, the two agreed only when the
+  data directory came from the environment, which it does in the container.
 
 ## Disclosure ledgers
 
