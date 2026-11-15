@@ -267,6 +267,11 @@ What the install is built to guarantee:
   existing data aside instead of deleting it.
 - **An upgrade backs up first, and an older version will not open newer data.** It stops
   and says so. `./wri rollback` returns to the previous image and the data as it was.
+- **Two builds of the same commit hold the same libraries.** Every third-party library is
+  fixed at an exact version in `requirements.lock`, and each download is checked against a
+  fingerprint recorded there; a file that does not match stops the build. The base image
+  is fixed the same way. `make install` uses the same versions, so the tests run on what
+  ships. `make lock` chooses the versions again, on purpose.
 
 Not built yet: single sign-on.
 

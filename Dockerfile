@@ -14,21 +14,40 @@
 #
 #   docker build --secret id=ca,src=/path/to/ca.pem --build-context license=... .
 
-ARG PYTHON_VERSION=3.12
+# The base image, fixed to one exact build of Python 3.12 on Debian. A tag such as
+# `3.12-slim` moves whenever it is rebuilt; the digest does not, so two builds of the same
+# commit start from the same bytes. Refresh it deliberately, before a release, to take in
+# operating-system security fixes:
+#   docker pull python:3.12-slim
+#   docker image inspect python:3.12-slim --format '{{index .RepoDigests 0}}'
+ARG PYTHON_IMAGE=python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 
 # ---------------------------------------------------------------------------------------
-FROM python:${PYTHON_VERSION}-slim AS build
+FROM ${PYTHON_IMAGE} AS build
 WORKDIR /src
+# Every third-party library at the exact version in requirements.lock, and each download
+# checked against the fingerprint recorded there. A library that is not in the lock, or
+# whose file has changed since the lock was made, stops the build.
+COPY requirements.lock ./
+RUN --mount=type=secret,id=ca,required=false \
+    if [ -f /run/secrets/ca ]; then export PIP_CERT=/run/secrets/ca; fi; \
+    python -m venv /opt/wri \
+    && /opt/wri/bin/pip install --no-cache-dir --disable-pip-version-check \
+       --require-hashes -r requirements.lock
+# Then the product itself, with nothing allowed to come along with it. `pip check` stops
+# the build if the lock is missing something the product declares it needs. pip is removed
+# last: nothing installs anything into a running installation.
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 RUN --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export PIP_CERT=/run/secrets/ca; fi; \
-    python -m venv /opt/wri \
-    && /opt/wri/bin/pip install --no-cache-dir --disable-pip-version-check ".[ui]" \
-    && /opt/wri/bin/pip freeze --exclude wri-engine > /opt/wri/requirements.lock
+    /opt/wri/bin/pip install --no-cache-dir --disable-pip-version-check --no-deps . \
+    && /opt/wri/bin/pip check \
+    && /opt/wri/bin/pip freeze --exclude wri-engine > /opt/wri/requirements.lock \
+    && /opt/wri/bin/pip uninstall --yes --quiet pip
 
 # ---------------------------------------------------------------------------------------
-FROM python:${PYTHON_VERSION}-slim
+FROM ${PYTHON_IMAGE}
 ARG WRI_VERSION=0+unknown
 ARG WRI_LICENSED=no
 LABEL org.opencontainers.image.title="Workforce Risk Intelligence" \

@@ -2,17 +2,31 @@ VENV ?= .venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
-.PHONY: install generate test lint fmt api serve ui demo clean package package-unlicensed
+.PHONY: install lock generate test lint fmt api serve ui demo clean package package-unlicensed
 
+# Every library at the exact version in requirements-dev.lock, each download checked
+# against the fingerprint recorded there, so everyone works on what the tests ran on.
 install:
 	@if command -v uv >/dev/null 2>&1; then \
 		uv venv $(VENV) 2>/dev/null || true; \
-		uv pip install --python $(PY) -e ".[ui,dev]"; \
+		uv pip sync --python $(PY) --require-hashes requirements-dev.lock; \
+		uv pip install --python $(PY) --no-deps -e .; \
 	else \
 		python3 -m venv $(VENV) || true; \
 		$(PIP) install -q --upgrade pip; \
-		$(PIP) install -q -e ".[ui,dev]"; \
+		$(PIP) install -q --require-hashes -r requirements-dev.lock; \
+		$(PIP) install -q --no-deps -e .; \
 	fi
+
+# Choose the versions again: the newest that pyproject.toml allows. Run it on purpose
+# (a new dependency, a security fix, before a release), then `make install`, `make test`,
+# and commit both lock files with the change. requirements.lock is what ships in the image;
+# requirements-dev.lock is the same versions plus the tools for testing. Needs uv.
+lock:
+	uv pip compile pyproject.toml --extra ui --universal --generate-hashes --upgrade \
+		--custom-compile-command "make lock" -q -o requirements.lock
+	uv pip compile pyproject.toml --extra ui --extra dev --universal --generate-hashes --upgrade \
+		--custom-compile-command "make lock" -q -c requirements.lock -o requirements-dev.lock
 
 generate:
 	$(PY) -m wri_engine.generator.cli --seed 20260917 --out data/synthetic
