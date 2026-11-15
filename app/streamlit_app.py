@@ -991,6 +991,9 @@ def main() -> None:
                     else " The engagement lead loads it."
                 )
             )
+        elif exc.status == 402:
+            # A license refusal. It is nobody's role, so it is not reported as one.
+            st.warning(str(exc.detail))
         elif exc.status == 403:
             st.error(f"The `{current_role()}` role is not permitted to see this. {exc.detail}")
         else:

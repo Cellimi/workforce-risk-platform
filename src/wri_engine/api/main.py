@@ -70,6 +70,7 @@ from wri_engine.aggregation.rollups import (
     summarize,
 )
 from wri_engine.api.context import Ctx, Runtime, get_ctx
+from wri_engine.api.licensing import require_within_size
 from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
 from wri_engine.costing.assumptions import MissingAssumptionError
 from wri_engine.paths import SYNTHETIC_DIR
@@ -178,6 +179,7 @@ def meta(ctx: Ctx = Depends(get_ctx)) -> dict:
                 "name": ctx.engagement.name,
                 "sector": ctx.engagement.sector,
                 "occupation_group": ctx.engagement.occupation_group,
+                "license": ctx.license.as_dict() if ctx.license else None,
                 "status": ctx.engagement.status,
             }
             if ctx.engagement
@@ -332,8 +334,22 @@ def _require_usable(adapter, staged) -> None:
         )
 
 
-def _commit(ctx: Ctx, staging: Path, source: str, mapping: dict | None) -> dict:
+def _usage(ctx: Ctx, event: str, **detail) -> None:
+    """Note something in the usage log. Counts only; the walkthrough keeps no log."""
+    if ctx.store is not None and ctx.engagement is not None:
+        ctx.store.record_usage(
+            event,
+            engagement_id=ctx.engagement.id,
+            key_id=ctx.license.key_id if ctx.license else None,
+            detail=detail,
+        )
+
+
+def _commit(ctx: Ctx, staging: Path, source: str, mapping: dict | None, staged=None) -> dict:
     """Make the staged files the engagement's dataset, recording how they are read."""
+    if staged is not None and ctx.license is not None:
+        # Before a single file is replaced: a dataset the key does not cover changes nothing.
+        require_within_size(ctx.license, len(staged.employees))
     target = ctx.state.default_source
     for old in target.iterdir():
         if old.is_file():
@@ -342,7 +358,14 @@ def _commit(ctx: Ctx, staging: Path, source: str, mapping: dict | None) -> dict:
         if new.is_file():
             shutil.copyfile(new, target / new.name)
     write_marker(target, source, mapping)
-    return _load_response(ctx, ctx.state.load())
+    response = _load_response(ctx, ctx.state.load())
+    _usage(
+        ctx,
+        "dataset_loaded",
+        employees=len(ctx.state.dataset.employees),
+        actions=len(ctx.state.dataset.actions),
+    )
+    return response
 
 
 def _engagement_only(ctx: Ctx, what: str) -> None:
@@ -379,7 +402,7 @@ async def upload_dataset(
         _replace_files(staging, payloads)
         adapter, staged = _dry_run(ctx, staging, source, None)
         _require_usable(adapter, staged)
-        return _commit(ctx, staging, source, None)
+        return _commit(ctx, staging, source, None, staged)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
@@ -511,7 +534,7 @@ def intake_commit(ctx: Ctx = Depends(get_ctx)) -> dict:
     adapter, staged = _dry_run(ctx, directory, TEMPLATE_SOURCE, mapping)
     _require_usable(adapter, staged)
     _audit(ctx, "/intake/commit", detail={"files": sorted(p.name for p in directory.iterdir())})
-    return _commit(ctx, directory, TEMPLATE_SOURCE, mapping)
+    return _commit(ctx, directory, TEMPLATE_SOURCE, mapping, staged)
 
 
 @router.get("/datasets/validation", tags=["datasets"])
@@ -1026,6 +1049,7 @@ def export_report_pdf(
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.pdf")
     _audit(ctx, "/exports/report.pdf", detail={"mode": mode})
     content = _report_content(ctx, mode)
+    _usage(ctx, "report_generated", format="pdf", mode=mode)
     return _download(render_pdf(content), "application/pdf", f"{content.file_stem}.pdf")
 
 
@@ -1039,6 +1063,7 @@ def export_report_xlsx(
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.xlsx")
     _audit(ctx, "/exports/report.xlsx", detail={"mode": mode})
     content = _report_content(ctx, mode)
+    _usage(ctx, "report_generated", format="xlsx", mode=mode)
     return _download(
         render_xlsx(content),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1196,6 +1221,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from wri_engine.access.roles import set_pseudonym_salt
     from wri_engine.api.accounts import router as accounts_router
 
+    if settings.licensing_enforced:
+        from wri_engine.licensing.keys import load_public_key
+
+        # Read once, and loudly: an installation given a verification key that cannot be
+        # read must not start up quietly unlicensed.
+        runtime.license_public_key = load_public_key(settings.license_public_key)
     set_pseudonym_salt(_installation_salt(settings))
     runtime.store = Store(settings.database_url)
     runtime.workspaces = Workspaces(settings.engagements_dir, runtime.store)

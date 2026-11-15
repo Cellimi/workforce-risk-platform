@@ -88,7 +88,7 @@ the same `make ui` serves the demo and a licensed installation.
 
 | Page | Who sees it | What it does |
 |---|---|---|
-| Engagement | everyone | Members and roles (engagement lead); new engagements and user accounts (firm administrator) |
+| Engagement | everyone | Members and roles (engagement lead); new engagements, license keys, the usage log and user accounts (firm administrator) |
 | Load data | engagement lead | Template download, upload, column matching, code translation, preview, commit |
 | Executive summary, Cost matrix, Data quality | everyone | The results, labelled with the client's name |
 | Drill-down | lead and analyst | One action, every line item |
@@ -106,6 +106,9 @@ Everything the screen does is also available over the API (`/docs` lists it):
 | Create consultant and client accounts (firm administrator) | `POST /users` |
 | Open an engagement (firm administrator) | `POST /engagements` |
 | Add members as `admin`, `hr_analyst` or `executive` | `PUT /engagements/{id}/members` |
+| Whether this installation requires license keys | `GET /license` |
+| Add or replace an engagement's license key (firm administrator) | `PUT /engagements/{id}/license` |
+| Read or download the usage log (firm administrator) | `GET /license/usage`, `GET /license/usage.jsonl` |
 | Load the client's data (see "Loading a client's data" below) | `/engagements/{id}/intake/...` |
 | Use the client's own figure for an assumption, with a reason | `PUT /engagements/{id}/assumptions/{assumption_id}/override` |
 | Everything in the table under "The API" below | `/engagements/{id}/...` |
@@ -171,8 +174,57 @@ takes the lighter assumption and says so (an investigation of unknown type is co
 supervisory inquiry), and when a cost cannot be counted it says which cases and why (a
 removal with no recorded separation carries no replacement cost).
 
-Not built yet: single sign-on, the private-sector cost model, engagement license keys, and a
-white-labelled client report.
+### License keys
+
+A licensed installation can be made to require a **key for each engagement**. A key is a
+short signed statement, issued by the licensor, that says who it was issued to, which client
+and which cost model (sector) it is for, the last day it is good, and optionally the largest
+employee file it covers. The installation checks a key against a **verification key** it
+holds; it never contacts anyone, so it works on a network with no way out.
+
+It is switched on by installing the verification key, at `config/license_public_key.pem` or
+wherever `WRI_LICENSE_PUBLIC_KEY_FILE` points. Without one nothing is enforced and the
+product runs as before. The synthetic walkthrough is never licensed.
+
+| An engagement whose key is | Can |
+|---|---|
+| in date | do everything |
+| expired | be read: results, drill-downs and the client's report still open and download. No new data, no changed value, no scenario, until a current key is added |
+| missing, altered, or issued for another client or sector | not be opened. Its members and its key can still be managed, so a firm administrator can put it right |
+
+One key opens one engagement. A dataset with more employees than the key covers is refused
+before anything is replaced. A license refusal is HTTP `402`, never `403`: the screen shows it
+as a license matter, not as a role being denied.
+
+The installation also keeps a **usage log**: engagements opened, keys added, datasets loaded
+(as counts of employees and actions) and reports produced. It holds no client data. Each
+entry carries a hash of the one before it, so a log with an entry removed, changed or
+reordered shows as such when it is checked. A firm administrator downloads it from the
+Engagement page.
+
+The licensor's side is one command-line tool, run on the licensor's own machine:
+
+```bash
+wri-license keygen --out-dir ~/wri-keys      # ONCE. Writes the signing key and the verification key
+wri-license issue --signing-key ~/wri-keys/wri_license_signing_key.pem \
+    --licensee "Northgate Advisory LLP" --client "Ridgeline Builders" \
+    --sector private_sector --expires 2027-12-31 --max-employees 500
+wri-license inspect WRI1.... --verification-key ~/wri-keys/wri_license_public_key.pem
+wri-license verify-log wri_usage_log.jsonl   # is a log a licensee sent intact?
+```
+
+**The signing key is the one secret.** Whoever holds it can issue keys. It never goes in this
+repository, in an installation, or in a message; `keygen` writes it readable by its owner
+only and refuses to overwrite one, and a test fails the build if a private key turns up in
+the source tree.
+
+What this is and is not. A key cannot be forged or altered without the signing key, and the
+log shows tampering after the fact. But the product is Python that the licensee runs on their
+own machine: someone willing to edit the code can remove the check. Keys make the licensed
+terms visible and countable, and make breaking them a deliberate act rather than an
+oversight. They are not copy protection, and the license agreement is what binds.
+
+Not built yet: single sign-on and an install package.
 
 ---
 
@@ -282,6 +334,7 @@ workforce-risk-platform/
     access/                     roles, pseudonymization, audit log
     api/                        FastAPI service
     reporting/                  the client report (PDF) and workbook (Excel), from one content
+    licensing/                  license keys, the usage-log chain, the licensor's wri-license tool
     store/                      sign-in, engagements and overrides (never client HR data)
   app/                          Streamlit UI — HTTP only, never imports the engine
   tests/golden/                 fourteen hand-calculated cases, asserted to the cent

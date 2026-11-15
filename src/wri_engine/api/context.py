@@ -20,6 +20,7 @@ from fastapi import Header, HTTPException, Request
 
 from wri_engine.access.roles import Role, parse_role
 from wri_engine.aggregation.suppression import DisclosureLedger
+from wri_engine.api.licensing import LicenseState, license_state, require_license
 from wri_engine.api.state import STATE, EngineState, Workspaces
 from wri_engine.settings import Settings
 from wri_engine.store import EngagementRecord, Store, UserRecord
@@ -32,6 +33,8 @@ class Runtime:
     settings: Settings
     store: Store | None = None
     workspaces: Workspaces | None = None
+    #: The licensor's verification key, loaded once at start-up. None means no enforcement.
+    license_public_key: object | None = None
 
 
 @dataclass
@@ -44,6 +47,8 @@ class Ctx:
     store: Store | None = None
     workspaces: Workspaces | None = None
     max_upload_bytes: int = 50 * 1024 * 1024
+    #: Where the engagement stands with its license key. None in the synthetic walkthrough.
+    license: LicenseState | None = None
 
     @property
     def user_label(self) -> str:
@@ -97,13 +102,19 @@ def get_ctx(
     role = runtime.store.role_in(user, engagement_id)
     if role is None:
         raise HTTPException(404, "engagement not found")
+    engagement = runtime.store.get_engagement(engagement_id)
+    # Membership is settled first, so someone outside the engagement learns nothing about
+    # its key. Then the key decides whether this request may go ahead at all.
+    standing = license_state(runtime, engagement)
+    require_license(standing, request.method)
     return Ctx(
         role=role,
         state=runtime.workspaces.get(engagement_id),
         # The disclosure ledger follows the person, not anything the client sends.
         session_key=f"user:{user.id}",
         user=user,
-        engagement=runtime.store.get_engagement(engagement_id),
+        engagement=engagement,
+        license=standing,
         store=runtime.store,
         workspaces=runtime.workspaces,
         max_upload_bytes=runtime.settings.max_upload_mb * 1024 * 1024,

@@ -13,6 +13,7 @@ Three kinds of people use an installation:
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
@@ -21,7 +22,10 @@ from pydantic import BaseModel, Field
 
 from wri_engine.access.roles import CAPABILITIES, Role
 from wri_engine.api.context import bearer_token, current_user, runtime_of
+from wri_engine.api.licensing import license_state
 from wri_engine.costing.assumptions import load_assumptions
+from wri_engine.licensing.keys import License, LicenseError, check_for_engagement, verify
+from wri_engine.licensing.usage import to_jsonl, verify_chain
 from wri_engine.reporting.branding import MAX_LOGO_BYTES, check_logo
 from wri_engine.schema import OCCUPATION_GROUP_LABELS
 from wri_engine.sectors import DEFAULT_SECTOR, SectorPack, get_pack
@@ -107,7 +111,7 @@ def me(request: Request, user: User) -> dict:
     return {
         "user": _user_view(user),
         "engagements": [
-            _engagement_view(e, role) for e, role in _store(request).engagements_for(user)
+            _engagement_view(e, role, request) for e, role in _store(request).engagements_for(user)
         ],
     }
 
@@ -215,8 +219,9 @@ def set_active(user_id: int, body: ActiveFlag, request: Request, admin: FirmAdmi
 # ---------------------------------------------------------------------------
 # engagements
 # ---------------------------------------------------------------------------
-def _engagement_view(engagement, role: Role) -> dict:
+def _engagement_view(engagement, role: Role, request: Request) -> dict:
     return {
+        "license": license_state(runtime_of(request), engagement).as_dict(),
         "id": engagement.id,
         "name": engagement.name,
         "client_name": engagement.client_name,
@@ -238,6 +243,11 @@ class NewEngagement(BaseModel):
         None,
         description="The kind of work the client's people mostly do. Offered only where the "
         "sector loads benefits by occupation; see GET /sectors for the choices.",
+    )
+    license_key: str | None = Field(
+        None,
+        description="The key issued for this engagement. Required where the installation "
+        "has a verification key; see GET /license.",
     )
 
 
@@ -300,27 +310,123 @@ def list_sectors(request: Request, user: User) -> dict:
     }
 
 
+def _checked_key(request: Request, key: str | None, client_name: str, sector: str):
+    """The key as it will be stored and what it says, or a 400 the person can act on.
+
+    Returns `(None, None)` where the installation does not enforce licensing and no key was
+    given. A key cannot be accepted by an installation with no verification key, because
+    nothing there can tell a real key from typed text.
+    """
+    runtime = runtime_of(request)
+    text_ = "".join((key or "").split()) or None
+    if not runtime.settings.licensing_enforced:
+        if text_:
+            raise HTTPException(
+                400,
+                "this installation has no verification key, so a license key cannot be "
+                "checked or kept. Leave the key out.",
+            )
+        return None, None
+    if not text_:
+        raise HTTPException(400, "a license key is required. One is issued for each engagement.")
+    try:
+        license_: License = verify(text_, runtime.license_public_key)
+        check_for_engagement(license_, client_name=client_name, sector=sector, today=date.today())
+    except LicenseError as exc:
+        raise HTTPException(400, str(exc)) from None
+    return text_, license_
+
+
+@router.get("/license", tags=["license"])
+def licensing(request: Request, user: User) -> dict:
+    """Whether this installation requires a license key for each engagement."""
+    return {"enforced": runtime_of(request).settings.licensing_enforced}
+
+
 @router.post("/engagements", tags=["engagements"], status_code=201)
 def create_engagement(body: NewEngagement, request: Request, admin: FirmAdmin) -> dict:
+    key, license_ = _checked_key(request, body.license_key, body.client_name, body.sector)
+    store = _store(request)
     try:
-        engagement = _store(request).create_engagement(
+        engagement = store.create_engagement(
             name=body.name,
             client_name=body.client_name,
             sector=body.sector,
             created_by=admin.id,
             occupation_group=body.occupation_group,
+            license_key=key,
+            license_key_id=license_.key_id if license_ else None,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
+    store.record_usage(
+        "engagement_opened",
+        engagement_id=engagement.id,
+        key_id=engagement.license_key_id,
+        detail={"sector": engagement.sector},
+    )
     _audit("/engagements", user=admin.email, engagement=engagement.id, name=engagement.name)
-    return _engagement_view(engagement, Role.ADMIN)
+    return _engagement_view(engagement, Role.ADMIN, request)
+
+
+class LicenseKey(BaseModel):
+    license_key: str = Field(..., min_length=1, max_length=4000)
+
+
+@router.put("/engagements/{engagement_id}/license", tags=["license"])
+def set_license(engagement_id: str, body: LicenseKey, request: Request, admin: FirmAdmin) -> dict:
+    """Give an engagement its key, or replace a lapsed one with a current one."""
+    store = _store(request)
+    engagement = store.get_engagement(engagement_id)
+    if engagement is None:
+        raise HTTPException(404, "engagement not found")
+    key, license_ = _checked_key(
+        request, body.license_key, engagement.client_name, engagement.sector
+    )
+    try:
+        engagement = store.set_license(engagement_id, key, license_.key_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    store.record_usage(
+        "key_attached",
+        engagement_id=engagement_id,
+        key_id=license_.key_id,
+        detail={"expires_on": license_.expires_on.isoformat()},
+    )
+    _audit(
+        "/engagements/{engagement_id}/license",
+        user=admin.email,
+        engagement=engagement_id,
+        key_id=license_.key_id,
+    )
+    return _engagement_view(engagement, Role.ADMIN, request)
+
+
+@router.get("/license/usage", tags=["license"])
+def usage(request: Request, admin: FirmAdmin) -> dict:
+    """The usage log, with whether it still holds together."""
+    entries = _store(request).usage_log()
+    problems = verify_chain(entries)
+    return {"entries": entries, "intact": not problems, "problems": problems}
+
+
+@router.get("/license/usage.jsonl", tags=["license"])
+def usage_export(request: Request, admin: FirmAdmin) -> Response:
+    """The usage log as a file to send to the licensor, who checks it with
+    `wri-license verify-log`."""
+    _audit("/license/usage.jsonl", user=admin.email)
+    return Response(
+        to_jsonl(_store(request).usage_log()),
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": 'attachment; filename="wri_usage_log.jsonl"'},
+    )
 
 
 @router.get("/engagements", tags=["engagements"])
 def list_engagements(request: Request, user: User) -> dict:
     return {
         "engagements": [
-            _engagement_view(e, role) for e, role in _store(request).engagements_for(user)
+            _engagement_view(e, role, request) for e, role in _store(request).engagements_for(user)
         ]
     }
 
@@ -378,7 +484,7 @@ def set_occupation_group(
         before=before.occupation_group if before else None,
         after=engagement.occupation_group,
     )
-    return _engagement_view(engagement, Role.ADMIN)
+    return _engagement_view(engagement, Role.ADMIN, request)
 
 
 @router.get("/engagements/{engagement_id}/members", tags=["engagements"])

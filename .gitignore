@@ -52,3 +52,9 @@ coverage.xml
 /data/wri.db
 /data/pseudonym.salt
 /data/engagements/
+
+# The licensor's signing key. It issues every license key and is the one secret in the whole
+# arrangement: it is made on the licensor's own machine and never belongs in a repository or
+# an installation. Ignored by name as a last line of defence, not as the control.
+wri_license_signing_key.pem
+*signing_key*.pem

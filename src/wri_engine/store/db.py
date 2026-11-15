@@ -14,6 +14,7 @@ module can hold a database session open or change a row by accident.
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -26,6 +27,7 @@ from sqlalchemy import (
     Integer,
     LargeBinary,
     String,
+    Text,
     create_engine,
     delete,
     inspect,
@@ -36,6 +38,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from wri_engine.access.roles import Role
+from wri_engine.licensing.usage import GENESIS, entry_hash
 from wri_engine.sectors import get_pack, sector_ids
 from wri_engine.store.passwords import DUMMY_HASH, hash_password, verify_password
 
@@ -89,6 +92,9 @@ class _Engagement(Base):
     #: The kind of work the client's people mostly do, where the sector loads benefits by
     #: occupation. Null means not selected: the all-occupations figure is used.
     occupation_group: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
+    #: The license key this engagement runs under, and its id for finding a key used twice.
+    license_key: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    license_key_id: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(20), default="open")
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
@@ -109,6 +115,21 @@ class _Override(Base):
     reason: Mapped[str] = mapped_column(String(500), default="")
     set_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     set_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class _Usage(Base):
+    """One entry of the usage log. Each carries a hash of itself and of the entry before
+    it; see `wri_engine.licensing.usage`."""
+
+    __tablename__ = "license_usage"
+    seq: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    at: Mapped[str] = mapped_column(String(32))
+    event: Mapped[str] = mapped_column(String(40))
+    engagement_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    key_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    detail: Mapped[str] = mapped_column(Text, default="{}")
+    previous_hash: Mapped[str] = mapped_column(String(64))
+    hash: Mapped[str] = mapped_column(String(64))
 
 
 class _Firm(Base):
@@ -148,6 +169,8 @@ class EngagementRecord:
     status: str
     created_at: datetime
     occupation_group: str | None = None
+    license_key: str | None = None
+    license_key_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -172,6 +195,8 @@ def _engagement(row: _Engagement) -> EngagementRecord:
         row.status,
         row.created_at,
         row.occupation_group,
+        row.license_key,
+        row.license_key_id,
     )
 
 
@@ -229,11 +254,15 @@ class Store:
         Each step adds one nullable column and is skipped once the column is there.
         """
         columns = {c["name"] for c in inspect(self.engine).get_columns("engagements")}
-        if "occupation_group" not in columns:
-            with self.engine.begin() as connection:
-                connection.execute(
-                    text("ALTER TABLE engagements ADD COLUMN occupation_group VARCHAR(40)")
-                )
+        added = {
+            "occupation_group": "VARCHAR(40)",
+            "license_key": "TEXT",
+            "license_key_id": "VARCHAR(40)",
+        }
+        for name, kind in added.items():
+            if name not in columns:
+                with self.engine.begin() as connection:
+                    connection.execute(text(f"ALTER TABLE engagements ADD COLUMN {name} {kind}"))
 
     def close(self) -> None:
         """Release every database connection. Called when the API shuts down."""
@@ -364,6 +393,8 @@ class Store:
         sector: str,
         created_by: int,
         occupation_group: str | None = None,
+        license_key: str | None = None,
+        license_key_id: str | None = None,
     ) -> EngagementRecord:
         if sector not in SECTORS:
             raise ValueError(
@@ -373,17 +404,101 @@ class Store:
             raise ValueError("an engagement needs a name and a client name")
         occupation_group = check_occupation_group(sector, occupation_group)
         with self._session.begin() as db:
+            self._key_unused(db, license_key_id, engagement_id=None)
             row = _Engagement(
                 id=secrets.token_hex(8),
                 name=name.strip(),
                 client_name=client_name.strip(),
                 sector=sector,
                 occupation_group=occupation_group,
+                license_key=license_key,
+                license_key_id=license_key_id,
                 created_by=created_by,
             )
             db.add(row)
             db.flush()
             return _engagement(row)
+
+    @staticmethod
+    def _key_unused(db, license_key_id: str | None, engagement_id: str | None) -> None:
+        """A key covers one engagement. Refuse one that another engagement already holds."""
+        if not license_key_id:
+            return
+        holder = db.execute(
+            select(_Engagement).where(_Engagement.license_key_id == license_key_id)
+        ).scalar_one_or_none()
+        if holder is not None and holder.id != engagement_id:
+            raise ValueError(
+                "this license key is already in use by another engagement in this "
+                "installation. A key covers one engagement."
+            )
+
+    def set_license(
+        self, engagement_id: str, license_key: str | None, license_key_id: str | None
+    ) -> EngagementRecord:
+        """Attach a key that has already been verified, replacing any the engagement had."""
+        with self._session.begin() as db:
+            row = db.get(_Engagement, engagement_id)
+            if row is None:
+                raise KeyError(engagement_id)
+            self._key_unused(db, license_key_id, engagement_id)
+            row.license_key, row.license_key_id = license_key, license_key_id
+            db.flush()
+            return _engagement(row)
+
+    # -- the usage log -------------------------------------------------------
+    def record_usage(
+        self,
+        event: str,
+        *,
+        engagement_id: str | None = None,
+        key_id: str | None = None,
+        detail: dict | None = None,
+    ) -> None:
+        """Append one entry, chained to the last. Counts only: never client HR data."""
+        body = {
+            "at": _now().replace(microsecond=0).isoformat(),
+            "event": event,
+            "engagement_id": engagement_id,
+            "key_id": key_id,
+            "detail": detail or {},
+        }
+        with self._session.begin() as db:
+            last = db.execute(
+                select(_Usage).order_by(_Usage.seq.desc()).limit(1)
+            ).scalar_one_or_none()
+            previous = last.hash if last else GENESIS
+            seq = (last.seq if last else 0) + 1
+            db.add(
+                _Usage(
+                    seq=seq,
+                    at=body["at"],
+                    event=event,
+                    engagement_id=engagement_id,
+                    key_id=key_id,
+                    detail=json.dumps(body["detail"], sort_keys=True),
+                    previous_hash=previous,
+                    hash=entry_hash(previous, {"seq": seq, **body}),
+                )
+            )
+
+    def usage_log(self) -> list[dict]:
+        """Every entry, oldest first, in the form that is exported and verified."""
+        with self._session() as db:
+            rows = db.execute(select(_Usage).order_by(_Usage.seq)).scalars().all()
+            return [
+                {
+                    "seq": r.seq,
+                    "at": r.at,
+                    "event": r.event,
+                    "engagement_id": r.engagement_id,
+                    "key_id": r.key_id,
+                    "detail": json.loads(r.detail),
+                    "previous_hash": r.previous_hash,
+                    "hash": r.hash,
+                }
+                for r in rows
+            ]
 
     def set_occupation_group(
         self, engagement_id: str, occupation_group: str | None
