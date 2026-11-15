@@ -240,7 +240,35 @@ own machine: someone willing to edit the code can remove the check. Keys make th
 terms visible and countable, and make breaking them a deliberate act rather than an
 oversight. They are not copy protection, and the license agreement is what binds.
 
-Not built yet: single sign-on and an install package.
+### Installing it for a firm
+
+A licensee does not run the product from this source tree. They receive an **install
+package**: the product as a container image with the license verification key baked in, a
+script that looks after it, and a guide.
+
+```bash
+make package LICENSE_PUBLIC_KEY=~/wri-keys/wri_license_public_key.pem    # needs Docker
+```
+
+That writes `dist/wri-<version>.tar.gz`. The build refuses the signing key if it is handed
+the wrong file of the pair, and refuses to build a release with no key at all. On the
+licensee's server it is four commands (`./wri install`, `create-admin`, `start`, `status`);
+`./wri backup`, `restore`, `upgrade` and `rollback` do the rest.
+[`docs/INSTALL.md`](docs/INSTALL.md) is the guide that ships in the package.
+
+What the install is built to guarantee:
+
+- **Only the screen is published, and only to the server itself** until the firm puts its
+  own TLS in front. The part that holds the data is never published.
+- **Both containers run unprivileged**, on a read-only filesystem, with every Linux
+  capability dropped. The only lasting place they can write is the data volume.
+- **A backup comes back whole or not at all.** Every file is checked against a fingerprint
+  taken when the backup was made, before anything is changed, and a restore moves the
+  existing data aside instead of deleting it.
+- **An upgrade backs up first, and an older version will not open newer data.** It stops
+  and says so. `./wri rollback` returns to the previous image and the data as it was.
+
+Not built yet: single sign-on.
 
 ---
 
@@ -352,12 +380,16 @@ workforce-risk-platform/
     reporting/                  the client report (PDF) and workbook (Excel), from one content
     licensing/                  license keys, the usage-log chain, the licensor's wri-license tool
     store/                      sign-in, engagements and overrides (never client HR data)
+    backup.py                   back up an installation and put one back
   app/                          Streamlit UI — HTTP only, never imports the engine
   tests/golden/                 fourteen hand-calculated cases, asserted to the cent
   docs/
     cost_methodology.md         every formula, every simplification, in prose
     demo_script.md              the five-minute walkthrough
     WORKPLAN.md                 what is built, what is next, and who is working on what
+    INSTALL.md                  the guide that ships in the install package
+  Dockerfile                    the installed product: API and screen in one image
+  deploy/                       compose file, the operator's ./wri script, the package builder
   legacy/                       the February 2026 prototype; not the product
 ```
 

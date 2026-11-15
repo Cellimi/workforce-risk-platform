@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wri-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "Workforce Risk Intelligence - Phase 1: fully loaded cost of discipline"
 readme = "README.md"
 license = {file = "LICENSE"}

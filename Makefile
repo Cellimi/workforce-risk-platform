@@ -2,7 +2,7 @@ VENV ?= .venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
-.PHONY: install generate test lint fmt api serve ui demo clean
+.PHONY: install generate test lint fmt api serve ui demo clean package package-unlicensed
 
 install:
 	@if command -v uv >/dev/null 2>&1; then \
@@ -21,11 +21,11 @@ test:
 	$(VENV)/bin/pytest -q --cov --cov-report=term-missing --cov-fail-under=85
 
 lint:
-	$(VENV)/bin/ruff check src tests app
-	$(VENV)/bin/ruff format --check src tests app
+	$(VENV)/bin/ruff check src tests app deploy
+	$(VENV)/bin/ruff format --check src tests app deploy
 
 fmt:
-	$(VENV)/bin/ruff format src tests app
+	$(VENV)/bin/ruff format src tests app deploy
 	$(VENV)/bin/ruff check --fix src tests app
 
 # The synthetic walkthrough: roles chosen in a header, no sign-in. Never expose this.
@@ -42,6 +42,20 @@ ui:
 
 demo: generate
 	@echo "Now run 'make api' in one terminal and 'make ui' in another."
+
+# The install package a licensee receives: the container image with the license
+# verification key baked in, the operator's script and the guide. Needs Docker.
+#   make package LICENSE_PUBLIC_KEY=~/wri-keys/wri_license_public_key.pem
+# Give the VERIFICATION key. The build refuses the signing key.
+package:
+	@test -n "$(LICENSE_PUBLIC_KEY)" || { \
+		echo "usage: make package LICENSE_PUBLIC_KEY=/path/to/wri_license_public_key.pem"; exit 2; }
+	$(PY) deploy/package.py --license-key "$(LICENSE_PUBLIC_KEY)"
+
+# The same package with no verification key: it enforces no license keys. For trying the
+# install, never for a licensee.
+package-unlicensed:
+	$(PY) deploy/package.py --unlicensed
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov

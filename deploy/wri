@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+#
+# ./wri <command>  -  look after one installation of Workforce Risk Intelligence.
+#
+#   install                 load the image that came in this package and write wri.env
+#   start | stop | restart  run it, or stop it. Stopping never removes any data
+#   status                  what is installed, whether it is in order, what is running
+#   create-admin EMAIL      create the first firm administrator (asks for a password)
+#   backup [FILE]           write everything the installation owns to one file
+#   restore FILE            put a backup back (stop first; what is there is moved aside)
+#   upgrade IMAGE.tar.gz    back up, then move to the newer image
+#   rollback                undo the last upgrade: the previous image and its backup
+#   logs [api|ui]           what the product has been saying
+#
+# Everything is kept in a Docker volume named wri_wri-data. Nothing here ever deletes it.
+
+set -euo pipefail
+cd "$(dirname "$0")"
+
+ENV_FILE=wri.env
+UPGRADE_NOTE=.last-upgrade
+
+die() { echo "wri: $*" >&2; exit 1; }
+say() { echo "wri: $*"; }
+
+command -v docker >/dev/null 2>&1 || die "Docker is not installed, or not on the PATH."
+docker compose version >/dev/null 2>&1 || die "this needs Docker Compose v2 ('docker compose')."
+
+compose() { docker compose --env-file "$ENV_FILE" -f compose.yaml "$@"; }
+admin() { compose run --rm --no-deps "$@"; }
+
+need_env() {
+  [ -f "$ENV_FILE" ] || die "there is no $ENV_FILE yet. Run './wri install' first."
+}
+
+setting() { # setting NAME -> its value in wri.env, or nothing
+  sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1
+}
+
+set_setting() { # set_setting NAME VALUE, keeping every other line as it is
+  local name=$1 value=$2 tmp
+  tmp=$(mktemp "$ENV_FILE.XXXXXX")
+  if grep -q "^$name=" "$ENV_FILE"; then
+    awk -v n="$name" -v v="$value" 'BEGIN{FS=OFS="="} $1==n {print n "=" v; next} {print}' \
+      "$ENV_FILE" >"$tmp"
+  else
+    { cat "$ENV_FILE"; echo "$name=$value"; } >"$tmp"
+  fi
+  chmod 600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
+}
+
+running() { [ -n "$(compose ps --quiet 2>/dev/null)" ]; }
+
+load_image() { # load_image FILE -> prints the image's name
+  local file=$1 out name
+  [ -f "$file" ] || die "$file was not found."
+  out=$(docker load --input "$file") || die "Docker could not load $file."
+  name=$(printf '%s\n' "$out" | sed -n 's/^Loaded image: //p' | tail -n 1)
+  [ -n "$name" ] || die "$file was loaded, but it does not name an image."
+  printf '%s\n' "$name"
+}
+
+warn_if_exposed() {
+  local bind
+  bind=$(setting WRI_BIND)
+  if [ -n "$bind" ] && [ "$bind" != "127.0.0.1" ] && [ "$bind" != "localhost" ]; then
+    echo "wri: WARNING: WRI_BIND is $bind. The screen is served over plain HTTP to every" >&2
+    echo "wri: machine that can reach this one. See 'Who can reach it' in INSTALL.md." >&2
+  fi
+}
+
+write_backup() { # write_backup FILE, from a stopped or a running installation
+  local file=$1
+  [ ! -e "$file" ] || die "$file already exists. Nothing was written."
+  mkdir -p "$(dirname "$file")"
+  # Owner-only: a backup holds client data.
+  ( umask 077
+    if ! admin -T api wri-admin backup --out - >"$file.partial"; then
+      rm -f "$file.partial"
+      exit 1
+    fi
+    mv "$file.partial" "$file" ) || die "the backup failed. Nothing was kept."
+  say "backup written to $file"
+}
+
+cmd_install() {
+  local images image
+  shopt -s nullglob
+  images=(wri-image-*.tar.gz)
+  shopt -u nullglob
+  [ "${#images[@]}" -eq 1 ] ||
+    die "expected exactly one wri-image-*.tar.gz beside this script, found ${#images[@]}."
+  # A wri.env that names an image this machine already has is a working installation.
+  # One that names an image this machine does not have was copied here from another
+  # server, and installing is exactly what is wanted.
+  if [ -f "$ENV_FILE" ] && docker image inspect "$(setting WRI_IMAGE)" >/dev/null 2>&1; then
+    die "this folder already holds an installation ($(setting WRI_IMAGE)). To move to a newer image use './wri upgrade ${images[0]}'."
+  fi
+  image=$(load_image "${images[0]}")
+  if [ ! -f "$ENV_FILE" ]; then
+    ( umask 077; cp wri.env.example "$ENV_FILE" )
+  fi
+  set_setting WRI_IMAGE "$image"
+  say "loaded $image and wrote $ENV_FILE."
+  say "next: ./wri create-admin you@firm.example   then   ./wri start"
+}
+
+cmd_start() {
+  need_env
+  warn_if_exposed
+  compose up --detach --wait
+  say "running. Open http://$(setting WRI_BIND):$(setting WRI_PORT) on this machine."
+}
+
+cmd_stop() {
+  need_env
+  compose down
+  say "stopped. Nothing was removed."
+}
+
+cmd_status() {
+  need_env
+  say "image $(setting WRI_IMAGE)"
+  admin -T api wri-admin status || true
+  compose ps
+}
+
+cmd_create_admin() {
+  need_env
+  [ $# -ge 1 ] || die "usage: ./wri create-admin EMAIL [NAME]"
+  local email=$1
+  shift
+  admin api wri-admin create-user "$email" --firm-admin --name "${*:-}"
+}
+
+cmd_backup() {
+  need_env
+  local file=${1:-backups/wri-backup-$(date +%Y%m%d-%H%M%S).tar.gz}
+  write_backup "$file"
+  say "keep it somewhere other than this machine. It contains client data."
+}
+
+cmd_restore() {
+  need_env
+  [ $# -ge 1 ] || die "usage: ./wri restore FILE [--yes]"
+  local file=$1 answer
+  [ -f "$file" ] || die "$file was not found."
+  running && die "the product is running. Stop it first: ./wri stop"
+  if [ "${2:-}" != "--yes" ]; then
+    echo "This puts $file in place of what this installation holds now."
+    echo "What is there now is moved aside inside the data volume, not deleted."
+    read -r -p "Type yes to go ahead: " answer
+    [ "$answer" = "yes" ] || die "nothing was changed."
+  fi
+  admin -T api wri-admin restore - --replace <"$file" || die "the restore failed."
+  say "restored. Start it with ./wri start"
+}
+
+cmd_upgrade() {
+  need_env
+  [ $# -ge 1 ] || die "usage: ./wri upgrade wri-image-<version>.tar.gz"
+  local file=$1 old new backup
+  old=$(setting WRI_IMAGE)
+  new=$(load_image "$file")
+  [ "$new" != "$old" ] || die "this installation already runs $old."
+  backup=backups/before-upgrade-$(date +%Y%m%d-%H%M%S).tar.gz
+
+  say "stopping $old"
+  compose down
+  # Taken with the OLD image, after it has stopped: exactly what the old version left.
+  write_backup "$backup"
+  printf 'PREVIOUS_IMAGE=%s\nBACKUP=%s\n' "$old" "$backup" >"$UPGRADE_NOTE"
+
+  set_setting WRI_IMAGE "$new"
+  say "starting $new"
+  if ! compose up --detach --wait; then
+    echo "wri: $new did not come up. Your data as it was is in $backup." >&2
+    echo "wri: look at './wri logs api', or go back with './wri rollback'." >&2
+    exit 1
+  fi
+  say "upgraded from $old to $new. If anything looks wrong: ./wri rollback"
+}
+
+cmd_rollback() {
+  need_env
+  [ -f "$UPGRADE_NOTE" ] || die "there is no upgrade to undo."
+  local previous backup answer
+  previous=$(sed -n 's/^PREVIOUS_IMAGE=//p' "$UPGRADE_NOTE")
+  backup=$(sed -n 's/^BACKUP=//p' "$UPGRADE_NOTE")
+  [ -f "$backup" ] || die "the backup taken before the upgrade ($backup) is missing."
+  docker image inspect "$previous" >/dev/null 2>&1 ||
+    die "the previous image $previous is no longer on this machine. Load it again first."
+  if [ "${1:-}" != "--yes" ]; then
+    echo "This goes back to $previous and to the data as it was before the upgrade ($backup)."
+    echo "Anything done since the upgrade is moved aside inside the data volume, not deleted."
+    read -r -p "Type yes to go ahead: " answer
+    [ "$answer" = "yes" ] || die "nothing was changed."
+  fi
+  compose down
+  set_setting WRI_IMAGE "$previous"
+  admin -T api wri-admin restore - --replace <"$backup" || die "the restore failed."
+  compose up --detach --wait
+  rm -f "$UPGRADE_NOTE"
+  say "back on $previous, with the data from $backup."
+}
+
+cmd_logs() {
+  need_env
+  compose logs --tail 200 "$@"
+}
+
+case "${1:-}" in
+  install) shift; cmd_install "$@" ;;
+  start) shift; cmd_start "$@" ;;
+  stop) shift; cmd_stop "$@" ;;
+  restart) shift; cmd_stop; cmd_start ;;
+  status) shift; cmd_status "$@" ;;
+  create-admin) shift; cmd_create_admin "$@" ;;
+  backup) shift; cmd_backup "$@" ;;
+  restore) shift; cmd_restore "$@" ;;
+  upgrade) shift; cmd_upgrade "$@" ;;
+  rollback) shift; cmd_rollback "$@" ;;
+  logs) shift; cmd_logs "$@" ;;
+  *) sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

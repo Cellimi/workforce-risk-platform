@@ -1,0 +1,70 @@
+# Workforce Risk Intelligence: one installation.
+#
+# Two services from one image. `api` holds the data and does the work; `ui` is the screen
+# and talks to `api` over the private network between them. Only the screen is published,
+# and by default only to this machine: see "Who can reach it" in INSTALL.md before
+# changing WRI_BIND.
+#
+# Settings come from `wri.env` beside this file (copy `wri.env.example`). Use the `./wri`
+# script rather than running compose by hand; it passes the right files.
+
+name: wri
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  # The only place either service can write, apart from the data volume. It is memory,
+  # and it is gone when the container stops.
+  tmpfs:
+    - /tmp
+
+services:
+  api:
+    <<: *hardening
+    image: ${WRI_IMAGE:?set WRI_IMAGE in wri.env, e.g. wri:0.3.0}
+    command: ["api"]
+    environment:
+      WRI_SESSION_HOURS: ${WRI_SESSION_HOURS:-12}
+      WRI_MAX_UPLOAD_MB: ${WRI_MAX_UPLOAD_MB:-50}
+      WRI_DATABASE_URL: ${WRI_DATABASE_URL:-}
+    volumes:
+      - wri-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ui:
+    <<: *hardening
+    image: ${WRI_IMAGE:?set WRI_IMAGE in wri.env, e.g. wri:0.3.0}
+    command: ["ui"]
+    environment:
+      WRI_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WRI_BIND:-127.0.0.1}:${WRI_PORT:-8501}:8501"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  # Everything the installation owns: accounts, engagements, each client's files, the
+  # audit log. Removing this volume removes the installation. Back it up with ./wri backup.
+  wri-data:

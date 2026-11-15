@@ -44,6 +44,11 @@ from wri_engine.store.passwords import DUMMY_HASH, hash_password, verify_passwor
 
 MAX_FAILED_LOGINS = 5
 LOCKOUT_MINUTES = 15
+#: The shape of the data this version of the product reads and writes. Raise it by one
+#: whenever a change means an OLDER product could no longer read the database safely, and
+#: add the step that brings an existing database up to it in `_upgrade_schema`.
+#:   1  everything up to and including engagement license keys and the usage log
+SCHEMA_VERSION = 1
 #: The sectors an engagement may be opened for. Read from the installed cost models rather
 #: than listed here, so the server can never refuse a sector the engine can actually cost --
 #: or accept one it cannot.
@@ -52,6 +57,41 @@ SECTORS = sector_ids()
 
 class AuthError(Exception):
     """Sign-in failed. The message is safe to show the caller."""
+
+
+class SchemaTooNew(RuntimeError):
+    """The database was last used by a newer product than this one."""
+
+    def __init__(self, found: int):
+        self.found = found
+        super().__init__(
+            f"this installation's data was last used by a newer version of the product "
+            f"(data version {found}; this version understands up to {SCHEMA_VERSION}). "
+            f"Nothing was changed. Install the newer version again, or restore the backup "
+            f"taken before the upgrade."
+        )
+
+
+def stored_schema_version(database_url: str) -> int | None:
+    """The data version a database records, without opening it as an installation or
+    changing it. None if it has never been opened by a version that records one."""
+    if database_url.startswith("sqlite:///") and ":memory:" not in database_url:
+        # SQLite makes an empty file the moment it is connected to. Looking must not.
+        from pathlib import Path
+
+        if not Path(database_url.removeprefix("sqlite:///")).exists():
+            return None
+    engine = create_engine(database_url)
+    try:
+        if "installation" not in inspect(engine).get_table_names():
+            return None
+        with engine.connect() as connection:
+            value = connection.execute(
+                text("SELECT value FROM installation WHERE key = 'schema_version'")
+            ).scalar()
+        return int(value) if value is not None else None
+    finally:
+        engine.dispose()
 
 
 def _now() -> datetime:
@@ -130,6 +170,15 @@ class _Usage(Base):
     detail: Mapped[str] = mapped_column(Text, default="{}")
     previous_hash: Mapped[str] = mapped_column(String(64))
     hash: Mapped[str] = mapped_column(String(64))
+
+
+class _Installation(Base):
+    """Facts about the installation itself: the data version, and which product last
+    opened the database. Read before anything else at start-up."""
+
+    __tablename__ = "installation"
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[str] = mapped_column(String(200))
 
 
 class _Firm(Base):
@@ -242,9 +291,48 @@ class Store:
             if ":memory:" in database_url:
                 kwargs["poolclass"] = StaticPool
         self.engine = create_engine(database_url, **kwargs)
+        # Looked at before anything is created or altered: an older product must leave a
+        # newer database exactly as it found it.
+        found = self._recorded_schema_version()
+        if found is not None and found > SCHEMA_VERSION:
+            self.engine.dispose()
+            raise SchemaTooNew(found)
         Base.metadata.create_all(self.engine)
         self._upgrade_schema()
+        self._record_schema_version()
         self._session = sessionmaker(self.engine, expire_on_commit=False)
+
+    def _recorded_schema_version(self) -> int | None:
+        if "installation" not in inspect(self.engine).get_table_names():
+            return None
+        with self.engine.connect() as connection:
+            value = connection.execute(
+                text("SELECT value FROM installation WHERE key = 'schema_version'")
+            ).scalar()
+        return int(value) if value is not None else None
+
+    def _record_schema_version(self) -> None:
+        """Note the data version and which product last opened the database."""
+        from wri_engine import __version__
+
+        with self.engine.begin() as connection:
+            for key, value in (
+                ("schema_version", str(SCHEMA_VERSION)),
+                ("product_version", __version__),
+            ):
+                updated = connection.execute(
+                    text("UPDATE installation SET value = :value WHERE key = :key"),
+                    {"key": key, "value": value},
+                )
+                if updated.rowcount == 0:
+                    connection.execute(
+                        text("INSERT INTO installation (key, value) VALUES (:key, :value)"),
+                        {"key": key, "value": value},
+                    )
+
+    @property
+    def schema_version(self) -> int:
+        return SCHEMA_VERSION
 
     def _upgrade_schema(self) -> None:
         """Add columns introduced after an installation's database was first created.

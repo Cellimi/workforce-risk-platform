@@ -42,14 +42,15 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Offer sales and office work as separate occupation selections | Claude Code session | Done (PR #10). The owner reviewed the two values on 2026-11-14 |
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
 | Engagement license keys | Claude Code session | Done, PR #13 |
-| Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, `claude/report-record-sheet` |
+| Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
+| Install package: container install, configuration guide, upgrade path | Claude Code session | Done, `claude/install-package` |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 377 tests, 96.0% coverage.
+asserts it line item by line item. 399 tests, 96.0% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -72,9 +73,72 @@ series, state and local service occupations and public administration, bracket i
 6. **Client deliverables.** Built: a report carrying the consulting firm's name and logo
    (PDF), a workbook beside it (Excel), and appendices of the assumptions used and the
    client's own values. See "Client deliverables" below.
-7. **Install package.** Container install, configuration guide, upgrade path.
+7. **Install package.** Built: a container image with the license verification key baked
+   in, an operator's script, a configuration guide and an upgrade path with a way back. See
+   "Install package" below.
 8. **Phases 2 and 3** (hotspot detection; intervention cost-benefit). Out of scope until
    Phase 1 is in use: see "Phase boundary" in `CLAUDE.md`.
+
+## Install package
+
+What a licensee receives is built by `make package LICENSE_PUBLIC_KEY=<the verification
+key>` (needs Docker) and written to `dist/wri-<version>.tar.gz`. The pieces:
+
+| Piece | Where | What it does |
+|---|---|---|
+| The image | `Dockerfile`, `deploy/entrypoint.sh` | API and screen in one image, run as two services. Unprivileged user, one API worker |
+| The services | `deploy/compose.yaml` | Read-only filesystem, all capabilities dropped. Only the screen is published, to `127.0.0.1` by default; the API never is. One volume holds everything |
+| The operator's script | `deploy/wri` | `install`, `start`, `stop`, `status`, `create-admin`, `backup`, `restore`, `upgrade`, `rollback`, `logs` |
+| The builder | `deploy/package.py` | Checks the verification key, builds and checks the image, writes the package and its checksums |
+| The guide | `docs/INSTALL.md` | Ships in the package as `INSTALL.md` |
+| Backup and restore | `src/wri_engine/backup.py`, `wri-admin backup/restore/status` | See below |
+
+**The verification key.** By the owner's decision it ships only here. The builder refuses a
+file that holds a private key (that is the signing key), refuses to build a release with no
+key, and tags a deliberately keyless build `-unlicensed`. `.dockerignore` keeps every `.pem`
+out of the build, so the key reaches the image only through its own build context.
+
+**Backup and restore.** One `.tar.gz` of the database (copied with SQLite's online backup,
+so it is consistent while running), the pseudonym salt, every engagement's files and the
+audit log, with a manifest of SHA-256 fingerprints. A restore unpacks to a holding folder
+and checks everything before touching the installation; it refuses a damaged or altered
+backup, a file the product would not have written, and a backup from a newer product. It
+never deletes: what it replaces is moved into `replaced-<date>/`.
+
+**Upgrade path.** `SCHEMA_VERSION` in `store/db.py` (now 1) is recorded in the database.
+A product that finds a higher number than it knows refuses to start and changes nothing.
+`./wri upgrade` stops the product, backs up with the old image, switches and starts;
+`./wri rollback` goes back to the previous image and that backup together. **Whoever makes
+a change an older version could not read must raise `SCHEMA_VERSION`** and add the step to
+`_upgrade_schema`.
+
+**What was run for real, on 2026-11-15, with a throwaway key pair** (Docker 29, image on
+Python 3.12): the package was built by `deploy/package.py`; unpacked into an empty folder
+and its checksums verified; `./wri install`, `create-admin` (typed at a terminal), `start`,
+`status`; an engagement opened with a license key, a dataset loaded, the report and working
+papers produced, the screen opened in a browser; `backup`, `restore`; an upgrade to a
+stand-in 0.3.1 with a higher data version; the old image pointed at the upgraded data
+(refused, as designed); `rollback`. All passed. The key pair was deleted afterwards.
+
+**Not done, and what the owner needs to know:**
+
+1. **The real package has not been built**, because only the owner has the real
+   verification key. `make package LICENSE_PUBLIC_KEY=...` on a machine with Docker does it.
+2. **TLS is the firm's to supply.** The product speaks plain HTTP and is published only to
+   the server itself. The guide says what a reverse proxy must do and shows a Caddy
+   configuration as an illustration; that configuration was **not** tested.
+3. **The image is about 1.1 GB** (254 MB as shipped). Most of it is pandas, DuckDB,
+   Streamlit and Plotly. Not slimmed.
+4. **Dependencies are not pinned in `pyproject.toml`.** The image is the pinned artefact:
+   `requirements.lock` in the package lists what it holds. Two builds a month apart can
+   differ. Pinning is a separate decision.
+5. **Linux servers only**, built for `linux/amd64` by default (`--platform` changes it).
+   The operator's script is bash.
+6. **One installation per server.** The volume has a fixed name.
+7. **No scheduled backups.** `./wri backup` is a command; running it nightly is for the
+   firm's own scheduler. The guide says so.
+8. **The version is now 0.3.0** (was 0.2.0, unchanged since before the private-sector
+   model). It is read from one place and shown at `/health` and by `./wri status`.
 
 ## Engagement license keys
 
@@ -125,8 +189,8 @@ signing key should never exist anywhere but the owner's own machine and its back
      committed here.** `.gitignore` lists it, so a checkout of the source is never licensed
      by accident.
 
-**Left for the install package (item 7):** shipping the verification key, and saying in the
-configuration guide where it goes. This is now a requirement of that item, not an option.
+**Done in the install package (item 7):** the verification key is baked into the image
+when the package is built, and `./wri status` shows whether keys are enforced.
 
 ## Client deliverables
 
