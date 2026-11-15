@@ -154,6 +154,34 @@ wanted, that folder can be removed to free the space.
 
 Test a restore once, on a spare machine, before you need one.
 
+## The audit log
+
+Every request is recorded: who asked, in which engagement, for what, and whether it was
+allowed. Each entry is tied to the one before it by a fingerprint, so an entry changed,
+removed or inserted afterwards shows.
+
+```bash
+./wri audit
+```
+
+It ends with `intact`, or lists every place the log does not hold together, and prints the
+log's **head**: the last entry's number and fingerprint, such as `48213:9f2c…`.
+
+That check alone cannot notice two things: entries removed from the very end, or a log
+rebuilt from the start by someone with full access to the server. Both are caught by noting
+the head **somewhere the server's administrators cannot change** (a weekly email to someone
+outside IT, a ticket, a printed page) and later asking whether the log still holds it:
+
+```bash
+./wri audit --expect-head 48213:9f2c…    # the whole value, as it was printed
+```
+
+A firm administrator also sees whether the log is intact, and its head, on the Engagement
+page.
+
+The log grows by one line per request and is never trimmed by the product. It is included
+in every backup.
+
 ## Moving to a newer version
 
 You will receive a new `wri-image-<version>.tar.gz`. Copy it into this folder, then:
@@ -213,8 +241,7 @@ first, and remember that backups and the `replaced-…` folders hold client data
 
 - **No single sign-on.** Accounts and passwords are the product's own.
 - **No TLS of its own.** See "Who can reach it".
-- **The audit log is a file in the data volume.** Someone with administrative access to the
-  server can alter it. It is not yet written anywhere they cannot.
+- **The audit log shows editing; it cannot prevent it.** See "The audit log" above.
 
 ## If something is wrong
 

@@ -10,6 +10,7 @@
 #   restore FILE            put a backup back (stop first; what is there is moved aside)
 #   upgrade IMAGE.tar.gz    back up, then move to the newer image
 #   rollback                undo the last upgrade: the previous image and its backup
+#   audit [--expect-head N:HASH]  whether the audit log has been edited
 #   logs [api|ui]           what the product has been saying
 #
 # Everything is kept in a Docker volume named wri_wri-data. Nothing here ever deletes it.
@@ -205,6 +206,11 @@ cmd_rollback() {
   say "back on $previous, with the data from $backup."
 }
 
+cmd_audit() {
+  need_env
+  admin -T api wri-admin audit "$@"
+}
+
 cmd_logs() {
   need_env
   compose logs --tail 200 "$@"
@@ -221,6 +227,7 @@ case "${1:-}" in
   restore) shift; cmd_restore "$@" ;;
   upgrade) shift; cmd_upgrade "$@" ;;
   rollback) shift; cmd_rollback "$@" ;;
+  audit) shift; cmd_audit "$@" ;;
   logs) shift; cmd_logs "$@" ;;
-  *) sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

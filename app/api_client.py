@@ -239,6 +239,10 @@ class EngineClient:
         """The usage log as a file to send to the licensor."""
         return self._request("GET", "/license/usage.jsonl", scoped=False).content
 
+    def audit_check(self) -> dict:
+        """Whether the access audit log still holds together, and its head."""
+        return self._request("GET", "/audit/check", scoped=False).json()
+
     def set_occupation_group(self, occupation_group: str | None) -> dict:
         return self._request(
             "PUT",

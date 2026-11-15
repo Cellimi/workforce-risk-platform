@@ -748,8 +748,12 @@ enforced by the API -- an `executive` requesting a drill-down gets a 403 from th
 a hidden button. There is no authentication behind the header yet; that is the seam where SSO
 goes.
 
-Every request is written to an append-only audit log before its response is built: role,
-endpoint, filters, timestamp, and whether it was allowed.
+Every request is written to an audit log before its response is built: user, role,
+engagement, endpoint, filters, timestamp, and whether it was allowed. Each entry carries the
+hash of the one before it, so an entry changed, removed, inserted or moved afterwards shows
+when the log is checked. That makes editing evident, not impossible: removing the last
+entries, or rebuilding the whole log, is caught only against a head (the last entry's
+number and hash) noted down earlier somewhere the server's administrators cannot change.
 
 ---
 

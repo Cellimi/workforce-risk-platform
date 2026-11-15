@@ -402,6 +402,19 @@ def set_license(engagement_id: str, body: LicenseKey, request: Request, admin: F
     return _engagement_view(engagement, Role.ADMIN, request)
 
 
+@router.get("/audit/check", tags=["audit"])
+def audit_check(admin: FirmAdmin) -> dict:
+    """Whether the access audit log still holds together, and its head: the last entry's
+    number and hash, to note down somewhere the server's administrators cannot change."""
+    from wri_engine.api import main
+
+    found = main.AUDIT.check()
+    _audit("/audit/check", user=admin.email, intact=found.intact)
+    body = found.as_dict()
+    body["problems"] = body["problems"][:50]
+    return body
+
+
 @router.get("/license/usage", tags=["license"])
 def usage(request: Request, admin: FirmAdmin) -> dict:
     """The usage log, with whether it still holds together."""

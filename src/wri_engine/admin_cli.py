@@ -7,9 +7,10 @@ signed-in firm administrator. Whoever installs the product runs this once:
 
 and is asked for a password. Everything after that can be done through the API.
 
-Three more commands look after the installation itself:
+Four more commands look after the installation itself:
 
     wri-admin status                       what is installed, and whether it is in order
+    wri-admin audit [--expect-head N:HASH] whether the access audit log has been edited
     wri-admin backup --out FILE.tar.gz     everything the installation owns, in one file
     wri-admin restore FILE.tar.gz          put a backup back (the product must be stopped)
 
@@ -27,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 
 from wri_engine import __version__
+from wri_engine.access.audit import AuditLog
 from wri_engine.backup import BackupError, create_backup, restore_backup
 from wri_engine.licensing.keys import LicenseError, load_public_key
 from wri_engine.settings import Settings
@@ -80,6 +82,17 @@ def _status(settings: Settings) -> int:
                 )
             store.close()
 
+    found = AuditLog(settings.audit_log_path).check()
+    if found.intact:
+        print(
+            f"audit log           intact, {found.entries:,} entries"
+            + (f" after {found.unchained:,} older unchained lines" if found.unchained else "")
+            + f"; head {found.head_seq}:{found.head_hash[:16]}"
+        )
+    else:
+        print(f"audit log           {len(found.problems)} PROBLEM(S): see wri-admin audit")
+        problems.append("the audit log does not hold together. Run: wri-admin audit")
+
     if settings.auth_mode != "local":
         print("license keys        not used in the synthetic walkthrough")
     elif not settings.license_public_key.strip():
@@ -96,6 +109,39 @@ def _status(settings: Settings) -> int:
         print(f"PROBLEM: {problem}", file=sys.stderr)
     print("in order" if not problems else f"{len(problems)} problem(s) found")
     return 1 if problems else 0
+
+
+def _audit(args, settings: Settings) -> int:
+    """Check the access audit log, and optionally that it still holds an entry recorded
+    earlier: the way to notice entries removed from the end, or a log rebuilt from scratch."""
+    path = settings.audit_log_path
+    found = AuditLog(path).check()
+    print(f"file                {path}")
+    print(f"entries             {found.entries:,} chained, {found.unchained:,} older unchained")
+    print(f"head                {found.head_seq}:{found.head_hash}")
+    problems = list(found.problems)
+    if args.expect_head:
+        seq_text, _, expected = args.expect_head.partition(":")
+        if not seq_text.isdigit() or len(expected) != 64:
+            print("wri-admin: --expect-head takes SEQ:HASH as printed above", file=sys.stderr)
+            return 2
+        if not AuditLog(path).holds(int(seq_text), expected):
+            problems.append(
+                f"the log no longer holds entry {seq_text} as it was recorded. Entries have "
+                f"been removed from the end, or the log has been rebuilt."
+            )
+    for problem in problems[:50]:
+        print(f"PROBLEM: {problem}", file=sys.stderr)
+    if len(problems) > 50:
+        print(f"... and {len(problems) - 50} more", file=sys.stderr)
+    if problems:
+        print("THE AUDIT LOG DOES NOT HOLD TOGETHER")
+        return 1
+    print(
+        "intact. Keep the head above somewhere the server's administrators cannot change, "
+        "and check against it later with --expect-head."
+    )
+    return 0
 
 
 def _backup_or_restore(args, settings: Settings) -> int:
@@ -142,6 +188,13 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("list-users", help="list user accounts")
     sub.add_parser("status", help="what is installed, and whether it is in order")
 
+    audit = sub.add_parser("audit", help="check whether the access audit log has been edited")
+    audit.add_argument(
+        "--expect-head",
+        metavar="SEQ:HASH",
+        help="a head printed earlier; checks the log still holds that entry unchanged",
+    )
+
     backup = sub.add_parser("backup", help="write everything the installation owns to a file")
     backup.add_argument(
         "--out", required=True, help="the .tar.gz to write; must not exist. - for standard output"
@@ -160,6 +213,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "status":
         return _status(settings)
+    if args.command == "audit":
+        return _audit(args, settings)
     if args.command in ("backup", "restore"):
         return _backup_or_restore(args, settings)
 
