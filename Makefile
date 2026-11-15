@@ -2,7 +2,7 @@ VENV ?= .venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
-.PHONY: install lock generate test lint fmt api serve ui demo clean package package-unlicensed
+.PHONY: install lock lock-upgrade generate test lint fmt api serve ui demo clean package package-unlicensed
 
 # Every library at the exact version in requirements-dev.lock, each download checked
 # against the fingerprint recorded there, so everyone works on what the tests ran on.
@@ -18,15 +18,22 @@ install:
 		$(PIP) install -q --no-deps -e .; \
 	fi
 
-# Choose the versions again: the newest that pyproject.toml allows. Run it on purpose
-# (a new dependency, a security fix, before a release), then `make install`, `make test`,
-# and commit both lock files with the change. requirements.lock is what ships in the image;
-# requirements-dev.lock is the same versions plus the tools for testing. Needs uv.
+# Bring the lock files in line with pyproject.toml, after adding or removing a dependency.
+# Every version already chosen is kept; only what is new is chosen. Then `make install`,
+# `make test`, and commit both lock files with the change. requirements.lock is what ships
+# in the image; requirements-dev.lock is the same versions plus the tools for testing.
+# Needs uv.
+UPGRADE ?=
 lock:
-	uv pip compile pyproject.toml --extra ui --universal --generate-hashes --upgrade \
+	uv pip compile pyproject.toml --extra ui --universal --generate-hashes $(UPGRADE) \
 		--custom-compile-command "make lock" -q -o requirements.lock
-	uv pip compile pyproject.toml --extra ui --extra dev --universal --generate-hashes --upgrade \
+	uv pip compile pyproject.toml --extra ui --extra dev --universal --generate-hashes $(UPGRADE) \
 		--custom-compile-command "make lock" -q -c requirements.lock -o requirements-dev.lock
+
+# Choose every version again: the newest that pyproject.toml allows. Run it on purpose, for
+# a security fix or before a release, and expect to read what changed.
+lock-upgrade:
+	$(MAKE) lock UPGRADE=--upgrade
 
 generate:
 	$(PY) -m wri_engine.generator.cli --seed 20260917 --out data/synthetic

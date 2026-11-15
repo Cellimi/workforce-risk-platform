@@ -27,7 +27,9 @@ Everything is done with one script, `./wri`, in the folder this guide came in.
 - **Docker Engine 24 or newer, with Compose v2.** `docker compose version` should answer.
 - **2 CPU cores, 4 GB of memory, 5 GB of disk** for the product, plus room for your clients'
   files and for backups. Client files are small: tens of megabytes per engagement.
-- **No internet connection is needed**, to install or to run. The product contacts nobody.
+- **No internet connection is needed**, to install or to run. The product contacts nobody,
+  with one exception you choose: if you switch single sign-on on, the server must be able
+  to reach your identity provider over HTTPS, and it contacts nothing else.
 - The account that runs `./wri` must be allowed to run `docker`.
 
 One server holds one installation. A second copy of this folder on the same server would
@@ -98,6 +100,77 @@ one, run `./wri restart`.
 | `WRI_SESSION_HOURS` | `12` | How long a sign-in lasts |
 | `WRI_MAX_UPLOAD_MB` | `50` | The largest file a user may upload |
 | `WRI_DATABASE_URL` | empty | Leave empty. See "Using your own database server" below |
+| `WRI_SSO_ISSUER` | empty | Your identity provider's issuer address. Empty means single sign-on is off |
+| `WRI_SSO_CLIENT_ID` | empty | The application id the provider issued for this product |
+| `WRI_SSO_CLIENT_SECRET` | empty | The secret that goes with it |
+| `WRI_SSO_REDIRECT_URL` | empty | The https address your people open the product at |
+| `WRI_SSO_NAME` | `single sign-on` | What the sign-in button says |
+| `WRI_SSO_SCOPES` | `openid email profile` | What is asked of the provider. Rarely changed |
+| `WRI_SSO_EMAIL_CLAIM` | `email` | Where in the provider's answer the email address is |
+| `WRI_SSO_REQUIRE_VERIFIED_EMAIL` | `on` | Refuse an address the provider has not confirmed |
+| `WRI_PASSWORD_SIGN_IN` | `on` | `off` refuses every password. Needs single sign-on |
+
+`./wri status` shows whether single sign-on is on and whether passwords are still accepted.
+If the settings are incomplete or contradictory the product does not start, and
+`./wri logs api` says which setting is wrong.
+
+## Single sign-on
+
+Optional. With it, people sign in at your firm's own identity provider, and this product
+never sees their password. Multi-factor sign-in, password rules and removing a leaver are
+then done in one place: the provider. Any provider that speaks **OpenID Connect** works;
+Microsoft Entra ID, Google Workspace, Okta and Keycloak all do.
+
+It needs the product to be reachable at an **https** address first. See "Who can reach it".
+
+**1. Register the product with your provider** as a web application. The provider will ask
+for a redirect address: give the https address your people open the product at, ending in a
+slash, for example `https://wri.yourfirm.example/`. It will give you an issuer address, a
+client id and a client secret.
+
+**2. Put those in `wri.env`**, then `./wri restart`:
+
+```
+WRI_SSO_ISSUER=https://login.yourprovider.example/your-tenant
+WRI_SSO_CLIENT_ID=...
+WRI_SSO_CLIENT_SECRET=...
+WRI_SSO_REDIRECT_URL=https://wri.yourfirm.example/
+WRI_SSO_NAME=Yourfirm sign-in
+```
+
+The issuer is right if `<issuer>/.well-known/openid-configuration` opens in a browser.
+
+**3. Create accounts.** Being known to the provider does not give anyone an account here.
+A firm administrator creates each person's account on the **Engagement** page, with their
+email address and no password, and adds them to engagements as before. The first time the
+person signs in through the provider, the account is tied to them.
+
+**4. When it works, consider switching passwords off:** `WRI_PASSWORD_SIGN_IN=off`. Do it
+only after a firm administrator has signed in through the provider, or nobody will be able
+to get in.
+
+What to know:
+
+- **An account that has signed in through the provider can no longer use a password.** That
+  is deliberate: otherwise someone removed at the provider could still walk in with an old
+  one. An account that never uses the provider keeps its password. Keeping one such
+  administrator account, with a long password stored safely, is the way back in if the
+  provider is ever unreachable. `WRI_PASSWORD_SIGN_IN=off` closes that door too.
+- **Removing someone at the provider stops their next sign-in, not their current one.** A
+  session lasts `WRI_SESSION_HOURS`. To end it at once, deactivate the account on the
+  Engagement page.
+- **An account answers to one person.** If an email address passes to someone else at the
+  provider, that person is refused until a firm administrator resets the link on the
+  Engagement page.
+- **If your provider does not confirm email addresses** (the sign-in is refused with "has
+  not confirmed your email address"), and you trust the addresses it holds, set
+  `WRI_SSO_REQUIRE_VERIFIED_EMAIL=off`. Some providers also put the sign-in name in a
+  different field from `email`; `WRI_SSO_EMAIL_CLAIM` names the field to read instead
+  (`preferred_username` is a common one). Your provider's documentation says which
+  fields it sends.
+- A provider whose certificate comes from a private authority is not supported yet, and
+  neither is a single issuer address shared by many organisations (Microsoft's `common`
+  address): use your own tenant's.
 
 ## License keys
 
@@ -239,7 +312,8 @@ first, and remember that backups and the `replaced-…` folders hold client data
 
 ## What this version does not do
 
-- **No single sign-on.** Accounts and passwords are the product's own.
+- **Signing out here does not sign you out of the identity provider**, and the provider
+  cannot sign anyone out of here. Accounts are not created from the provider's directory.
 - **No TLS of its own.** See "Who can reach it".
 - **The audit log shows editing; it cannot prevent it.** See "The audit log" above.
 

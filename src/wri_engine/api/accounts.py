@@ -13,6 +13,7 @@ Three kinds of people use an installation:
 
 from __future__ import annotations
 
+import secrets
 from datetime import date
 from typing import Annotated
 
@@ -29,6 +30,7 @@ from wri_engine.licensing.usage import to_jsonl, verify_chain
 from wri_engine.reporting.branding import MAX_LOGO_BYTES, check_logo
 from wri_engine.schema import OCCUPATION_GROUP_LABELS
 from wri_engine.sectors import DEFAULT_SECTOR, SectorPack, get_pack
+from wri_engine.sso import SsoError
 from wri_engine.store import MIN_PASSWORD_LENGTH, AuthError, Store, UserRecord
 from wri_engine.store.db import SECTORS
 
@@ -67,6 +69,8 @@ def _user_view(user: UserRecord) -> dict:
         "name": user.name,
         "is_firm_admin": user.is_firm_admin,
         "is_active": user.is_active,
+        "has_password": user.has_password,
+        "sso_linked": user.sso_linked,
     }
 
 
@@ -78,9 +82,111 @@ class SignIn(BaseModel):
     password: str
 
 
+def _signed_in(token: str, user: UserRecord, session_hours: int) -> dict:
+    return {
+        "token": token,
+        "token_type": "bearer",
+        "expires_in_hours": session_hours,
+        "user": _user_view(user),
+    }
+
+
+@router.get("/auth/sso", tags=["auth"])
+def sso_status(request: Request) -> dict:
+    """How people sign in to this installation. Asked before anyone is signed in."""
+    runtime = runtime_of(request)
+    return {
+        "enabled": runtime.sso is not None,
+        "name": runtime.sso.config.name if runtime.sso else "",
+        "password_sign_in": runtime.settings.password_sign_in,
+    }
+
+
+def _sso(request: Request):
+    client = runtime_of(request).sso
+    if client is None:
+        raise HTTPException(404, "single sign-on is not set up on this installation")
+    return client
+
+
+@router.post("/auth/sso/start", tags=["auth"])
+def sso_start(request: Request) -> dict:
+    """Begin a sign-in at the firm's identity provider.
+
+    Returns where to send the person's browser, and a `binding`: a secret for that browser
+    to keep and hand back when it returns. A sign-in can only be finished by the browser
+    that started it, so a link to someone else's half-finished sign-in is useless.
+
+    Where the browser is sent back to afterwards is fixed in the installation's settings.
+    It is never taken from the caller.
+    """
+    client = _sso(request)
+    try:
+        begun = client.begin()
+        binding = secrets.token_urlsafe(32)
+        _store(request).begin_sso(
+            state=begun.state,
+            binding=binding,
+            nonce=begun.nonce,
+            code_verifier=begun.code_verifier,
+        )
+    except SsoError as exc:
+        _audit("/auth/sso/start", outcome="failed", reason=exc.detail[:300])
+        raise HTTPException(
+            503, "The identity provider could not be reached. Try again shortly."
+        ) from None
+    except AuthError as exc:
+        raise HTTPException(429, str(exc)) from None
+    return {"authorization_url": begun.authorization_url, "binding": binding}
+
+
+class SsoReturn(BaseModel):
+    code: str = Field(..., min_length=1, max_length=4000)
+    state: str = Field(..., min_length=1, max_length=500)
+    binding: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/auth/sso/complete", tags=["auth"])
+def sso_complete(body: SsoReturn, request: Request) -> dict:
+    """Finish a sign-in: check what the identity provider sent back and open a session."""
+    client = _sso(request)
+    store = _store(request)
+    settings = runtime_of(request).settings
+    started = store.take_sso_request(state=body.state, binding=body.binding)
+    if started is None:
+        _audit("/auth/sso/complete", outcome="denied", reason="no such sign-in for this browser")
+        raise HTTPException(
+            401,
+            "This sign-in was not started from this browser, or took too long. Please start again.",
+        )
+    nonce, code_verifier = started
+    try:
+        identity = client.finish(code=body.code, code_verifier=code_verifier, nonce=nonce)
+    except SsoError as exc:
+        _audit("/auth/sso/complete", outcome="denied", reason=exc.detail[:300])
+        raise HTTPException(401, str(exc)) from None
+    try:
+        token, user = store.sign_in_sso(
+            issuer=identity.issuer,
+            subject=identity.subject,
+            email=identity.email,
+            session_hours=settings.session_hours,
+        )
+    except AuthError as exc:
+        _audit("/auth/sso/complete", user=identity.email[:320], outcome="denied", reason=str(exc))
+        raise HTTPException(403, str(exc)) from None
+    _audit("/auth/sso/complete", user=user.email, via=client.config.name)
+    return _signed_in(token, user, settings.session_hours)
+
+
 @router.post("/auth/login", tags=["auth"])
 def login(body: SignIn, request: Request) -> dict:
     settings = runtime_of(request).settings
+    if not settings.password_sign_in:
+        _audit("/auth/login", user=body.email.strip().lower()[:320], outcome="denied")
+        raise HTTPException(
+            403, f"Passwords are switched off on this installation. Use {settings.sso.name}."
+        )
     try:
         token, user = _store(request).sign_in(
             body.email, body.password, session_hours=settings.session_hours
@@ -89,12 +195,7 @@ def login(body: SignIn, request: Request) -> dict:
         _audit("/auth/login", user=body.email.strip().lower()[:320], outcome="denied")
         raise HTTPException(401, str(exc)) from None
     _audit("/auth/login", user=user.email)
-    return {
-        "token": token,
-        "token_type": "bearer",
-        "expires_in_hours": settings.session_hours,
-        "user": _user_view(user),
-    }
+    return _signed_in(token, user, settings.session_hours)
 
 
 @router.post("/auth/logout", tags=["auth"])
@@ -178,12 +279,24 @@ def clear_firm_logo(request: Request, admin: FirmAdmin) -> dict:
 class NewUser(BaseModel):
     email: str
     name: str = ""
-    password: str = Field(..., min_length=MIN_PASSWORD_LENGTH)
+    password: str | None = Field(
+        None,
+        min_length=MIN_PASSWORD_LENGTH,
+        description="Leave out, where single sign-on is set up, for an account that signs "
+        "in only through the identity provider.",
+    )
     is_firm_admin: bool = False
 
 
 @router.post("/users", tags=["users"], status_code=201)
 def create_user(body: NewUser, request: Request, admin: FirmAdmin) -> dict:
+    runtime = runtime_of(request)
+    if body.password is None and runtime.sso is None:
+        raise HTTPException(400, "a password is required: single sign-on is not set up")
+    if body.password is not None and not runtime.settings.password_sign_in:
+        raise HTTPException(
+            400, "passwords are switched off on this installation; leave the password out"
+        )
     try:
         user = _store(request).create_user(
             body.email, body.password, name=body.name, is_firm_admin=body.is_firm_admin
@@ -201,6 +314,18 @@ def list_users(request: Request, admin: FirmAdmin) -> dict:
 
 class ActiveFlag(BaseModel):
     is_active: bool
+
+
+@router.delete("/users/{user_id}/sso-link", tags=["users"])
+def reset_sso_link(user_id: int, request: Request, admin: FirmAdmin) -> dict:
+    """Forget which identity an account is tied to, and sign it out everywhere. For when an
+    email address has passed to a different person at the firm's identity provider."""
+    try:
+        user = _store(request).reset_sso_link(user_id)
+    except KeyError:
+        raise HTTPException(404, "user not found") from None
+    _audit("/users/{user_id}/sso-link", user=admin.email, target=user.email)
+    return _user_view(user)
 
 
 @router.put("/users/{user_id}/active", tags=["users"])

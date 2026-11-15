@@ -57,6 +57,10 @@ which branch a pull request targets, and which session has claimed which item.
     for the tests), run `make lock`, and commit both lock files with the change. The image
     installs only what `requirements.lock` names, by fingerprint.
 
+17. **Who someone is, is settled on the server**: by a password check, or by an identity
+    token the server itself fetched and verified. The screen never tells the API who is
+    signed in. A sign-in at the identity provider creates no account and grants no role.
+
 ## Style
 
 - Prefer small, readable functions. Each component module in `costing/components/` must be
@@ -79,6 +83,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/access/` | Role definitions, enforcement, the audit log (chained with `wri_engine/hashchain.py`, as the license usage log is) |
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
+| `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
 | `Dockerfile`, `deploy/` | The install package: the image, the two services, the operator's `./wri` script, and `package.py`, which builds what a licensee receives. `docs/INSTALL.md` ships inside it |
@@ -88,7 +93,8 @@ which branch a pull request targets, and which session has claimed which item.
 
 ```bash
 make install     # venv + the exact versions in requirements-dev.lock
-make lock        # choose dependency versions again (needs uv); commit both lock files
+make lock        # after changing dependencies: update the lock files, keeping chosen versions (needs uv)
+make lock-upgrade   # choose every version again, on purpose: a security fix, before a release
 make generate    # write synthetic CSVs to data/synthetic/
 make test        # pytest with coverage gates on costing/ and aggregation/
 make lint        # ruff

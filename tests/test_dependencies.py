@@ -37,6 +37,8 @@ CORE_IS_USED_AS = {
     "openpyxl": "openpyxl",
     "pillow": "PIL",
     "cryptography": "cryptography",
+    "httpx": "httpx",  # reaching the firm's identity provider
+    "pyjwt": "jwt",  # checking what the identity provider signs
     "uvicorn": None,  # the server the API is run under; started as a command
     "python-multipart": None,  # FastAPI needs it to read an uploaded file
 }
@@ -138,7 +140,7 @@ def test_the_engine_declares_only_what_it_uses():
                 f"{name} is declared but the engine never imports {module}"
             )
     # And the other way: the engine imports nothing third-party it does not declare.
-    for module in ("pandas", "numpy", "duckdb", "httpx", "streamlit", "plotly", "requests"):
+    for module in ("pandas", "numpy", "duckdb", "streamlit", "plotly", "requests", "authlib"):
         assert module not in engine_imports, f"the engine imports {module} without declaring it"
 
 
