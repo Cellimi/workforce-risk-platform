@@ -43,6 +43,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 
+from wri_engine import __version__
 from wri_engine.access.audit import AuditLog
 from wri_engine.access.roles import (
     CAPABILITIES,
@@ -1254,7 +1255,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         lifespan=lifespan,
         title="WRI Engine - Discipline Cost Baseline",
-        version="0.2.0",
+        version=__version__,
         description=(
             "Phase 1 of the Workforce Risk Intelligence engine: the fully loaded cost of "
             "discipline. Every figure is traceable to the line items and assumptions that "
@@ -1265,7 +1266,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health", tags=["meta"])
     def health() -> dict:
-        return {"status": "ok", "auth_mode": settings.auth_mode}
+        return {"status": "ok", "auth_mode": settings.auth_mode, "version": __version__}
 
     @app.exception_handler(NoDataset)
     def no_dataset(_request, exc: NoDataset):

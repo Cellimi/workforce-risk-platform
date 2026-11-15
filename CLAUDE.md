@@ -47,6 +47,10 @@ which branch a pull request targets, and which session has claimed which item.
 14. **The license signing key never enters the repository or an installation.** Tests make
     their own key pair at run time. A license refusal is HTTP 402 and is decided on the
     server from the engagement's stored key; the usage log holds counts, never client data.
+15. **An installation's data is never deleted by the product's own tooling.** A restore
+    moves what it replaces aside; `./wri` never removes the data volume; an upgrade backs up
+    first. A change an older version could not read raises `SCHEMA_VERSION` in
+    `store/db.py`, so that older version refuses the data instead of half-opening it.
 
 ## Style
 
@@ -72,6 +76,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
+| `Dockerfile`, `deploy/` | The install package: the image, the two services, the operator's `./wri` script, and `package.py`, which builds what a licensee receives. `docs/INSTALL.md` ships inside it |
 | `docs/` | `cost_methodology.md` is the human-readable spec for every formula |
 
 ## Commands
@@ -83,6 +88,7 @@ make test        # pytest with coverage gates on costing/ and aggregation/
 make lint        # ruff
 make api         # uvicorn on :8000
 make ui          # streamlit on :8501 (needs the API running)
+make package LICENSE_PUBLIC_KEY=...   # the install package (needs Docker)
 ```
 
 ## Phase boundary

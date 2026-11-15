@@ -1,0 +1,20 @@
+# Only what the image needs is sent to the build. Everything else stays out, above all
+# anything that could be a key or a client's data.
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!src
+!app
+!config
+!.streamlit
+!deploy/entrypoint.sh
+
+# Keys never travel in the main build context. The verification key comes in through the
+# separate `license` context; the signing key never comes in at all.
+**/*.pem
+**/*.key
+
+**/__pycache__
+**/*.pyc
+**/*.egg-info
