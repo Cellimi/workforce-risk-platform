@@ -42,7 +42,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Offer sales and office work as separate occupation selections | Claude Code session | Done (PR #10). The owner reviewed the two values on 2026-11-14 |
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
 | Engagement license keys | Claude Code session | Done, PR #13 |
-| Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, `claude/report-record-sheet` |
+| Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
+| Install package: container install, configuration guide, upgrade path | Claude Code session | In progress, `claude/install-package` |
 
 ## Where things stand
 
