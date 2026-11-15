@@ -44,6 +44,10 @@ which branch a pull request targets, and which session has claimed which item.
     which cases and why (a removal with no linked separation has no turnover cost). Never
     fill a gap upward and never drop a cost silently.
 
+14. **The license signing key never enters the repository or an installation.** Tests make
+    their own key pair at run time. A license refusal is HTTP 402 and is decided on the
+    server from the engagement's stored key; the usage log holds counts, never client data.
+
 ## Style
 
 - Prefer small, readable functions. Each component module in `costing/components/` must be
@@ -65,6 +69,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/aggregation/` | Rollups + small-group suppression |
 | `src/wri_engine/access/` | Role definitions, enforcement, audit log |
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out |
+| `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
 | `docs/` | `cost_methodology.md` is the human-readable spec for every formula |

@@ -203,6 +203,7 @@ def engagement_page(api: EngineClient) -> None:
         cells[0].metric("Your role", ROLE_LABELS.get(current["your_role"], current["your_role"]))
         cells[1].metric("Sector", current["sector"].replace("_", " ").capitalize())
         cells[2].metric("Opened", current["created_at"][:10])
+        _license(api, current)
         _occupation_group(api, current)
         if current["your_role"] == "admin":
             _members(api)
@@ -220,6 +221,8 @@ def engagement_page(api: EngineClient) -> None:
         _new_engagement(api)
         st.divider()
         _firm_branding(api)
+        st.divider()
+        _usage_log(api)
         st.divider()
         _users(api)
 
@@ -274,6 +277,74 @@ def _members(api: EngineClient) -> None:
                     st.rerun()
                 except ApiError as exc:
                     _error(exc)
+
+
+LICENSE_WORDS = {
+    "valid": "In date",
+    "expired": "Expired",
+    "missing": "No key",
+    "invalid": "Not accepted",
+}
+
+
+def _license(api: EngineClient, current: dict) -> None:
+    """Where the engagement stands with its license key, and a way for a firm
+    administrator to put it right. Nothing is shown where no key is required."""
+    standing = current.get("license") or {}
+    status = standing.get("status", "not_required")
+    if status == "not_required":
+        return
+    st.subheader("License key")
+    if status == "valid":
+        limit = standing.get("max_employees")
+        st.success(
+            f"In date until **{standing['expires_on']}**, issued to "
+            f"**{standing['licensee']}** (key {standing['key_id']})"
+            + (f", covering up to {limit:,} employees." if limit else ".")
+        )
+    elif status == "expired":
+        st.warning(standing["problem"])
+    else:
+        st.error(standing["problem"])
+    if not is_firm_admin():
+        if status != "valid":
+            st.caption("A firm administrator can add a key.")
+        return
+    with st.form("license_key", clear_on_submit=True):
+        key = st.text_area(
+            "Add or replace the key",
+            height=90,
+            help="Paste the whole key, starting with WRI1. One key covers one engagement.",
+        )
+        if st.form_submit_button("Save key"):
+            try:
+                api.set_license(key)
+            except ApiError as exc:
+                _error(exc)
+                return
+            refresh(api)
+            st.rerun()
+
+
+def _usage_log(api: EngineClient) -> None:
+    """The log the licensor asks for: what was done under each key, as counts."""
+    st.subheader("Usage log")
+    st.caption(
+        "A record of engagements opened, keys added, datasets loaded and reports produced. "
+        "It holds counts, never a client's data. Send it to the licensor when asked; each "
+        "entry is tied to the one before it, so a log that has been edited shows as such."
+    )
+    try:
+        data = api.usage_log()
+    except ApiError as exc:
+        _error(exc)
+        return
+    st.download_button(
+        "Download the usage log",
+        data,
+        file_name="wri_usage_log.jsonl",
+        mime="application/x-ndjson",
+    )
 
 
 NOT_SELECTED = "Not selected (all-occupations average)"
@@ -365,12 +436,26 @@ def _new_engagement(api: EngineClient) -> None:
             "to carry in sales than in construction. It can be changed later.",
             key="new_engagement_occupation_group",
         )
+    try:
+        needs_key = api.licensing()["enforced"]
+    except ApiError:
+        needs_key = False
     with st.form("new_engagement", clear_on_submit=True):
         name = st.text_input("Engagement name", placeholder="FY26 discipline cost review")
         client_name = st.text_input("Client name", placeholder="Pine Valley County")
+        license_key = None
+        if needs_key:
+            license_key = st.text_area(
+                "License key",
+                height=90,
+                help="The key issued for this engagement. It names the client and the "
+                "sector, so both must match what is entered here.",
+            )
         if st.form_submit_button("Open engagement", type="primary"):
             try:
-                created = api.create_engagement(name, client_name, sector, occupation_group)
+                created = api.create_engagement(
+                    name, client_name, sector, occupation_group, license_key
+                )
             except ApiError as exc:
                 _error(exc)
                 return

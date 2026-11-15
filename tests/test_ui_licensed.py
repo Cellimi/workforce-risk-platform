@@ -478,3 +478,142 @@ def test_the_firm_sets_its_name_and_the_report_is_offered_for_download(server):
     assert "Download the workbook (Excel)" in downloads
     prepared = at.session_state["report_files"]
     assert prepared["pdf"].startswith(b"%PDF") and prepared["xlsx"].startswith(b"PK")
+
+
+# ---------------------------------------------------------------------------
+# license keys on screen
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def licensed_server(tmp_path):
+    """A licensed installation that has been given a verification key, with the signing
+    key that goes with it. The pair is made here, at run time, and kept nowhere."""
+    from wri_engine.licensing import generate_keypair, load_private_key
+
+    private_pem, public_pem = generate_keypair()
+    app = create_app(Settings(auth_mode="local", data_dir=tmp_path, license_public_key=public_pem))
+    store = app.state.runtime.store
+    store.create_user(*OWNER, name="Owner", is_firm_admin=True)
+    store.create_user(*LEAD)
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    yield f"http://127.0.0.1:{port}", store, load_private_key(private_pem)
+    srv.should_exit = True
+    thread.join(timeout=5)
+
+
+def _key(signing_key, client: str = "Pine Valley County", **claims) -> str:
+    from datetime import date, timedelta
+
+    from wri_engine.licensing import issue
+
+    claims.setdefault("issued_on", date.today())
+    claims.setdefault("expires_on", date.today() + timedelta(days=365))
+    return issue(
+        signing_key,
+        licensee="Northgate Advisory LLP",
+        client_name=client,
+        sector="public_sector",
+        **claims,
+    )
+
+
+def test_an_engagement_is_opened_with_its_license_key(licensed_server):
+    """Where keys are enforced, the form asks for one, says plainly why a key was not
+    accepted, and the Engagement page then shows where the engagement stands."""
+    url, store, signing_key = licensed_server
+    at = sign_in(open_app(url), OWNER)
+    labelled(at.text_input, "Engagement name").input("FY26 review")
+    labelled(at.text_input, "Client name").input("Pine Valley County")
+    labelled(at.text_area, "License key").input(_key(signing_key, "Other County"))
+    labelled(at.button, "Open engagement").click()
+    at.run()
+    assert not at.exception, at.exception
+    assert "issued for the client 'Other County'" in texts(at)
+    owner = store.get_user_by_email(OWNER[0])
+    assert store.engagements_for(owner) == []
+
+    labelled(at.text_input, "Engagement name").input("FY26 review")
+    labelled(at.text_input, "Client name").input("Pine Valley County")
+    labelled(at.text_area, "License key").input(_key(signing_key, max_employees=5000))
+    labelled(at.button, "Open engagement").click()
+    at.run()
+    assert not at.exception, at.exception
+    (engagement, _role) = store.engagements_for(owner)[0]
+    assert engagement.license_key_id
+
+    at = go(at, "Engagement")
+    shown = texts(at)
+    assert "License key" in shown
+    assert "issued to **Northgate Advisory LLP**" in shown
+    assert f"key {engagement.license_key_id}" in shown
+    assert "covering up to 5,000 employees" in shown
+    # The key itself is never put back on the screen.
+    assert "WRI1." not in shown
+    downloads = [d.proto.label for d in at.get("download_button")]
+    assert "Download the usage log" in downloads
+
+
+def test_a_missing_key_is_reported_as_a_license_matter_and_put_right_on_screen(licensed_server):
+    """An engagement with no key says so in its own words, not as a role being refused.
+    A firm administrator pastes a key on the Engagement page and the work opens."""
+    url, store, signing_key = licensed_server
+    owner = store.get_user_by_email(OWNER[0])
+    engagement = store.create_engagement(
+        name="Opened before keys",
+        client_name="Pine Valley County",
+        sector="public_sector",
+        created_by=owner.id,
+    )
+    at = sign_in(open_app(url), OWNER)
+    at = go(at, "Executive summary")
+    assert not at.exception, at.exception
+    shown = texts(at)
+    assert "no license key" in shown
+    assert "role is not permitted" not in shown
+
+    at = go(at, "Engagement")
+    assert not at.exception, at.exception
+    assert "This engagement has no license key" in "\n".join(e.value for e in at.error)
+    labelled(at.text_area, "Add or replace the key").input(_key(signing_key))
+    labelled(at.button, "Save key").click()
+    at.run()
+    assert not at.exception, at.exception
+    assert store.get_engagement(engagement.id).license_key_id
+    assert "In date until" in texts(at)
+
+
+def test_only_a_firm_administrator_is_offered_the_key_box(licensed_server):
+    url, store, signing_key = licensed_server
+    owner = store.get_user_by_email(OWNER[0])
+    engagement = store.create_engagement(
+        name="Opened before keys",
+        client_name="Pine Valley County",
+        sector="public_sector",
+        created_by=owner.id,
+    )
+    store.set_member(engagement.id, store.get_user_by_email(LEAD[0]).id, "admin")
+    at = sign_in(open_app(url), LEAD)
+    at = go(at, "Engagement")
+    assert not at.exception, at.exception
+    assert "A firm administrator can add a key." in texts(at)
+    assert "Add or replace the key" not in [t.label for t in at.text_area]
+    assert "Download the usage log" not in [d.proto.label for d in at.get("download_button")]
+
+
+def test_an_installation_without_a_verification_key_shows_nothing_about_keys(server):
+    url, store = server
+    at = sign_in(open_app(url), OWNER)
+    assert "License key" not in [t.label for t in at.text_area]
+    labelled(at.text_input, "Engagement name").input("FY26 review")
+    labelled(at.text_input, "Client name").input("Pine Valley County")
+    labelled(at.button, "Open engagement").click()
+    at.run()
+    assert not at.exception, at.exception
+    at = go(at, "Engagement")
+    assert "License key" not in [s.value for s in at.subheader]

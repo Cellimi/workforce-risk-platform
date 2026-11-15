@@ -205,6 +205,7 @@ class EngineClient:
         client_name: str,
         sector: str = "public_sector",
         occupation_group: str | None = None,
+        license_key: str | None = None,
     ) -> dict:
         return self._request(
             "POST",
@@ -215,8 +216,26 @@ class EngineClient:
                 "client_name": client_name,
                 "sector": sector,
                 "occupation_group": occupation_group,
+                "license_key": license_key,
             },
         ).json()
+
+    # -- license keys (licensed mode) ----------------------------------------
+    def licensing(self) -> dict:
+        """Whether this installation needs a license key for each engagement."""
+        return self._request("GET", "/license", scoped=False).json()
+
+    def set_license(self, license_key: str) -> dict:
+        return self._request(
+            "PUT",
+            f"/engagements/{self.engagement_id}/license",
+            scoped=False,
+            json={"license_key": license_key},
+        ).json()
+
+    def usage_log(self) -> bytes:
+        """The usage log as a file to send to the licensor."""
+        return self._request("GET", "/license/usage.jsonl", scoped=False).content
 
     def set_occupation_group(self, occupation_group: str | None) -> dict:
         return self._request(

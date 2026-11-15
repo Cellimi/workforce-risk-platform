@@ -8,7 +8,7 @@ starting, and update it in the same pull request as the work it describes.
 Business decisions (pricing, ownership, legal structure) are kept outside the repository. Do
 not add them here: the repository is public.
 
-Last updated 2026-11-14.
+Last updated 2026-11-15.
 
 ## Working arrangement
 
@@ -41,14 +41,14 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Check the sworn benefits multiplier against BLS | Claude Code session | Done, `claude/sworn-multiplier-evidence`. 1.75 kept; confidence raised to medium |
 | Offer sales and office work as separate occupation selections | Claude Code session | Done (PR #10). The owner reviewed the two values on 2026-11-14 |
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
-| Engagement license keys | Claude Code session | In progress, `claude/license-keys` (built on `claude/approve-sales-office-values`) |
+| Engagement license keys | Claude Code session | Done, `claude/license-keys` (built on `claude/approve-sales-office-values`, PR #12) |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 334 tests, 95.8% coverage.
+asserts it line item by line item. 365 tests, 95.9% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -66,14 +66,66 @@ series, state and local service occupations and public administration, bracket i
 3. **Screen (PR #5).** Sign-in, engagement picker, Engagement page, Load data page,
    client-specific values, results labelled with the client's name.
 4. **Private-sector cost model.** Built. See below.
-5. **Engagement license keys.** A signed key per engagement, verified offline by the installed
-   product, with an exportable usage log.
+5. **Engagement license keys.** Built: a signed key per engagement, verified offline by the
+   installed product, with an exportable usage log. See "Engagement license keys" below.
 6. **Client deliverables.** Built: a report carrying the consulting firm's name and logo
    (PDF), a workbook beside it (Excel), and appendices of the assumptions used and the
    client's own values. See "Client deliverables" below.
 7. **Install package.** Container install, configuration guide, upgrade path.
 8. **Phases 2 and 3** (hotspot detection; intervention cost-benefit). Out of scope until
    Phase 1 is in use: see "Phase boundary" in `CLAUDE.md`.
+
+## Engagement license keys
+
+Built in `src/wri_engine/licensing/` (the key, the log's chain, the licensor's tool) and
+`src/wri_engine/api/licensing.py` (what a key allows on each request).
+
+**How it works.** A key is `WRI1.<what it says>.<signature>`, signed with Ed25519. It says
+who it was issued to, the client, the sector, the day it was issued, the last day it is good
+and, optionally, the largest employee file it covers. The installation holds only the
+verification key and checks every request against the engagement's stored key; it contacts
+nobody. The check sits in `get_ctx`, after membership is settled, so every data endpoint is
+covered by construction and someone outside an engagement learns nothing about its key.
+
+**What was decided in the build.** These are behaviours, each one a line or two to change.
+The owner has not ruled on them yet:
+
+| Behaviour | As built | Why |
+|---|---|---|
+| When keys are enforced | Only when a verification key is installed; never in the walkthrough | An installation with no key to check against cannot enforce anything. It also means **nothing is enforced until the owner makes his key pair and the verification key is installed** |
+| What a key is tied to | Client name (case, spacing and punctuation ignored) and sector | So a key bought for one client cannot open another. A renamed client needs a new key |
+| How many engagements per key | One, per installation | A second engagement for the same client needs a second key |
+| An expired key | Read-only: results and the report still open; no new data, value or scenario | A firm must be able to open what it delivered |
+| No key, or a key that fails | Engagement closed; members and the key can still be managed | Otherwise it could never be put right |
+| Employee limit | Optional. A larger file is refused before anything is replaced | Checked at load, where the count is known |
+| Who adds a key | The firm administrator only | Same person who opens engagements |
+| Usage log | Kept in every licensed installation, enforced or not; counts only | A record from before enforcement began is still a record |
+
+**What it does not do, stated plainly.**
+
+- It is not copy protection. The product is Python on the licensee's own machine; a licensee
+  who edits the code can remove the check. Keys make the terms visible and countable.
+- The usage log is tamper-*evident*, not tamper-proof. An edited log fails `wri-license
+  verify-log`; a log deleted whole and started again passes on its own, and is caught only
+  by comparing its keys and dates with what was issued.
+- "One key, one engagement" is per installation. Two installations do not know about each
+  other. The log from each is how reuse is seen.
+- There is no revocation. A key is good until its last day. Short terms are the control.
+- The clock is the machine's. A licensee who sets the date back extends a key.
+
+**The owner's steps, once.** These cannot be done from a Claude session and must not be: the
+signing key should never exist anywhere but the owner's own machine and its backup.
+
+  1. `wri-license keygen --out-dir <a folder outside any repository>`.
+  2. Back up `wri_license_signing_key.pem` somewhere offline. If it is lost, no new key can
+     be issued for installed products; if it is copied, anyone can issue them.
+  3. Give installations `wri_license_public_key.pem` as `config/license_public_key.pem`.
+     Whether that file is committed here or shipped only in the install package is the
+     owner's call; it is safe to publish, and committing it turns enforcement on for every
+     checkout run in licensed mode.
+
+**Left for the install package (item 7):** shipping the verification key, and saying in the
+configuration guide where it goes.
 
 ## Client deliverables
 

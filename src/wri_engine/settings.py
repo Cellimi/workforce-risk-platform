@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from wri_engine.paths import DATA_DIR
+from wri_engine.paths import CONFIG_DIR, DATA_DIR
 
 AUTH_MODES = ("local", "demo")
 
@@ -27,6 +27,15 @@ class Settings:
     database_url: str = ""
     session_hours: int = 12
     max_upload_mb: int = 50
+    #: The licensor's verification key, as PEM text. With one installed, every engagement
+    #: needs a license key; with none, nothing is enforced. Only the public half is ever
+    #: here: it checks signatures and cannot make them.
+    license_public_key: str = ""
+
+    @property
+    def licensing_enforced(self) -> bool:
+        """The synthetic walkthrough is never licensed: it has no engagements and no client."""
+        return bool(self.license_public_key.strip()) and self.auth_mode == "local"
 
     def __post_init__(self) -> None:
         if self.auth_mode not in AUTH_MODES:
@@ -38,9 +47,20 @@ class Settings:
     def engagements_dir(self) -> Path:
         return Path(self.data_dir) / "engagements"
 
+    @staticmethod
+    def _license_public_key() -> str:
+        """`WRI_LICENSE_PUBLIC_KEY_FILE` if set, otherwise `config/license_public_key.pem`
+        if an installation has been given one."""
+        named = os.environ.get("WRI_LICENSE_PUBLIC_KEY_FILE", "").strip()
+        path = Path(named).expanduser() if named else CONFIG_DIR / "license_public_key.pem"
+        if named and not path.exists():
+            raise ValueError(f"WRI_LICENSE_PUBLIC_KEY_FILE points at {path}, which is missing")
+        return path.read_text() if path.exists() else ""
+
     @classmethod
     def from_env(cls) -> Settings:
         return cls(
+            license_public_key=cls._license_public_key(),
             auth_mode=os.environ.get("WRI_AUTH_MODE", "local").strip().lower(),
             data_dir=DATA_DIR,
             database_url=os.environ.get("WRI_DATABASE_URL", ""),
