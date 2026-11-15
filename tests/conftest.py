@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
+import tempfile
 
 # The pre-existing API tests exercise the synthetic walkthrough, which is demo mode. The
 # licensed (signed-in) mode builds its own app in tests/test_accounts_engagements.py.
 os.environ.setdefault("WRI_AUTH_MODE", "demo")
+
+# Every app a test starts writes its audit log to one file made for this run. Tests must
+# never write to data/audit_log.jsonl: that is a real installation's record, and a test run
+# on an older checkout would leave lines in it that a newer one rightly reports as edits.
+# Set before anything from the engine is imported, because the engine reads it on import.
+os.environ["WRI_AUDIT_LOG"] = os.path.join(
+    tempfile.mkdtemp(prefix="wri-test-audit-"), "audit_log.jsonl"
+)
 
 from datetime import date
 from pathlib import Path
@@ -16,6 +27,8 @@ from wri_engine.costing.assumptions import load_assumptions
 from wri_engine.costing.engine import run_costing
 from wri_engine.orgconfig import load_org_config
 from wri_engine.paths import SYNTHETIC_DIR
+
+atexit.register(shutil.rmtree, os.path.dirname(os.environ["WRI_AUDIT_LOG"]), ignore_errors=True)
 
 SAMPLE_DIR = SYNTHETIC_DIR / "sample"
 

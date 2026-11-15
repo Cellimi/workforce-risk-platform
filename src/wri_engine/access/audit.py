@@ -32,9 +32,10 @@ from wri_engine import hashchain
 from wri_engine.paths import AUDIT_LOG_FILE
 
 _LOCK = threading.Lock()
-#: Where each log file's chain has got to, by path. Shared by every `AuditLog` on the same
-#: file in this process, so two of them can never write two entries with the same number.
-_HEADS: dict[Path, tuple[int, str]] = {}
+#: Where each log file's chain has got to, by path: the last entry's number and hash, and
+#: how long the file was after it was written. Shared by every `AuditLog` on the same file
+#: in this process, so two of them can never write two entries with the same number.
+_HEADS: dict[Path, tuple[int, str, int]] = {}
 
 
 @dataclass(frozen=True)
@@ -132,10 +133,14 @@ class AuditLog:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         key = self.path.resolve()
         with _LOCK:
-            if key not in _HEADS:
+            size = self.path.stat().st_size if self.path.exists() else 0
+            if key not in _HEADS or _HEADS[key][2] != size:
+                # First write here, or the file is not as this process left it: something
+                # else wrote to it, or it was put back from a backup. Carry on from what
+                # the file actually holds, never from memory.
                 self._end_cleanly()
-                _HEADS[key] = _find_head(self.path)
-            seq, previous = _HEADS[key]
+                _HEADS[key] = (*_find_head(self.path), -1)
+            seq, previous, _ = _HEADS[key]
             sealed = hashchain.seal(
                 previous, seq + 1, json.loads(json.dumps(asdict(entry), default=str))
             )
@@ -144,7 +149,8 @@ class AuditLog:
                 fh.write(line + "\n")
                 fh.flush()
                 os.fsync(fh.fileno())
-            _HEADS[key] = (sealed["seq"], sealed["hash"])
+                written = fh.tell()
+            _HEADS[key] = (sealed["seq"], sealed["hash"], written)
         return entry
 
     def _end_cleanly(self) -> None:

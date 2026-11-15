@@ -112,6 +112,62 @@ def test_an_empty_or_missing_log_is_intact(log):
     assert found.intact and found.entries == 0 and found.head_hash == hashchain.GENESIS
 
 
+def test_a_file_changed_behind_a_running_product_is_carried_on_from_as_it_is(log):
+    """Put back from a backup, or written to by something else, while the product runs: the
+    next entry follows what the file holds, not what the product remembers writing."""
+    write(log, 5)
+    rewrite(log, lines(log)[:2])  # as a restore of an earlier backup would leave it
+    write(log, 1, start=5)
+    found = log.check()
+    assert found.intact and found.head_seq == 3
+
+    other_process_head = audit_module._HEADS.pop(log.path.resolve())
+    write(AuditLog(log.path), 1, start=6)  # another process appends
+    audit_module._HEADS[log.path.resolve()] = other_process_head  # this one has not seen it
+    write(log, 1, start=7)
+    found = log.check()
+    assert found.intact and found.head_seq == 5
+
+
+def test_lines_written_by_a_version_from_before_chaining_show_as_a_break(log):
+    """If an older version of the product is run against a chained log, what it appends is
+    not chained. That is reported, accurately: the log was written to outside the chain."""
+    write(log, 3)
+    with log.path.open("a") as fh:
+        fh.write(json.dumps({"timestamp": "2026-11-15", "endpoint": "/x", "role": "admin"}) + "\n")
+    write(log, 2, start=3)
+    found = log.check()
+    # Exactly that line. The entries the product wrote after it carry on from the last one
+    # it wrote before, so the report points at what was added and nothing else.
+    assert found.problems == ["line 4: is not a chained entry"]
+
+
+def test_the_api_writes_where_the_admin_tool_reads(tmp_path, monkeypatch):
+    """`wri-admin audit` and the backup look in the installation's data directory. The API
+    must write there, or the check would pass on a file nothing writes to."""
+    from fastapi.testclient import TestClient
+
+    from wri_engine.api import main
+
+    monkeypatch.delenv("WRI_AUDIT_LOG")
+    settings = Settings(auth_mode="local", data_dir=tmp_path)
+    before = main.AUDIT
+    try:
+        http = TestClient(main.create_app(settings))
+        assert main.AUDIT.path == settings.audit_log_path == tmp_path / "audit_log.jsonl"
+        assert http.get("/engagements").status_code == 401
+        http.post("/auth/login", json={"email": "nobody@firm.example", "password": "x" * 12})
+        store = main.create_app(settings).state.runtime.store
+        store.create_user(*OWNER, is_firm_admin=True)
+        token = http.post("/auth/login", json={"email": OWNER[0], "password": OWNER[1]}).json()[
+            "token"
+        ]
+        http.get("/audit/check", headers={"Authorization": f"Bearer {token}"})
+        assert AuditLog(settings.audit_log_path).check().entries >= 1
+    finally:
+        main.AUDIT = before
+
+
 # ---------------------------------------------------------------------------
 # every edit in the middle shows
 # ---------------------------------------------------------------------------
@@ -192,11 +248,15 @@ def test_a_log_rebuilt_from_scratch_is_caught_by_an_earlier_head(log):
 # wri-admin
 # ---------------------------------------------------------------------------
 def run_admin(monkeypatch, settings, *argv):
+    # These tests edit the log on purpose, so they use the one in their own folder and
+    # never the one shared by the rest of the run.
+    monkeypatch.delenv("WRI_AUDIT_LOG", raising=False)
     monkeypatch.setattr(admin_cli.Settings, "from_env", classmethod(lambda cls: settings))
     return admin_cli.main(list(argv))
 
 
 def test_the_admin_tool_checks_the_log_and_an_earlier_head(monkeypatch, capsys, tmp_path):
+    monkeypatch.delenv("WRI_AUDIT_LOG", raising=False)
     settings = Settings(auth_mode="local", data_dir=tmp_path)
     log = AuditLog(settings.audit_log_path)
     write(log, 4)
@@ -222,6 +282,7 @@ def test_the_admin_tool_checks_the_log_and_an_earlier_head(monkeypatch, capsys, 
 
 
 def test_status_reports_the_audit_log(monkeypatch, capsys, tmp_path):
+    monkeypatch.delenv("WRI_AUDIT_LOG", raising=False)
     from wri_engine.store import Store
 
     settings = Settings(auth_mode="local", data_dir=tmp_path)

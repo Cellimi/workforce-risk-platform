@@ -1242,9 +1242,13 @@ def _installation_salt(settings: Settings) -> str:
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    global AUDIT
     settings = settings or Settings.from_env()
     demo = settings.auth_mode == "demo"
     runtime = Runtime(settings=settings)
+    # Written where `wri-admin audit` and the backup look for it: with this installation's
+    # data, unless WRI_AUDIT_LOG names somewhere else.
+    AUDIT = AuditLog(settings.audit_log_path)
 
     @asynccontextmanager
     async def lifespan(_app):
