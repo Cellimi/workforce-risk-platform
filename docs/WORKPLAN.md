@@ -44,13 +44,14 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Engagement license keys | Claude Code session | Done, PR #13 |
 | Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
 | Install package: container install, configuration guide, upgrade path | Claude Code session | Done, `claude/install-package` |
+| Disclosure ledgers that survive a restart | Claude Code session | Done, `claude/persistent-disclosure-ledger` (built on `claude/install-package`, PR #15) |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 399 tests, 96.0% coverage.
+asserts it line item by line item. 419 tests, 96.1% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -59,8 +60,8 @@ series, state and local service occupations and public administration, bracket i
 
 1. **Hardening (PR #3).** Sign-in with local accounts, roles from engagement membership, a
    database, isolated engagement workspaces, per-engagement assumption overrides recorded with
-   who and why. Remaining: single sign-on, an audit log the application cannot edit, disclosure
-   ledgers that survive a restart.
+   who and why. Disclosure ledgers now survive a restart (see "Disclosure ledgers" below).
+   Remaining: single sign-on, an audit log the application cannot edit.
 2. **Data intake (PR #4).** Standard intake template; a mapping saved per engagement so a
    client's file is never edited; staged upload, suggested mapping, preview, commit.
    Loading rules: a missing detail takes the lighter assumption and is reported; a cost that
@@ -139,6 +140,34 @@ stand-in 0.3.1 with a higher data version; the old image pointed at the upgraded
    firm's own scheduler. The guide says so.
 8. **The version is now 0.3.0** (was 0.2.0, unchanged since before the private-sector
    model). It is read from one place and shown at `/health` and by `./wri status`.
+
+## Disclosure ledgers
+
+The differencing guard's record of what each person has been shown used to live in memory
+only, so a restart wiped it and two overlapping questions asked either side of one could be
+subtracted. It is now kept on disk: `src/wri_engine/aggregation/ledger_file.py`, one file
+per person per engagement in `engagements/<id>/disclosure/`, written and flushed before the
+figures leave the server. If it cannot be written the request fails and nothing is released.
+
+- **In the engagement folder, not the database.** The record is a list of the client's
+  employee ids, which is client data (rule 12). Backups carry it with the engagement.
+- **When it starts afresh: unchanged.** Each entry records a fingerprint of the figures it
+  was released under (the client's files, the client-specific values, the occupation group,
+  the sector, the minimum cell size). Only entries matching the current figures are read
+  back; earlier ones are kept and apply again if the engagement returns to those figures.
+- **Check and record are now one step per person.** Two requests from the same person at
+  the same moment used to be able to both pass the check before either recorded what it
+  released. Fixed in the same change.
+- Tested by asking the same two overlapping questions in one sitting and across a restart
+  and requiring identical answers; with persistence switched off that test fails.
+
+**A decision for the owner, not taken here.** A changed client-specific value starts a new
+record, as it always has. That is right when the value moves every figure, but a value that
+moves only part of the cost (an outside counsel rate, say) leaves the other line items
+comparable across the change, so someone shown figures before and after could subtract those
+parts. Including the client-specific values in the fingerprint is one line in
+`api/state.py`; leaving them out makes the record stricter, and a client reader will see
+more cells held back over the life of an engagement.
 
 ## Engagement license keys
 

@@ -18,16 +18,29 @@ behind every value released so far, and refuses to release a new cohort whose sy
 difference with any earlier one is smaller than the threshold. Cohorts stay server-side and
 are never part of a response.
 
+Who the ledger belongs to
+-------------------------
+In a licensed installation there is one ledger per person per engagement, keyed to the
+signed-in user and never to anything the caller sends. It is kept on disk in the
+engagement's folder (`ledger_file.py`), so a restart does not wipe it. It starts afresh only
+when the figures themselves change: a different client file, a changed client-specific
+assumption value, a different occupation group or sector, or a different minimum cell size.
+A group released under one set of figures does not let a caller subtract figures worked out
+on another set. The synthetic walkthrough keeps its ledgers in memory only.
+
 Limits, stated plainly
 ----------------------
 The ledger is a pairwise residual check, not a full query audit. It cannot see combinations
-of three or more earlier answers, and it is per-ledger: a caller who starts a fresh ledger
-starts fresh. It is scoped per role and per session in the API. Full disclosure auditing is
-not Phase 1 work, and the demo should not claim otherwise.
+of three or more earlier answers. Two people who share what they were each shown are not
+caught, because each has their own ledger. Full disclosure auditing is not Phase 1 work, and
+the demo should not claim otherwise.
 """
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 DEFAULT_MIN_CELL_SIZE = 5
@@ -45,6 +58,35 @@ class DisclosureLedger:
 
     min_cell_size: int = DEFAULT_MIN_CELL_SIZE
     released: list[frozenset[str]] = field(default_factory=list)
+    #: Called with each batch of newly released cohorts before the figures that carry them
+    #: leave the server. If it raises, the request fails and nothing is released.
+    keep: Callable[[list[frozenset[str]]], None] | None = None
+    _seen: set[frozenset[str]] = field(default_factory=set, repr=False)
+    _pending: list[frozenset[str]] | None = field(default=None, repr=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+
+    def __post_init__(self) -> None:
+        self._seen = set(self.released)
+
+    @contextmanager
+    def releasing(self) -> Iterator[DisclosureLedger]:
+        """Check and record a whole response as one step.
+
+        Two requests from the same person at the same moment must not both pass the check
+        before either records what it released, so they take turns here. What is recorded
+        inside is kept, through `keep`, once, at the end.
+        """
+        with self._lock:
+            outermost = self._pending is None
+            if outermost:
+                self._pending = []
+            try:
+                yield self
+            finally:
+                if outermost:
+                    pending, self._pending = self._pending, None
+                    if pending and self.keep is not None:
+                        self.keep(pending)
 
     def would_expose(self, cohort: frozenset[str]) -> bool:
         """True when releasing `cohort` would let a caller isolate a group that is too small.
@@ -62,11 +104,18 @@ class DisclosureLedger:
         return False
 
     def record(self, cohort: frozenset[str]) -> None:
-        if cohort:
-            self.released.append(cohort)
+        if not cohort or cohort in self._seen:
+            return
+        self._seen.add(cohort)
+        self.released.append(cohort)
+        if self._pending is not None:
+            self._pending.append(cohort)
+        elif self.keep is not None:
+            self.keep([cohort])
 
     def reset(self) -> None:
         self.released.clear()
+        self._seen.clear()
 
 
 def apply_complementary_suppression(

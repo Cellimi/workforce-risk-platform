@@ -337,8 +337,8 @@ That makes 186 entries, 22 with a cited source, and nothing awaiting review.
 
 **Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
 employees are never sent to a caller; complementary suppression stops a hidden cell being
-recovered from a row total; a per-session disclosure ledger blocks differencing across
-overlapping queries. Roles are enforced by the API — an `executive` asking for a record
+recovered from a row total; a disclosure ledger kept for each person blocks differencing
+across overlapping queries, and survives a restart. Roles are enforced by the API — an `executive` asking for a record
 drill-down gets a 403, not a hidden button. Every request is written to an append-only audit
 log.
 

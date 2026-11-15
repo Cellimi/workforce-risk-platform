@@ -7,8 +7,10 @@ engagement's folder and the overrides from the database, so a restart loses no w
 A costing run is deterministic in (dataset, sector, mode, overrides), so runs are memoized on
 that key. Scenario runs with overrides get their own cache entry and never disturb the base run.
 
-Disclosure ledgers are held per caller session, because the differencing guard only works if
-it remembers what that caller has already been shown.
+Disclosure ledgers are held per person, because the differencing guard only works if it
+remembers what that person has already been shown. In a licensed installation each one is
+also kept on disk in the engagement's folder, so a restart does not wipe it; see
+`wri_engine.aggregation.ledger_file`.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from wri_engine.adapters.base import SourceAdapter, ValidationReport
 from wri_engine.adapters.county_hr_csv import CountyHrCsvAdapter
 from wri_engine.adapters.template import SOURCE_ID as TEMPLATE_SOURCE
 from wri_engine.adapters.template import TemplateAdapter
+from wri_engine.aggregation.ledger_file import LedgerFile, basis_of, fingerprint_files
 from wri_engine.aggregation.suppression import DEFAULT_MIN_CELL_SIZE, DisclosureLedger
 from wri_engine.costing.assumptions import AssumptionSet, Mode, load_assumptions
 from wri_engine.costing.engine import CostRun, run_costing
@@ -108,8 +111,13 @@ class EngineState:
     #: Engagement-level assumption values (the client's own figures). They apply to every
     #: run, including the baseline a scenario is compared against.
     engagement_overrides: dict = field(default_factory=dict)
+    #: Where each person's disclosure ledger is kept for this engagement. None keeps them
+    #: in memory only, as the synthetic walkthrough does.
+    ledger_dir: Path | None = None
     _runs: dict[tuple, CostRun] = field(default_factory=dict)
     _ledgers: dict[str, DisclosureLedger] = field(default_factory=dict)
+    _ledger_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _data_fingerprint: str | None = field(default=None, repr=False)
 
     # -- loading -----------------------------------------------------------
     def load(
@@ -139,6 +147,7 @@ class EngineState:
         self.source_path = path
         self.manifest = self._read_manifest(path)
         self.as_of = self._resolve_as_of()
+        self._data_fingerprint = fingerprint_files(path) if self.ledger_dir else None
         self._runs.clear()
         self._ledgers.clear()
         return self.report
@@ -205,12 +214,32 @@ class EngineState:
         return self._runs[key]
 
     def ledger(self, session_key: str) -> DisclosureLedger:
-        if session_key not in self._ledgers:
-            self._ledgers[session_key] = DisclosureLedger(min_cell_size=self.min_cell_size)
-        return self._ledgers[session_key]
+        """This person's ledger for the figures as they stand now.
 
-    def reset_ledger(self, session_key: str) -> None:
-        self._ledgers.pop(session_key, None)
+        Where the engagement keeps ledgers on disk, a new one starts from every group this
+        person was released under the same figures, including before a restart.
+        """
+        with self._ledger_lock:
+            if session_key not in self._ledgers:
+                stored = self._ledger_file(session_key)
+                self._ledgers[session_key] = DisclosureLedger(
+                    min_cell_size=self.min_cell_size,
+                    released=stored.load() if stored else [],
+                    keep=stored.append if stored else None,
+                )
+            return self._ledgers[session_key]
+
+    def _ledger_file(self, session_key: str) -> LedgerFile | None:
+        if self.ledger_dir is None or self._data_fingerprint is None:
+            return None
+        basis = basis_of(
+            data_fingerprint=self._data_fingerprint,
+            overrides=self.engagement_overrides,
+            occupation_group=self.occupation_group,
+            sector=self.sector,
+            min_cell_size=self.min_cell_size,
+        )
+        return LedgerFile(self.ledger_dir, session_key, basis)
 
     @property
     def agency_name(self) -> str:
@@ -259,6 +288,7 @@ class Workspaces:
                 engagement = self.store.get_engagement(engagement_id)
                 state = EngineState(
                     default_source=source,
+                    ledger_dir=source.parent / "disclosure",
                     client_name=engagement.client_name if engagement else "Client",
                     sector=engagement.sector if engagement else DEFAULT_SECTOR,
                     occupation_group=engagement.occupation_group if engagement else None,

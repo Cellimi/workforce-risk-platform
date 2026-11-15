@@ -325,13 +325,14 @@ def _suppress(
     )
 
     if ledger is not None:
-        for key in sorted(frozen, key=lambda k: (-len(frozen[k]), k)):
-            if key in decisions:
-                continue
-            if ledger.would_expose(frozen[key]):
-                decisions[key] = SuppressionReason.DIFFERENCING
-            else:
-                ledger.record(frozen[key])
+        with ledger.releasing():
+            for key in sorted(frozen, key=lambda k: (-len(frozen[k]), k)):
+                if key in decisions:
+                    continue
+                if ledger.would_expose(frozen[key]):
+                    decisions[key] = SuppressionReason.DIFFERENCING
+                else:
+                    ledger.record(frozen[key])
         withheld |= apply_complementary_suppression(
             frozen, decisions, matrix.rows, matrix.cols, min_cell_size
         )

@@ -711,14 +711,24 @@ calendar years, and counting those would understate the annual figure by a quart
    the "Other (suppressed)" bucket, so a second is always suppressed alongside it.
 3. **Differencing guard.** Two overlapping queries can isolate a small group even when neither
    query suppresses anything: ask for 2024-2026, ask again for 2024-2025, subtract. A
-   per-session **disclosure ledger** remembers the set of employee ids behind every value
-   released so far and refuses to release a cohort whose difference from any earlier one is
-   smaller than the threshold. Cohorts stay server-side and never appear in a response.
+   **disclosure ledger** remembers the set of employee ids behind every value released so
+   far and refuses to release a cohort whose difference from any earlier one is smaller than
+   the threshold. Cohorts stay server-side and never appear in a response.
+
+   In a licensed installation there is one ledger per person per engagement, tied to the
+   signed-in account, so signing in again or opening a new browser does not start a fresh
+   one. It is kept on disk in the engagement's folder, beside the client's files, so a
+   restart does not wipe it either. It starts afresh only when the figures themselves change:
+   a different client file, a changed client-specific value, a different occupation group or
+   sector, or a different minimum cell size. Each saved entry records which figures it was
+   released under, so going back to earlier figures brings the earlier record back.
 
 **The limits of layer 3, stated plainly.** The ledger is a pairwise residual check, not a
-full query audit. It cannot see combinations of three or more earlier answers, and it is
-per-ledger: a caller who starts a fresh session starts fresh. Full disclosure auditing is not
-Phase 1 work and this demo should not claim otherwise.
+full query audit. It cannot see combinations of three or more earlier answers. It is
+per person: two people who pool what they were each shown are not caught. And because a
+changed client-specific value starts a new record, a value that changes only part of the
+cost (outside counsel rates, say) leaves the rest comparable across the change. Full
+disclosure auditing is not Phase 1 work and this demo should not claim otherwise.
 
 ### Roles
 

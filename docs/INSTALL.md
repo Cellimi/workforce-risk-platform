@@ -215,9 +215,6 @@ first, and remember that backups and the `replaced-…` folders hold client data
 - **No TLS of its own.** See "Who can reach it".
 - **The audit log is a file in the data volume.** Someone with administrative access to the
   server can alter it. It is not yet written anywhere they cannot.
-- **Small-group disclosure tracking restarts when the product restarts.** The rule that
-  withholds small groups always applies; the record of which overlapping views a person has
-  already seen does not survive a restart.
 
 ## If something is wrong
 
