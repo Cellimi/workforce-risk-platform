@@ -74,25 +74,16 @@ def test_a_ledger_name_cannot_point_outside_its_folder(tmp_path, person):
         LedgerFile(tmp_path, person, "b")
 
 
-def test_the_basis_changes_with_anything_the_figures_rest_on():
-    base = dict(
-        data_fingerprint="d1",
-        overrides={"c4_outside_counsel_hourly_rate": "450"},
-        occupation_group=None,
-        sector="public_sector",
-        min_cell_size=5,
-    )
-    same = basis_of(**{**base, "overrides": {"c4_outside_counsel_hourly_rate": "450"}})
-    assert basis_of(**base) == same
-    for changed in (
-        {"data_fingerprint": "d2"},
-        {"overrides": {"c4_outside_counsel_hourly_rate": "451"}},
-        {"overrides": {}},
-        {"occupation_group": "sales"},
-        {"sector": "private_sector"},
-        {"min_cell_size": 7},
-    ):
+def test_the_basis_follows_the_files_and_the_threshold_only():
+    base = dict(data_fingerprint="d1", sector="public_sector", min_cell_size=5)
+    assert basis_of(**base) == basis_of(**dict(base))
+    for changed in ({"data_fingerprint": "d2"}, {"sector": "private_sector"}, {"min_cell_size": 7}):
         assert basis_of(**{**base, **changed}) != basis_of(**base), changed
+    # Client-specific values and the occupation group are not part of it, by decision.
+    with pytest.raises(TypeError):
+        basis_of(**base, overrides={"x": 1})
+    with pytest.raises(TypeError):
+        basis_of(**base, occupation_group="sales")
 
 
 def test_a_file_fingerprint_follows_the_bytes(tmp_path):
@@ -248,9 +239,9 @@ def test_each_person_has_their_own_record(site, tmp_path):
     assert ask(http, headers, e, years[:-1])["cells"] == fresh["cells"]
 
 
-def test_new_figures_start_a_new_record_and_old_ones_come_back(site, tmp_path):
-    """A client-specific value changes the figures, so the record starts again, as it always
-    has. Put the value back and the earlier record applies again, across a restart too."""
+def test_a_changed_client_value_does_not_reset_the_record(site, tmp_path):
+    """A client-specific value moves some figures and leaves the rest as they were, so what a
+    person was shown before the change still counts after it, across a restart too."""
     years = years_of(site)
     e = site.engagement
     ask(site.http, site.auth(CLIENT), e, years)
@@ -258,17 +249,42 @@ def test_new_figures_start_a_new_record_and_old_ones_come_back(site, tmp_path):
     assert override(site, e, "c4_outside_counsel_hourly_rate", "450").status_code == 200
     fresh_on_new_figures = ask(site.http, site.auth(LEAD), e, years[:-1])
     on_new_figures = ask(site.http, site.auth(CLIENT), e, years[:-1])
-    assert on_new_figures["cells"] == fresh_on_new_figures["cells"]
+    assert blocked(on_new_figures) > blocked(fresh_on_new_figures)
 
-    removed = site.http.delete(
-        f"/engagements/{e}/assumptions/c4_outside_counsel_hourly_rate/override",
-        headers=site.auth(LEAD),
-    )
-    assert removed.status_code in (200, 204), removed.text
-    fresh_on_old_figures = ask(site.http, site.auth(ANALYST), e, years[:-1])
     http, headers = restarted(tmp_path, CLIENT)
-    back_on_old_figures = ask(http, headers, e, years[:-1])
-    assert blocked(back_on_old_figures) > blocked(fresh_on_old_figures)
+    assert blocked(ask(http, headers, e, years[:-1])) == blocked(on_new_figures)
+
+
+def test_a_changed_occupation_group_does_not_reset_the_record(site):
+    """The same holds for the occupation group, which moves the benefits multiplier and
+    leaves every other cost where it was."""
+    years = years_of(site)
+    e = site.engagement
+    ask(site.http, site.auth(CLIENT), e, years)
+    fresh = ask(site.http, site.auth(LEAD), e, years[:-1])
+    site.runtime.workspaces.get(e).set_occupation_group(None)  # re-reads the files
+    assert blocked(ask(site.http, site.auth(CLIENT), e, years[:-1])) > blocked(fresh)
+
+
+def test_a_new_client_file_starts_a_new_record(site, tmp_path):
+    """Different files are different figures, and the record starts again. The earlier one
+    is kept on disk."""
+    years = years_of(site)
+    e = site.engagement
+    ask(site.http, site.auth(CLIENT), e, years)
+    state = site.runtime.workspaces.get(e)
+    before = state._data_fingerprint
+    (state.default_source / "notes.txt").write_text("a file the consultant added\n")
+    state.load()
+    assert state._data_fingerprint != before
+    fresh = ask(site.http, site.auth(LEAD), e, years[:-1])
+    assert ask(site.http, site.auth(CLIENT), e, years[:-1])["cells"] == fresh["cells"]
+    folder = tmp_path / "engagements" / e / "disclosure"
+    client = site.store.get_user_by_email(CLIENT[0]).id
+    bases = {
+        json.loads(x)["basis"] for x in (folder / f"user-{client}.jsonl").read_text().splitlines()
+    }
+    assert len(bases) == 2
 
 
 def test_the_record_is_in_the_engagement_folder_and_not_the_database(site, tmp_path):

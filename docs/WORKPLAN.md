@@ -51,7 +51,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 419 tests, 96.1% coverage.
+asserts it line item by line item. 421 tests, 96.1% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -151,23 +151,24 @@ figures leave the server. If it cannot be written the request fails and nothing 
 
 - **In the engagement folder, not the database.** The record is a list of the client's
   employee ids, which is client data (rule 12). Backups carry it with the engagement.
-- **When it starts afresh: unchanged.** Each entry records a fingerprint of the figures it
-  was released under (the client's files, the client-specific values, the occupation group,
-  the sector, the minimum cell size). Only entries matching the current figures are read
-  back; earlier ones are kept and apply again if the engagement returns to those figures.
+- **When it starts afresh: only for new client files** (or a different sector or minimum
+  cell size). Each entry records a fingerprint of those; only entries matching the current
+  ones are read back, and earlier ones are kept on disk. It **carries across** a changed
+  client-specific value or occupation group, by the owner's decision of 2026-11-15: those
+  move some figures and leave others exactly as they were, so a person shown figures before
+  and after could otherwise subtract the parts that did not move. The cost is that a client
+  reader sees more cells held back as an engagement goes on.
 - **Check and record are now one step per person.** Two requests from the same person at
   the same moment used to be able to both pass the check before either recorded what it
   released. Fixed in the same change.
 - Tested by asking the same two overlapping questions in one sitting and across a restart
   and requiring identical answers; with persistence switched off that test fails.
 
-**A decision for the owner, not taken here.** A changed client-specific value starts a new
-record, as it always has. That is right when the value moves every figure, but a value that
-moves only part of the cost (an outside counsel rate, say) leaves the other line items
-comparable across the change, so someone shown figures before and after could subtract those
-parts. Including the client-specific values in the fingerprint is one line in
-`api/state.py`; leaving them out makes the record stricter, and a client reader will see
-more cells held back over the life of an engagement.
+**Not changed, and the same question for the owner.** A new client file still starts a
+new record. A corrected file that leaves most records as they were has the same weakness the
+owner ruled on for client-specific values. Carrying the record across new files too means
+dropping the file fingerprint from the basis in `aggregation/ledger_file.py`; it would make
+the record stricter again.
 
 ## Engagement license keys
 

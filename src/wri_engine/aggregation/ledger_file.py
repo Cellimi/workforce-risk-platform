@@ -17,10 +17,15 @@ beside the client's files rather than in the database, because a list of employe
 client data (CLAUDE.md rule 12), and so a backup of the engagement carries it.
 
 Each line also records the **basis** it was released under: a fingerprint of the client's
-files, the engagement's own assumption values, its occupation group, its sector and the
-minimum cell size. A group released under one basis says nothing about figures worked out on
-another, so only lines with the current basis are read back. Lines from an earlier basis are
-left in place, not deleted; if the engagement returns to that basis, they apply again.
+files, the sector and the minimum cell size. Only lines with the current basis are read back.
+Lines from an earlier basis are left in place, not deleted; if the engagement returns to that
+basis, they apply again.
+
+What is deliberately NOT in the basis: the engagement's client-specific assumption values and
+its occupation group. Changing either moves some figures and leaves others exactly as they
+were (an outside counsel rate moves only the counsel fees), so a person shown figures before
+and after the change could still subtract the parts that did not move. The record therefore
+carries across those changes. Decided by the owner on 2026-11-15.
 
 Writing is done before the figures leave the server, and is flushed to disk. If it fails, the
 request fails and nothing is released. A line half-written when the machine stopped is
@@ -39,23 +44,12 @@ from pathlib import Path
 _SAFE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def basis_of(
-    *,
-    data_fingerprint: str,
-    overrides: dict,
-    occupation_group: str | None,
-    sector: str,
-    min_cell_size: int,
-) -> str:
-    """A short fingerprint of everything the released figures were worked out from."""
+def basis_of(*, data_fingerprint: str, sector: str, min_cell_size: int) -> str:
+    """A short fingerprint of what a released group is only meaningful against: the
+    client's files, the sector and the minimum cell size. Client-specific values and the
+    occupation group are left out on purpose; see the module docstring."""
     body = json.dumps(
-        {
-            "data": data_fingerprint,
-            "overrides": sorted((str(k), str(v)) for k, v in overrides.items()),
-            "occupation_group": occupation_group,
-            "sector": sector,
-            "min_cell_size": min_cell_size,
-        },
+        {"data": data_fingerprint, "sector": sector, "min_cell_size": min_cell_size},
         sort_keys=True,
     )
     return hashlib.sha256(body.encode()).hexdigest()[:24]

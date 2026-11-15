@@ -170,9 +170,11 @@ class EngineState:
         self._ledgers.clear()
 
     def set_engagement_overrides(self, overrides: dict) -> None:
+        """New client-specific values. The figures are worked out again; what each person
+        has already been shown is NOT forgotten, because a value that moves some figures
+        leaves the rest comparable with what came before."""
         self.engagement_overrides = dict(overrides)
         self._runs.clear()
-        self._ledgers.clear()
 
     @property
     def effective_assumptions(self) -> AssumptionSet:
@@ -234,8 +236,6 @@ class EngineState:
             return None
         basis = basis_of(
             data_fingerprint=self._data_fingerprint,
-            overrides=self.engagement_overrides,
-            occupation_group=self.occupation_group,
             sector=self.sector,
             min_cell_size=self.min_cell_size,
         )

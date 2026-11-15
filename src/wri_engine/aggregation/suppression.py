@@ -22,11 +22,10 @@ Who the ledger belongs to
 -------------------------
 In a licensed installation there is one ledger per person per engagement, keyed to the
 signed-in user and never to anything the caller sends. It is kept on disk in the
-engagement's folder (`ledger_file.py`), so a restart does not wipe it. It starts afresh only
-when the figures themselves change: a different client file, a changed client-specific
-assumption value, a different occupation group or sector, or a different minimum cell size.
-A group released under one set of figures does not let a caller subtract figures worked out
-on another set. The synthetic walkthrough keeps its ledgers in memory only.
+engagement's folder (`ledger_file.py`), so a restart does not wipe it. It carries across a
+changed client-specific value or occupation group, because those move only some figures and
+the rest stay comparable. It starts afresh only for a different client file or a different
+minimum cell size. The synthetic walkthrough keeps its ledgers in memory only.
 
 Limits, stated plainly
 ----------------------
