@@ -711,14 +711,28 @@ calendar years, and counting those would understate the annual figure by a quart
    the "Other (suppressed)" bucket, so a second is always suppressed alongside it.
 3. **Differencing guard.** Two overlapping queries can isolate a small group even when neither
    query suppresses anything: ask for 2024-2026, ask again for 2024-2025, subtract. A
-   per-session **disclosure ledger** remembers the set of employee ids behind every value
-   released so far and refuses to release a cohort whose difference from any earlier one is
-   smaller than the threshold. Cohorts stay server-side and never appear in a response.
+   **disclosure ledger** remembers the set of employee ids behind every value released so
+   far and refuses to release a cohort whose difference from any earlier one is smaller than
+   the threshold. Cohorts stay server-side and never appear in a response.
+
+   In a licensed installation there is one ledger per person per engagement, tied to the
+   signed-in account, so signing in again or opening a new browser does not start a fresh
+   one. It is kept on disk in the engagement's folder, beside the client's files, so a
+   restart does not wipe it either. It lasts as long as the engagement: a new or corrected
+   client file, a changed client-specific value and a different occupation group each move
+   some figures and leave the rest exactly as they were, so what a person was shown before
+   still counts after. A corrected file that takes one person out of a group is the plainest
+   case: whoever saw the group's figure before is not shown it after. Only a different
+   minimum cell size starts a new record.
 
 **The limits of layer 3, stated plainly.** The ledger is a pairwise residual check, not a
-full query audit. It cannot see combinations of three or more earlier answers, and it is
-per-ledger: a caller who starts a fresh session starts fresh. Full disclosure auditing is not
-Phase 1 work and this demo should not claim otherwise.
+full query audit. It cannot see combinations of three or more earlier answers. It is
+per person: two people who pool what they were each shown are not caught. Because the
+record lasts as long as the engagement, a person sees more cells held back as it goes on,
+and a cell whose group changed by a few people in a corrected file stays held back for
+everyone who saw it before the correction; someone who had not seen it is shown it. That is
+the price of the protection, and nothing in the product resets it. Full disclosure auditing
+is not Phase 1 work and this demo should not claim otherwise.
 
 ### Roles
 
