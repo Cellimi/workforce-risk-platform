@@ -45,14 +45,15 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
 | Install package: container install, configuration guide, upgrade path | Claude Code session | Done, `claude/install-package` |
 | Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 (built on PR #15) |
-| An audit log that shows when it has been edited | Claude Code session | Done, `claude/tamper-evident-audit-log` (built on PR #16) |
+| An audit log that shows when it has been edited | Claude Code session | Done, PR #17 (built on PR #16) |
+| Fixed dependency versions and a smaller image | Claude Code session | Done, `claude/pinned-dependencies` (built on PR #17) |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 442 tests, 96.1% coverage.
+asserts it line item by line item. 454 tests, 96.1% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -130,11 +131,9 @@ stand-in 0.3.1 with a higher data version; the old image pointed at the upgraded
 2. **TLS is the firm's to supply.** The product speaks plain HTTP and is published only to
    the server itself. The guide says what a reverse proxy must do and shows a Caddy
    configuration as an illustration; that configuration was **not** tested.
-3. **The image is about 1.1 GB** (254 MB as shipped). Most of it is pandas, DuckDB,
-   Streamlit and Plotly. Not slimmed.
-4. **Dependencies are not pinned in `pyproject.toml`.** The image is the pinned artefact:
-   `requirements.lock` in the package lists what it holds. Two builds a month apart can
-   differ. Pinning is a separate decision.
+3. **The image is about 1.0 GB** (225 MB as shipped), down from 1.1 GB and 254 MB. See
+   "Fixed versions" below for what was taken out and what was left.
+4. **Dependencies are now fixed** by `requirements.lock`. See "Fixed versions" below.
 5. **Linux servers only**, built for `linux/amd64` by default (`--platform` changes it).
    The operator's script is bash.
 6. **One installation per server.** The volume has a fixed name.
@@ -142,6 +141,50 @@ stand-in 0.3.1 with a higher data version; the old image pointed at the upgraded
    firm's own scheduler. The guide says so.
 8. **The version is now 0.3.0** (was 0.2.0, unchanged since before the private-sector
    model). It is read from one place and shown at `/health` and by `./wri status`.
+9. **Before each release:** refresh the base image digest, run `make lock`, run the tests,
+   then `make package`. Nothing does this on a schedule.
+
+## Fixed versions
+
+`pyproject.toml` gives ranges (`fastapi>=0.110`), so two builds a month apart could hold
+different libraries, and a developer's environment could differ from the image. Now:
+
+| File | What it fixes | Used by |
+|---|---|---|
+| `requirements.lock` | The engine, the API and the screen: 56 libraries, each at one version, each with SHA-256 fingerprints | The image (`Dockerfile`) |
+| `requirements-dev.lock` | The same versions, plus the tools for testing | `make install` |
+| `Dockerfile` `PYTHON_IMAGE` | The base image, by digest | The image |
+
+- **A download that does not match its fingerprint stops the install.** Tried: one changed
+  character in a fingerprint and pip refuses the file.
+- **`make lock`** chooses versions again (needs `uv`). It is run on purpose: a new
+  dependency, a security fix, before a release. Then `make install`, `make test`, commit
+  both files. `tests/test_dependencies.py` fails if the locks and `pyproject.toml` disagree,
+  if the two locks differ on a shared library, or if the environment the tests run in is
+  not the locked one.
+- **`make install` works with `uv` or with plain `pip`**; both were run from scratch and
+  gave the same 66 libraries at the same versions.
+- **The base image digest does not refresh itself.** Before a release, pull
+  `python:3.12-slim`, read its digest, and put it in the `Dockerfile` (the comment there has
+  the two commands). That is how operating-system security fixes come in. Left to itself it
+  goes stale; that is the trade for a build that is the same every time.
+
+**What came out.** DuckDB was declared and imported nowhere: 65 MB. pip is removed from the
+finished image: 13 MB, and nothing should install into a running installation. pandas and
+httpx moved from the engine's dependencies to the screen's, where they are used; the image
+holds both either way, so that changed the declaration and not the size. A test now holds
+each declared library to being imported by the part that declares it.
+
+**What was left, and why.** pyarrow (170 MB), pydeck and altair are required by Streamlit
+itself and cannot be dropped while the screen is Streamlit. uvloop and httptools (25 MB) make
+the API faster and were left. Stripping test folders out of installed libraries would save
+perhaps 40 MB and was not done: it means editing other people's packages after install.
+The screen is the disposable layer (see `CLAUDE.md`); replacing Streamlit is what would
+halve the image.
+
+**Not fixed.** setuptools, the tool that packs the product's own code during a build, is
+fetched at whatever version is current. It is used for that step only and is not in the
+image.
 
 ## Audit log
 

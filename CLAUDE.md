@@ -52,6 +52,11 @@ which branch a pull request targets, and which session has claimed which item.
     first. A change an older version could not read raises `SCHEMA_VERSION` in
     `store/db.py`, so that older version refuses the data instead of half-opening it.
 
+16. **A dependency is declared, locked and used.** Add it to the right list in
+    `pyproject.toml` (`dependencies` for what the engine imports, `ui` for the screen, `dev`
+    for the tests), run `make lock`, and commit both lock files with the change. The image
+    installs only what `requirements.lock` names, by fingerprint.
+
 ## Style
 
 - Prefer small, readable functions. Each component module in `costing/components/` must be
@@ -82,7 +87,8 @@ which branch a pull request targets, and which session has claimed which item.
 ## Commands
 
 ```bash
-make install     # venv + deps
+make install     # venv + the exact versions in requirements-dev.lock
+make lock        # choose dependency versions again (needs uv); commit both lock files
 make generate    # write synthetic CSVs to data/synthetic/
 make test        # pytest with coverage gates on costing/ and aggregation/
 make lint        # ruff
