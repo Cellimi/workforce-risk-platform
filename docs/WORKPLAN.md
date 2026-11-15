@@ -151,24 +151,23 @@ figures leave the server. If it cannot be written the request fails and nothing 
 
 - **In the engagement folder, not the database.** The record is a list of the client's
   employee ids, which is client data (rule 12). Backups carry it with the engagement.
-- **When it starts afresh: only for new client files** (or a different sector or minimum
-  cell size). Each entry records a fingerprint of those; only entries matching the current
-  ones are read back, and earlier ones are kept on disk. It **carries across** a changed
-  client-specific value or occupation group, by the owner's decision of 2026-11-15: those
-  move some figures and leave others exactly as they were, so a person shown figures before
-  and after could otherwise subtract the parts that did not move. The cost is that a client
-  reader sees more cells held back as an engagement goes on.
+- **It lasts as long as the engagement**, by the owner's decisions of 2026-11-15. It
+  carries across a new or corrected client file, a changed client-specific value and a
+  different occupation group: each moves some figures and leaves others exactly as they
+  were, so a person shown figures before and after could otherwise subtract the parts that
+  did not move. Only a different minimum cell size (or sector) starts a new record; earlier
+  entries are kept on disk.
+- **The cost, which a consultant will meet.** A person sees more cells held back as an
+  engagement goes on. After a corrected file, every cell whose group changed by one to four
+  people is held back for everyone who saw it before the correction, for good; a person who
+  had not seen it is shown it. **Nothing resets the record.** If that proves too strict in
+  use, the remedy to build is a reset by the firm administrator that is written to the
+  audit log, not a quiet loosening of the rule.
 - **Check and record are now one step per person.** Two requests from the same person at
   the same moment used to be able to both pass the check before either recorded what it
   released. Fixed in the same change.
 - Tested by asking the same two overlapping questions in one sitting and across a restart
   and requiring identical answers; with persistence switched off that test fails.
-
-**Not changed, and the same question for the owner.** A new client file still starts a
-new record. A corrected file that leaves most records as they were has the same weakness the
-owner ruled on for client-specific values. Carrying the record across new files too means
-dropping the file fingerprint from the basis in `aggregation/ledger_file.py`; it would make
-the record stricter again.
 
 ## Engagement license keys
 

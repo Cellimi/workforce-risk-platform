@@ -17,8 +17,16 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from test_accounts_engagements import ANALYST, CLIENT, LEAD, OWNER, Installation, override
-from wri_engine.aggregation.ledger_file import LedgerFile, basis_of, fingerprint_files
+from test_accounts_engagements import (
+    ANALYST,
+    CLIENT,
+    LEAD,
+    OWNER,
+    SAMPLE,
+    Installation,
+    override,
+)
+from wri_engine.aggregation.ledger_file import LedgerFile, basis_of
 from wri_engine.aggregation.suppression import DisclosureLedger, SuppressionReason
 from wri_engine.api.main import create_app
 from wri_engine.settings import Settings
@@ -74,24 +82,15 @@ def test_a_ledger_name_cannot_point_outside_its_folder(tmp_path, person):
         LedgerFile(tmp_path, person, "b")
 
 
-def test_the_basis_follows_the_files_and_the_threshold_only():
-    base = dict(data_fingerprint="d1", sector="public_sector", min_cell_size=5)
+def test_the_basis_is_the_rules_and_nothing_about_the_figures():
+    base = dict(sector="public_sector", min_cell_size=5)
     assert basis_of(**base) == basis_of(**dict(base))
-    for changed in ({"data_fingerprint": "d2"}, {"sector": "private_sector"}, {"min_cell_size": 7}):
+    for changed in ({"sector": "private_sector"}, {"min_cell_size": 7}):
         assert basis_of(**{**base, **changed}) != basis_of(**base), changed
-    # Client-specific values and the occupation group are not part of it, by decision.
-    with pytest.raises(TypeError):
-        basis_of(**base, overrides={"x": 1})
-    with pytest.raises(TypeError):
-        basis_of(**base, occupation_group="sales")
-
-
-def test_a_file_fingerprint_follows_the_bytes(tmp_path):
-    (tmp_path / "a.csv").write_text("x\n1\n")
-    first = fingerprint_files(tmp_path)
-    assert fingerprint_files(tmp_path) == first
-    (tmp_path / "a.csv").write_text("x\n2\n")
-    assert fingerprint_files(tmp_path) != first
+    # The client's files, its own values and the occupation group are not part of it.
+    for left_out in ({"data_fingerprint": "d"}, {"overrides": {"x": 1}}, {"occupation_group": "s"}):
+        with pytest.raises(TypeError):
+            basis_of(**base, **left_out)
 
 
 # ---------------------------------------------------------------------------
@@ -266,25 +265,74 @@ def test_a_changed_occupation_group_does_not_reset_the_record(site):
     assert blocked(ask(site.http, site.auth(CLIENT), e, years[:-1])) > blocked(fresh)
 
 
-def test_a_new_client_file_starts_a_new_record(site, tmp_path):
-    """Different files are different figures, and the record starts again. The earlier one
-    is kept on disk."""
+def upload_without(site, action_id: str):
+    """Load the sample again as a corrected file would arrive: one action taken out."""
+    files = []
+    for path in sorted(SAMPLE.iterdir()):
+        if not path.is_file():
+            continue
+        body = path.read_bytes()
+        if path.name == "hr_disc_actn.csv":
+            kept = [line for line in body.decode().splitlines() if action_id not in line.split(",")]
+            assert len(kept) == len(body.decode().splitlines()) - 1
+            body = ("\n".join(kept) + "\n").encode()
+        files.append(("files", (path.name, body, "text/csv")))
+    return site.http.post(
+        f"/engagements/{site.engagement}/datasets/upload", files=files, headers=site.auth(LEAD)
+    )
+
+
+def test_a_corrected_file_does_not_reset_the_record(site, tmp_path):
+    """The plainest subtraction of all: see a cell, receive a corrected file with one person
+    taken out of it, see the cell again. The difference is that one person's cost. Whoever
+    saw the first figure is not shown the second; someone who never saw it is."""
+    years = years_of(site)
+    e = site.engagement
+    first = ask(site.http, site.auth(CLIENT), e, years)
+
+    # An action whose employee appears once in a cell the client reader was shown.
+    state = site.runtime.workspaces.get(e)
+    run = state.run()
+    shown = {(c["row"], c["col"]) for c in first["cells"] if not c["suppressed"]}
+    by_cell: dict = {}
+    for action in run.action_costs:
+        cell = (action.dimensions["role_family"], action.dimensions["misconduct_category"])
+        by_cell.setdefault(cell, []).append(action)
+    cell, target = next(
+        (cell, action)
+        for cell, actions in sorted(by_cell.items())
+        if cell in shown
+        for action in actions
+        if sum(1 for other in actions if other.employee_id == action.employee_id) == 1
+    )
+    assert upload_without(site, target.action_id).status_code == 200
+
+    fresh = ask(site.http, site.auth(ANALYST), e, years)
+    again = ask(site.http, site.auth(CLIENT), e, years)
+    assert cell not in blocked(fresh)
+    assert cell in blocked(again)
+
+    # And it holds across a restart, and when the original file comes back.
+    http, headers = restarted(tmp_path, CLIENT)
+    assert cell in blocked(ask(http, headers, e, years))
+    assert site.upload_sample(e, LEAD).status_code == 200
+    back = ask(site.http, site.auth(CLIENT), e, years)
+    assert cell not in blocked(back), "the very group already released may be shown again"
+
+
+def test_only_a_different_minimum_cell_size_starts_a_new_record(site, tmp_path):
     years = years_of(site)
     e = site.engagement
     ask(site.http, site.auth(CLIENT), e, years)
     state = site.runtime.workspaces.get(e)
-    before = state._data_fingerprint
-    (state.default_source / "notes.txt").write_text("a file the consultant added\n")
-    state.load()
-    assert state._data_fingerprint != before
-    fresh = ask(site.http, site.auth(LEAD), e, years[:-1])
-    assert ask(site.http, site.auth(CLIENT), e, years[:-1])["cells"] == fresh["cells"]
-    folder = tmp_path / "engagements" / e / "disclosure"
-    client = site.store.get_user_by_email(CLIENT[0]).id
-    bases = {
-        json.loads(x)["basis"] for x in (folder / f"user-{client}.jsonl").read_text().splitlines()
-    }
-    assert len(bases) == 2
+    client = f"user:{site.store.get_user_by_email(CLIENT[0]).id}"
+    assert state.ledger(client).released
+    state.min_cell_size = 7
+    state._ledgers.clear()
+    assert state.ledger(client).released == []
+    state.min_cell_size = 5
+    state._ledgers.clear()
+    assert state.ledger(client).released
 
 
 def test_the_record_is_in_the_engagement_folder_and_not_the_database(site, tmp_path):

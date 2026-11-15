@@ -16,16 +16,16 @@ and nothing else. No money, no names, no other field from the client's records. 
 beside the client's files rather than in the database, because a list of employee ids is
 client data (CLAUDE.md rule 12), and so a backup of the engagement carries it.
 
-Each line also records the **basis** it was released under: a fingerprint of the client's
-files, the sector and the minimum cell size. Only lines with the current basis are read back.
-Lines from an earlier basis are left in place, not deleted; if the engagement returns to that
-basis, they apply again.
+The record lasts as long as the engagement. It carries across everything that changes the
+figures without changing who the employees are: a new or corrected client file, a changed
+client-specific assumption value, a different occupation group. Each of those moves some
+figures and leaves others exactly as they were, so a person shown figures before and after
+could otherwise subtract the parts that did not move; a corrected file that drops one
+person from a group is the plainest case. Decided by the owner on 2026-11-15.
 
-What is deliberately NOT in the basis: the engagement's client-specific assumption values and
-its occupation group. Changing either moves some figures and leaves others exactly as they
-were (an outside counsel rate moves only the counsel fees), so a person shown figures before
-and after the change could still subtract the parts that did not move. The record therefore
-carries across those changes. Decided by the owner on 2026-11-15.
+Each line records the **basis** it was released under, which is only the sector and the
+minimum cell size: the two things that change what "too small a group" means. Only lines
+with the current basis are read back; others are left in place, not deleted.
 
 Writing is done before the figures leave the server, and is flushed to disk. If it fails, the
 request fails and nothing is released. A line half-written when the machine stopped is
@@ -44,27 +44,12 @@ from pathlib import Path
 _SAFE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def basis_of(*, data_fingerprint: str, sector: str, min_cell_size: int) -> str:
-    """A short fingerprint of what a released group is only meaningful against: the
-    client's files, the sector and the minimum cell size. Client-specific values and the
-    occupation group are left out on purpose; see the module docstring."""
-    body = json.dumps(
-        {"data": data_fingerprint, "sector": sector, "min_cell_size": min_cell_size},
-        sort_keys=True,
-    )
+def basis_of(*, sector: str, min_cell_size: int) -> str:
+    """A short fingerprint of the rules a group was released under. The client's files, the
+    client-specific values and the occupation group are left out on purpose; see the module
+    docstring."""
+    body = json.dumps({"sector": sector, "min_cell_size": min_cell_size}, sort_keys=True)
     return hashlib.sha256(body.encode()).hexdigest()[:24]
-
-
-def fingerprint_files(folder: Path) -> str:
-    """A fingerprint of the files an engagement's figures were read from."""
-    digest = hashlib.sha256()
-    for path in sorted(p for p in Path(folder).iterdir() if p.is_file()):
-        digest.update(path.name.encode() + b"\0")
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1 << 20), b""):
-                digest.update(chunk)
-        digest.update(b"\0")
-    return digest.hexdigest()
 
 
 class LedgerFile:

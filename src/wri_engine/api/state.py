@@ -25,7 +25,7 @@ from wri_engine.adapters.base import SourceAdapter, ValidationReport
 from wri_engine.adapters.county_hr_csv import CountyHrCsvAdapter
 from wri_engine.adapters.template import SOURCE_ID as TEMPLATE_SOURCE
 from wri_engine.adapters.template import TemplateAdapter
-from wri_engine.aggregation.ledger_file import LedgerFile, basis_of, fingerprint_files
+from wri_engine.aggregation.ledger_file import LedgerFile, basis_of
 from wri_engine.aggregation.suppression import DEFAULT_MIN_CELL_SIZE, DisclosureLedger
 from wri_engine.costing.assumptions import AssumptionSet, Mode, load_assumptions
 from wri_engine.costing.engine import CostRun, run_costing
@@ -117,7 +117,6 @@ class EngineState:
     _runs: dict[tuple, CostRun] = field(default_factory=dict)
     _ledgers: dict[str, DisclosureLedger] = field(default_factory=dict)
     _ledger_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
-    _data_fingerprint: str | None = field(default=None, repr=False)
 
     # -- loading -----------------------------------------------------------
     def load(
@@ -147,7 +146,6 @@ class EngineState:
         self.source_path = path
         self.manifest = self._read_manifest(path)
         self.as_of = self._resolve_as_of()
-        self._data_fingerprint = fingerprint_files(path) if self.ledger_dir else None
         self._runs.clear()
         self._ledgers.clear()
         return self.report
@@ -218,8 +216,9 @@ class EngineState:
     def ledger(self, session_key: str) -> DisclosureLedger:
         """This person's ledger for the figures as they stand now.
 
-        Where the engagement keeps ledgers on disk, a new one starts from every group this
-        person was released under the same figures, including before a restart.
+        Where the engagement keeps ledgers on disk, it starts from every group this person
+        has been released in this engagement: before a restart, under an earlier client
+        file, under earlier client-specific values.
         """
         with self._ledger_lock:
             if session_key not in self._ledgers:
@@ -232,13 +231,9 @@ class EngineState:
             return self._ledgers[session_key]
 
     def _ledger_file(self, session_key: str) -> LedgerFile | None:
-        if self.ledger_dir is None or self._data_fingerprint is None:
+        if self.ledger_dir is None:
             return None
-        basis = basis_of(
-            data_fingerprint=self._data_fingerprint,
-            sector=self.sector,
-            min_cell_size=self.min_cell_size,
-        )
+        basis = basis_of(sector=self.sector, min_cell_size=self.min_cell_size)
         return LedgerFile(self.ledger_dir, session_key, basis)
 
     @property
