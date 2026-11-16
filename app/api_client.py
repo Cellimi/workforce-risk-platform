@@ -124,6 +124,13 @@ class EngineClient:
     def assumptions(self, mode: str = "base") -> dict:
         return self._request("GET", "/assumptions", params={"mode": mode}).json()
 
+    def appraise(self, unit: dict, proposal: dict, mode: str = "base") -> dict:
+        """Set what an intervention would cost against what a unit's discipline costs
+        (Phase 3). `unit` names the job, the location and the type of misconduct;
+        `proposal` is the consultant's own figures."""
+        body = {**unit, **proposal, "mode": mode}
+        return self._request("POST", "/interventions/appraise", json=body).json()
+
     def run_scenario(self, overrides: dict, mode: str = "base") -> dict:
         return self._request(
             "POST", "/scenarios/run", json={"overrides": overrides, "mode": mode}

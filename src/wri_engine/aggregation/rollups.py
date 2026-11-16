@@ -551,6 +551,12 @@ def _component_totals(run: CostRun) -> dict[str, str]:
     return {str(c): str(totals[c]) for c in CostComponent if c in totals}
 
 
+def window_years(run: CostRun) -> Decimal:
+    """The length of the period a run covers, in years: what "a year" means wherever a
+    figure is given per year."""
+    return _window_years(run)
+
+
 def _window_years(run: CostRun) -> Decimal:
     """Length of the history window in years, from the actual span of decision dates.
 

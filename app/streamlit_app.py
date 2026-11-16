@@ -42,6 +42,7 @@ PAGES = [
     "Cost matrix",
     "Drill-down",
     "Patterns",
+    "Interventions",
     "Assumptions",
     "Data quality",
 ]
@@ -852,6 +853,173 @@ def _drift_section(api: EngineClient, by: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# interventions (Phase 3): what doing something would cost, against what it costs now
+# ---------------------------------------------------------------------------
+def _unit_choices(api: EngineClient, by: str) -> list[tuple[str, dict]]:
+    """Every unit the records show, flagged ones first, as (label, unit)."""
+    found = api.hotspots(by, mode())
+    rising = {(u["row"], u["col"], u["topic"]) for u in api.drift(by, mode())["flagged"]}
+    choices, seen = [], set()
+    for status in ("flagged", "concentrated", "not_flagged"):
+        for u in found[status]:
+            key = (u["row"], u["col"], u["topic"])
+            if key in seen:
+                continue
+            seen.add(key)
+            marks = [
+                m for m, on in (("flagged", status == "flagged"), ("rising", key in rising)) if on
+            ]
+            label = _unit_name(u) + (f"  ({', '.join(marks)})" if marks else "")
+            unit = {
+                "role_family": u["row"],
+                "work_location": u["col"],
+                "misconduct_category": u["topic"],
+            }
+            choices.append((label, unit, bool(marks)))
+    choices.sort(key=lambda c: (not c[2], c[0]))
+    return [(label, unit) for label, unit, _ in choices]
+
+
+def interventions_page(api: EngineClient) -> None:
+    page_header(
+        "Interventions",
+        "What doing something about a pattern would cost, against what the discipline costs.",
+    )
+    if current_role() == "executive":
+        st.warning(
+            "This page works on single units, whatever their size, so it is for the roles "
+            "that see records. The API returns 403."
+            + ("" if licensed.is_licensed() else " Switch role in the sidebar to continue.")
+        )
+        return
+    st.info(
+        "Someone has to go and find out what is happening in a unit before anything is "
+        "proposed for it. This page does not do that and does not suggest a cause. It "
+        "takes what you propose and your own estimate of how well it will work, and sets "
+        "the cost against what the cost baseline says the discipline costs."
+    )
+    view = st.radio("Look at", list(PATTERN_VIEWS), horizontal=True, key="interventions_view")
+    choices = _unit_choices(api, PATTERN_VIEWS[view])
+    if not choices:
+        st.markdown("The records show no discipline actions to work with.")
+        return
+    labels = [label for label, _ in choices]
+    picked = st.selectbox("Where", labels, key="interventions_unit")
+    unit = dict(choices)[picked]
+
+    with st.form("intervention"):
+        name = st.text_input("What is proposed", key="iv_name")
+        one, two, three = st.columns(3)
+        one_time = one.number_input("One-time cost ($)", min_value=0.0, step=1000.0, key="iv_once")
+        per_person = two.number_input(
+            "Yearly cost per person covered ($)", min_value=0.0, step=10.0, key="iv_each"
+        )
+        people = three.number_input("People covered", min_value=0, step=1, key="iv_people")
+        four, five = st.columns(2)
+        other = four.number_input(
+            "Other yearly cost ($)", min_value=0.0, step=1000.0, key="iv_other"
+        )
+        years = five.number_input(
+            "Years to look ahead", min_value=1, max_value=10, value=3, key="iv_years"
+        )
+        st.markdown(
+            "**How much of this discipline would it prevent?** Your judgement, three ways. "
+            "The product has no figure of its own for this."
+        )
+        low, expected, high = st.columns(3)
+        r_low = low.number_input("Low (%)", min_value=0.0, max_value=100.0, key="iv_low")
+        r_exp = expected.number_input("Expected (%)", min_value=0.0, max_value=100.0, key="iv_exp")
+        r_high = high.number_input("High (%)", min_value=0.0, max_value=100.0, key="iv_high")
+        basis = st.text_area(
+            "What those three figures are based on",
+            key="iv_basis",
+            help="For example: what the site visit found, a pilot elsewhere, a published "
+            "study. It is shown with the result.",
+        )
+        go = st.form_submit_button("Work it out")
+    if not go:
+        return
+
+    def share(percent: float) -> str:
+        return str(Decimal(str(percent)) / Decimal(100))
+
+    proposal = {
+        "name": name,
+        "one_time_cost": str(one_time),
+        "annual_cost_per_person": str(per_person),
+        "people_covered": int(people),
+        "other_annual_cost": str(other),
+        "years": int(years),
+        "reduction_low": share(r_low),
+        "reduction_expected": share(r_exp),
+        "reduction_high": share(r_high),
+        "basis": basis,
+    }
+    try:
+        result = api.appraise(unit, proposal, mode())
+    except ApiError as exc:
+        problems = exc.detail.get("problems") if isinstance(exc.detail, dict) else None
+        if not problems:
+            st.error(str(exc))
+            return
+        st.error("This cannot be worked out yet:")
+        for problem in problems:
+            st.markdown(f"- {problem[0].upper()}{problem[1:]}.")
+        return
+    _show_appraisal(result)
+
+
+def _show_appraisal(result: dict) -> None:
+    unit, proposal = result["unit"], result["intervention"]
+    expected = result["scenarios"][1]
+    st.subheader(f"{proposal['name']}: {unit['name']}")
+    one, two, three = st.columns(3)
+    one.metric(
+        "The discipline costs, a year",
+        money(unit["annual_net"]),
+        help="From the cost baseline: " + unit["formula"] + ".",
+    )
+    two.metric(
+        f"The intervention costs, over {proposal['years']} years",
+        money(proposal["total_cost"]),
+        help=proposal["cost_formula"] + ".",
+    )
+    three.metric(
+        "Net saving, as expected",
+        money(expected["net_saving"]),
+        help="A projection, and not part of the cost baseline. " + expected["formula"] + ".",
+    )
+    st.markdown(f"**{result['break_even_note']}**")
+    st.dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "If it works": s["label"],
+                    "Actions prevented": f"{(Decimal(s['reduction']) * 100).normalize():f}%",
+                    "Actions prevented, a year": s["actions_prevented_per_year"],
+                    "Cost prevented, a year": money(s["prevented_per_year"]),
+                    f"Cost prevented, {proposal['years']} years": money(s["prevented_total"]),
+                    "Net saving": money(s["net_saving"]),
+                }
+                for s in result["scenarios"]
+            ]
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+    st.caption(f"Based on: {proposal['basis']}")
+    with st.expander("How this was worked out, and what it assumes"):
+        st.markdown(f"- The discipline costs, a year: {unit['formula']}.")
+        st.markdown(f"- The intervention costs: {proposal['cost_formula']}.")
+        for s in result["scenarios"]:
+            st.markdown(f"- {s['label']}: {s['formula']}.")
+        st.markdown("**It assumes:**")
+        for line in result["assumes"]:
+            st.markdown(f"- {line}")
+    st.caption(result["note"])
+
+
+# ---------------------------------------------------------------------------
 # page 3 - drill-down
 # ---------------------------------------------------------------------------
 def drill_down(api: EngineClient) -> None:
@@ -1196,6 +1364,7 @@ PAGE_FUNCTIONS = {
     "Cost matrix": cost_matrix,
     "Drill-down": drill_down,
     "Patterns": patterns_page,
+    "Interventions": interventions_page,
     "Assumptions": assumptions_page,
     "Data quality": data_quality,
     "Load data": licensed.load_data_page,

@@ -93,6 +93,7 @@ the same `make ui` serves the demo and a licensed installation.
 | Executive summary, Cost matrix, Data quality | everyone | The results, labelled with the client's name |
 | Drill-down | lead and analyst | One action, every line item |
 | Patterns | everyone (the working: lead and analyst) | Where a type of misconduct is more frequent than the same job shows elsewhere, and what it costs there |
+| Interventions | lead and analyst | What doing something about a pattern would cost, against what the discipline costs there |
 | Assumptions | everyone | The registry; the lead also sets client-specific values, each with a reason |
 
 A page a role cannot use is not offered, but the server is what refuses it. Choices made on
@@ -450,12 +451,43 @@ unit's earlier attendance actions out, and the rise is then found and nothing el
 `GET /detection/drift` is the endpoint. Rising units are on the Patterns page; they are not
 in the client report yet.
 
+## Interventions (Phase 3, first step)
+
+Phase 2 says where a type of misconduct clusters and what it costs. Phase 3 starts when
+someone goes there, finds out what is going on, and proposes to do something about it. The
+**Interventions** page does the arithmetic of that proposal:
+
+- **What the discipline costs** comes from the cost baseline: the net cost of that unit's
+  actions of that type, per year.
+- **What the intervention costs** is what the consultant enters: a one-time cost, a yearly
+  cost for each person covered, any other yearly cost, and how many years to look ahead.
+- **How well it works** is the consultant's judgement, entered as a low, an expected and a
+  high share of the actions it would prevent, with the basis for those figures in words.
+  The product has no figure of its own for this and will not proceed without the basis.
+
+It then shows the net saving three ways, and one figure that needs no judgement: the share
+of actions the intervention must prevent to pay for itself.
+
+What holds:
+
+- **The software does not find causes.** People do, on site. The page says so and suggests
+  none.
+- **A saving is a projection, and no part of the cost baseline.** The page says what it
+  assumes: the unit goes on costing what it did, a prevented action costs the unit's
+  average, nothing is discounted, and only the cost of discipline counts as a benefit.
+- **For the lead and the analyst.** It works on any unit, whatever its size.
+- **Nothing is saved yet.** The result is worked out and shown; keeping an appraisal with
+  the engagement and putting it in the client report are the next steps.
+
+`POST /interventions/appraise` is the endpoint.
+
 ## What it deliberately does not do
 
-**No individual risk scoring.** **No trend detection yet** (which units are drifting): that
-is the next step of Phase 2. **No root-cause or intervention cost-benefit modelling** — that
-is Phase 3. **Nothing in the cost baseline is probability-weighted**: a cost is counted only
-when the record shows the event happened.
+**No individual risk scoring.** **No finding of causes**: a person does that on site, and
+nothing in the product suggests one. **No figure for how well an intervention works**: that
+is the consultant's judgement, entered with its basis. **Nothing in the cost baseline is
+probability-weighted**: a cost is counted only when the record shows the event happened,
+and a projected saving is never added to it.
 
 The synthetic data contains one deliberately planted pattern — elevated attendance violations
 for Corrections Officers at the Main Detention Center. The cost baseline surfaces it as an
@@ -516,6 +548,7 @@ the signed-in user's membership.
 | `GET /costs/summary` | Headline figures |
 | `GET /costs/actions/{id}` | Every line item with its formula (role-gated) |
 | `GET /detection/hotspots` | Where a type of misconduct clusters, with its cost (`by=misconduct` or `overall`). Flagged units for every role; the working for roles that see records |
+| `POST /interventions/appraise` | What an intervention would cost against what a unit's discipline costs: net saving three ways, and the share it must prevent to pay for itself (lead and analyst) |
 | `GET /detection/drift` | Where a type of misconduct is rising: the later half of the period against the earlier, set against the change in the rest of the organization. Same views and same roles |
 | `GET /assumptions` | The registry with sources and statuses |
 | `POST /scenarios/run` | Re-run with overridden assumptions; nothing on disk changes |

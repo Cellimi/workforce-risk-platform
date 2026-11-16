@@ -942,3 +942,84 @@ def test_patterns_is_offered_to_everyone_and_the_working_only_to_record_roles(se
     assert not at.error, [e.value for e in at.error]
     assert "comparisons made" in texts(at)
     assert not any("not flagged" in label for label in expanders(at))
+
+
+# ---------------------------------------------------------------------------
+# interventions (Phase 3) on screen
+# ---------------------------------------------------------------------------
+def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tmp_path):
+    """A role that sees records picks a unit, types what is proposed and how well they
+    expect it to work, and is shown the cost against the saving. Without the basis for
+    that expectation it is refused, in words. A reader of totals is told why not."""
+    from wri_engine.api.state import STATE
+    from wri_engine.paths import SYNTHETIC_DIR
+
+    STATE.load(SYNTHETIC_DIR / "sample")
+    app = create_app(Settings(auth_mode="demo", data_dir=tmp_path))
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    try:
+        at = open_app(f"http://127.0.0.1:{port}")
+        labelled(at.sidebar.selectbox, "Role").set_value("hr_analyst")
+        at.run()
+        at = go(at, "Interventions")
+        assert not at.exception, at.exception
+        assert "does not suggest a cause" in texts(at)
+        where = labelled(at.selectbox, "Where")
+        assert len(where.options) > 20
+        picked = where.value
+
+        def fill(basis: str):
+            at.text_input(key="iv_name").set_value("Flexible start times")
+            at.number_input(key="iv_once").set_value(5000.0)
+            at.number_input(key="iv_each").set_value(100.0)
+            at.number_input(key="iv_people").set_value(30)
+            at.number_input(key="iv_years").set_value(2)
+            at.number_input(key="iv_low").set_value(10.0)
+            at.number_input(key="iv_exp").set_value(25.0)
+            at.number_input(key="iv_high").set_value(40.0)
+            at.text_area(key="iv_basis").set_value(basis)
+            labelled(at.button, "Work it out").click()
+            at.run()
+            assert not at.exception, at.exception
+
+        fill("")
+        assert "This cannot be worked out yet:" in texts(at)
+        assert "this product has no figure of its own for how well an intervention works" in (
+            texts(at)
+        )
+        assert not at.metric
+
+        fill("What the site visit found.")
+        shown = texts(at)
+        assert f"Flexible start times: {picked.split('  (')[0]}" in shown
+        # 5,000 once, and 100 x 30 people a year for two years.
+        assert metric(at, "The intervention costs, over 2 years") == "$11,000"
+        assert metric(at, "The discipline costs, a year").startswith("$")
+        assert metric(at, "Net saving, as expected")
+        assert "It pays for itself if it prevents" in shown or "cannot pay for itself" in shown
+        assert "Based on: What the site visit found." in shown
+        assert "A projection, and no part of the cost baseline." in shown
+        table = at.dataframe[0].value
+        assert list(table["If it works"]) == ["Low", "Expected", "High"]
+        assert list(table["Actions prevented"]) == ["10%", "25%", "40%"]
+        import re
+
+        assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
+
+        labelled(at.sidebar.selectbox, "Role").set_value("executive")
+        at.run()
+        assert not at.exception, at.exception
+        told = " ".join(w.value for w in at.warning)
+        assert "for the roles that see records" in told
+        assert not at.metric
+    finally:
+        srv.should_exit = True
+        thread.join(timeout=5)
+        STATE.load(SYNTHETIC_DIR / "sample")
