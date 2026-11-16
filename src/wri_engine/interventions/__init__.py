@@ -14,9 +14,25 @@ from wri_engine.interventions.appraisal import (
     appraise,
     unit_baseline,
 )
+from wri_engine.interventions.findings import (
+    AppraisalBook,
+    Cause,
+    CauseList,
+    KeptAppraisal,
+    clean_text,
+    finding_problems,
+    load_causes,
+)
 
 __all__ = [
     "Appraisal",
+    "AppraisalBook",
+    "Cause",
+    "CauseList",
+    "KeptAppraisal",
+    "clean_text",
+    "finding_problems",
+    "load_causes",
     "Intervention",
     "InvalidIntervention",
     "Scenario",

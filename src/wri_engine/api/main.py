@@ -21,11 +21,13 @@ Every request is written to the append-only audit log before its response is bui
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import shutil
+import uuid
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -93,7 +95,11 @@ from wri_engine.detection import (
 from wri_engine.interventions import (
     Intervention,
     InvalidIntervention,
+    KeptAppraisal,
     appraise,
+    clean_text,
+    finding_problems,
+    load_causes,
     unit_baseline,
 )
 from wri_engine.paths import SYNTHETIC_DIR
@@ -914,12 +920,7 @@ def appraise_intervention(body: AppraisalRequest, ctx: Ctx = Depends(get_ctx)) -
     """
     state = ctx.state
     _guard(ctx, Capability.VIEW_RECORDS, "/interventions/appraise")
-    unit = {
-        "role_family": body.role_family,
-        "work_location": body.work_location,
-        "misconduct_category": body.misconduct_category,
-    }
-    _audit(ctx, "/interventions/appraise", detail={**unit, "mode": body.mode})
+    _audit(ctx, "/interventions/appraise", detail={**_unit_of(body), "mode": body.mode})
     state.ensure_loaded()
     run = state.run(mode=body.mode)
     baseline = unit_baseline(
@@ -927,7 +928,28 @@ def appraise_intervention(body: AppraisalRequest, ctx: Ctx = Depends(get_ctx)) -
     )
     if baseline is None:
         raise HTTPException(404, "the records show no discipline action for that unit")
-    proposal = Intervention(
+    try:
+        result = appraise(baseline, _proposal_of(body))
+    except InvalidIntervention as exc:
+        raise HTTPException(422, {"problems": exc.problems}) from None
+    return {
+        "caption": _caption(ctx),
+        "note": APPRAISAL_NOTE,
+        "mode": body.mode,
+        **result.as_dict(),
+    }
+
+
+def _unit_of(body: AppraisalRequest) -> dict:
+    return {
+        "role_family": body.role_family,
+        "work_location": body.work_location,
+        "misconduct_category": body.misconduct_category,
+    }
+
+
+def _proposal_of(body: AppraisalRequest) -> Intervention:
+    return Intervention(
         name=body.name,
         one_time_cost=body.one_time_cost,
         annual_cost_per_person=body.annual_cost_per_person,
@@ -939,16 +961,160 @@ def appraise_intervention(body: AppraisalRequest, ctx: Ctx = Depends(get_ctx)) -
         reduction_high=body.reduction_high,
         basis=body.basis,
     )
-    try:
-        result = appraise(baseline, proposal)
-    except InvalidIntervention as exc:
-        raise HTTPException(422, {"problems": exc.problems}) from None
+
+
+class KeepRequest(AppraisalRequest):
+    """An appraisal to keep with the engagement, with what the investigation found."""
+
+    causes: list[str] = Field(..., description="Ids from GET /interventions/causes")
+    other_cause: str = Field("", description='A line of words, only with the cause "other"')
+
+
+FINDING_NOTE = (
+    "A cause is what a person found on site and entered here. The product did not find it "
+    "and does not check it. Each one says who entered it. The saving beside it is worked "
+    "out afresh from the cost baseline as it stands now, and is a projection."
+)
+
+
+def _entered_by(ctx: Ctx) -> str:
+    """Whose finding it is, as the screen will say it."""
+    if ctx.user is None:
+        return f"Walkthrough user ({ctx.role})"
+    return f"{ctx.user.name} ({ctx.user.email})" if ctx.user.name else ctx.user.email
+
+
+def _kept_view(kept: KeptAppraisal, run) -> dict:
+    """A kept appraisal as it is shown: the finding as entered, and the saving as the cost
+    baseline now gives it."""
+    allowed = load_causes()
+    view = {
+        "id": kept.id,
+        "role_family": kept.row,
+        "work_location": kept.col,
+        "misconduct_category": kept.topic,
+        "finding": {
+            "causes": [
+                {"id": c, "label": allowed.get(c).label if allowed.get(c) else c}
+                for c in kept.causes
+            ],
+            "other_cause": kept.other_cause,
+            "entered_by": kept.entered_by,
+            "entered_at": kept.entered_at,
+        },
+    }
+    baseline = unit_baseline(run, kept.row, kept.col, kept.topic, window_years(run))
+    if baseline is None:
+        # A corrected file can leave a unit with no actions. The finding stands; there is
+        # nothing to set the intervention against.
+        return {**view, "appraisal": None, "intervention": kept.intervention.as_dict()}
+    return {**view, "appraisal": appraise(baseline, kept.intervention).as_dict()}
+
+
+@router.get("/interventions/causes", tags=["interventions"])
+def intervention_causes(ctx: Ctx = Depends(get_ctx)) -> dict:
+    """The causes an investigation may record: a short fixed list, and "Other"."""
+    _guard(ctx, Capability.VIEW_RECORDS, "/interventions/causes")
+    return load_causes().as_dict()
+
+
+@router.get("/interventions", tags=["interventions"])
+def kept_interventions(
+    mode: str = Query("base", pattern="^(low|base|high)$"),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """The appraisals kept with this engagement: what was found on site, by whom, what was
+    proposed, and what it would save as the cost baseline now stands.
+
+    For roles that see records: a kept appraisal gives a unit's cost whatever its size,
+    and "Other" carries words about a client's workplace.
+    """
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_RECORDS, "/interventions")
+    _audit(ctx, "/interventions", detail={"mode": mode})
+    state.ensure_loaded()
+    run = state.run(mode=mode)
+    everything = state.appraisals.everything()
     return {
         "caption": _caption(ctx),
-        "note": APPRAISAL_NOTE,
-        "mode": body.mode,
-        **result.as_dict(),
+        "note": FINDING_NOTE,
+        "mode": mode,
+        "kept": [_kept_view(k, run) for k in everything if not k.is_withdrawn],
+        "withdrawn": sum(1 for k in everything if k.is_withdrawn),
     }
+
+
+@router.post("/interventions", tags=["interventions"])
+def keep_intervention(body: KeepRequest, ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Keep an appraisal with the engagement, as the record of a finding.
+
+    At least one cause must be chosen from the list, by the person asking: the product
+    suggests none. Words are kept only with "Other", and only a line of them. Refused with
+    every reason when the proposal or the finding cannot stand.
+    """
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_RECORDS, "/interventions")
+    state.ensure_loaded()
+    run = state.run(mode=body.mode)
+    baseline = unit_baseline(
+        run, body.role_family, body.work_location, body.misconduct_category, window_years(run)
+    )
+    if baseline is None:
+        raise HTTPException(404, "the records show no discipline action for that unit")
+    proposal = _proposal_of(body)
+    problems = proposal.problems() + finding_problems(body.causes, body.other_cause, load_causes())
+    if problems:
+        _audit(ctx, "/interventions", outcome="refused", detail=_unit_of(body))
+        raise HTTPException(422, {"problems": problems})
+    kept = KeptAppraisal(
+        id=uuid.uuid4().hex[:12],
+        row=body.role_family,
+        col=body.work_location,
+        topic=body.misconduct_category,
+        intervention=dataclasses.replace(
+            proposal, name=clean_text(proposal.name), basis=clean_text(proposal.basis)
+        ),
+        causes=tuple(body.causes),
+        other_cause=clean_text(body.other_cause),
+        entered_by=_entered_by(ctx),
+        entered_at=datetime.now(UTC).replace(microsecond=0).isoformat(),
+    )
+    state.appraisals.keep(kept)
+    # The audit log says that a finding was kept and for which unit. The words stay in the
+    # engagement's folder.
+    _audit(
+        ctx,
+        "/interventions",
+        detail={**_unit_of(body), "id": kept.id, "causes": list(kept.causes), "kept": True},
+    )
+    return {
+        "caption": _caption(ctx),
+        "note": FINDING_NOTE,
+        "mode": body.mode,
+        **_kept_view(kept, run),
+    }
+
+
+@router.delete("/interventions/{appraisal_id}", tags=["interventions"])
+def withdraw_intervention(appraisal_id: str, ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Withdraw a kept appraisal. It stops being shown; the record that it was kept, and by
+    whom it was withdrawn, stays in the engagement's folder."""
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_RECORDS, "/interventions")
+    done = state.appraisals.withdraw(
+        appraisal_id,
+        by=_entered_by(ctx),
+        at=datetime.now(UTC).replace(microsecond=0).isoformat(),
+    )
+    _audit(
+        ctx,
+        "/interventions",
+        outcome="ok" if done else "not_found",
+        detail={"id": appraisal_id, "withdrawn": done},
+    )
+    if not done:
+        raise HTTPException(404, "no kept appraisal with that id")
+    return {"id": appraisal_id, "withdrawn": True}
 
 
 # ---------------------------------------------------------------------------

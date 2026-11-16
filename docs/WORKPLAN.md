@@ -53,7 +53,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 2, step 2: the flagged patterns in the client report | Claude Code session | Done, PR #22 |
 | Phase 2, step 3: drift (where a type of misconduct is rising) | Claude Code session | Done, PR #23 |
 | Owner's decisions of 2026-11-16: thresholds reviewed, client reader confirmed, small-group rules kept, Phase 3 opened | Claude Code session | Done, PR #24 (built on PR #23) |
-| Phase 3, step 1: the cost-benefit of an intervention for a unit | Claude Code session | Done, `claude/phase3-appraisal` (built on PR #24) |
+| Phase 3, step 1: the cost-benefit of an intervention for a unit | Claude Code session | Done, PR #25 (built on PR #24) |
+| Phase 3, step 2: keeping an appraisal with the engagement, with the causes found | Claude Code session | Done, `claude/phase3-kept-appraisals` (built on PR #25) |
 
 ## Where things stand
 
@@ -287,19 +288,45 @@ build's proposal and the decisions in them are his to change.
 | Who may use it | Engagement lead and analyst | It works on any unit, whatever its size |
 | Saving the result | Not yet: worked out and shown | Where an engagement's investigation notes may be kept is a decision of its own (rule 12) |
 
+### Step 2, built: keeping an appraisal, with what was found
+
+`src/wri_engine/interventions/findings.py`, `config/interventions.yaml`,
+`GET/POST /interventions`, `DELETE /interventions/{id}`, `GET /interventions/causes`, and
+**Work it out and keep** on the Interventions page.
+
+**The owner's ruling, 2026-11-16**, on whether the product should hold free-text
+investigation notes: "short list with selection for Other and free text". So causes are
+chosen from a short fixed list, and only "Other" takes words.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| The list | Commuting burden; childcare or family-care gaps; missing training or education; inflexible scheduling; Other | The four his program overview names, and Other. It is in `config/interventions.yaml` and is his to lengthen |
+| How much "Other" may hold | One line, 300 characters | His ruling was a short list, not notes. A line names a condition; a page would be interview notes |
+| Must a cause be chosen to keep an appraisal | Yes, at least one | It is kept as the record of a finding. Working one out without keeping it needs none |
+| Whose finding | The signed-in person's name and email, and the time, kept with it and shown with it | CLAUDE.md: the screen says whose finding it is |
+| Where it is kept | `engagements/<id>/interventions/appraisals.jsonl`, not the database | The words are a client's confidential material (rule 12). A backup carries the folder |
+| Changing one | Not possible. Withdraw it and keep another | The file is only ever added to (rule 15), so it is also the history |
+| What is kept | Inputs only | The saving is worked out afresh from the baseline each time, so it cannot go stale |
+| Who may read or write | Engagement lead and analyst | A kept appraisal gives a unit's cost whatever its size, and "Other" is about a client's workplace |
+| The audit log | That a finding was kept, for which unit, with which listed causes. Never the words | The log is the installation's; the words are the client's |
+| Stored-data version | Not raised | An older version ignores the new file and can still read everything else |
+
+**Worth knowing.** Nothing stops a person typing a name into "Other". The box says not to,
+it is one line, and only the lead and the analyst can read it, but it is not checked.
+
 ### Not built, in the order proposed
 
-1. **Keeping an appraisal with the engagement**, with the investigation's findings: what
-   was found on site, by whom, and which interventions were weighed. Interview notes are a
-   client's confidential material and can name people, so where they live and who may read
-   them needs the owner's ruling before it is built.
-2. **The cost-benefit in the client report.** The overview's deliverable to management.
-   It needs step 1, and the small-group rules for a unit's cost in a client's copy.
-3. **Comparing several interventions for one unit**, side by side.
-4. **Typical costs and effects of common interventions** (transit, childcare, training,
+1. **The cost-benefit in the client report.** The overview's deliverable to management:
+   what was found, what is proposed, what it would cost and save. It needs a ruling on
+   whether the client's copy may carry the words typed for "Other", and it brings the
+   small-group rules into play for a unit's cost.
+2. **Comparing several interventions for one unit**, side by side.
+3. **Typical costs and effects of common interventions** (transit, childcare, training,
    flexible hours), researched and cited. Every such figure is an assumption: researched,
    marked as such, and reviewed by the owner before any report uses it.
-5. **Checking afterwards whether it worked**: the unit's rate after an intervention began
+4. **Checking afterwards whether it worked**: the unit's rate after an intervention began
    against before. Drift already has the arithmetic.
 
 ## Single sign-on

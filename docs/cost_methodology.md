@@ -1033,6 +1033,14 @@ It is the share of these actions the intervention must prevent to pay for itself
 **What it does not do.** It does not say why the unit's rate is what it is, and it does not
 suggest what to do. Both come from a person's investigation.
 
+**Keeping an appraisal.** An appraisal can be kept with the engagement as the record of a
+finding. The person keeping it chooses one or more causes from a short fixed list
+(commuting burden, childcare or family-care gaps, missing training or education, inflexible
+scheduling, or Other with a line of words), and the record says who entered it and when.
+Only the inputs are kept: the unit, the causes and the consultant's figures. X, and so
+every saving, is worked out afresh from the cost baseline each time a kept appraisal is
+shown.
+
 On the synthetic county, attendance among corrections officers at the main detention center
 costs $232,626 over 2.91 years, $79,940 a year. An intervention costing $246,000 over three
 years could not pay for itself on that alone; one costing $60,000 would need to prevent a

@@ -73,7 +73,7 @@ which branch a pull request targets, and which session has claimed which item.
 
 | Path | What lives there |
 |---|---|
-| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `org_county.yaml` (departments, grades, taxonomies) |
+| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `interventions.yaml` (the causes an investigation may record), `org_county.yaml` (departments, grades, taxonomies) |
 | `src/wri_engine/schema/` | Canonical Pydantic models. Source formats never appear here. |
 | `src/wri_engine/adapters/` | One module per source system. Each returns a `CanonicalDataset`. |
 | `src/wri_engine/generator/` | Synthetic data generator, emits *source-format* CSV |
@@ -84,7 +84,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only, and of the patterns it holds the flagged units only; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/detection/` | Phase 2. `hotspots.py`: which units' discipline rate stands out from the same job elsewhere. `drift.py`: which are rising, and rising more than the rest of the organization. Exact statistics checkable by hand (`stats.py`). Settings in `config/detection.yaml` |
-| `src/wri_engine/interventions/` | Phase 3. `appraisal.py`: what an intervention would cost, set against what a unit's discipline costs in the baseline. The consultant supplies the costs and how well it works; the product supplies no effect size |
+| `src/wri_engine/interventions/` | Phase 3. `appraisal.py`: what an intervention would cost, set against what a unit's discipline costs in the baseline. The consultant supplies the costs and how well it works; the product supplies no effect size. `findings.py`: the appraisals kept with an engagement and the causes found on site, in the engagement's own folder |
 | `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
@@ -152,6 +152,12 @@ what the discipline costs):
 - **The software does not find causes.** People do, on site. A cause is something a named
   person entered after an investigation, never something inferred from the data, and the
   screen says whose finding it is.
+- **A cause is chosen from the short list in `config/interventions.yaml`.** Only "Other"
+  takes words, and only a line. Interview notes do not go into the product. Do not add a
+  free-text notes field without the owner asking for exactly that (decided 2026-11-16).
+- **A finding is the client's material.** It is kept in the engagement's folder, never the
+  database (rule 12), only ever added to (rule 15), and shown only to roles that see
+  records. The audit log says that one was kept, never what it said.
 - **A projection is never a baseline figure.** What an intervention would cost and save is
   an estimate about the future. It is labelled as one, it shows the range it rests on, and
   it is never added to or netted against anything in the cost baseline (rule 9).

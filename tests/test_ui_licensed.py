@@ -1013,6 +1013,45 @@ def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tm
 
         assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
 
+        # Keeping it: refused without a finding, because the product suggests none.
+        assert "Nothing has been kept yet." in shown
+        labelled(at.button, "Work it out and keep").click()
+        at.run()
+        assert not at.exception, at.exception
+        assert "This cannot be kept yet:" in texts(at)
+        assert "Say what the investigation found: choose at least one cause" in texts(at)
+
+        causes = labelled(at.multiselect, "Causes found")
+        assert causes.options == [
+            "Commuting burden",
+            "Childcare or family-care gaps",
+            "Missing training or education",
+            "Inflexible scheduling",
+            "Other",
+        ]
+        causes.set_value(["Inflexible scheduling", "Other"])
+        at.text_input(key="iv_other_cause").set_value(
+            "The first bus arrives after the shift starts"
+        )
+        labelled(at.button, "Work it out and keep").click()
+        at.run()
+        assert not at.exception, at.exception
+        shown = texts(at)
+        assert (
+            "Kept with this engagement, as the finding of Walkthrough user (hr_analyst)." in shown
+        )
+        assert "Found on site: Inflexible scheduling, Other." in shown
+        assert "Other: The first bus arrives after the shift starts" in [t.value for t in at.text]
+        assert "The finding of Walkthrough user (hr_analyst), entered" in shown
+        assert "Not found or checked by this product." in shown
+        assert "Nothing has been kept yet." not in shown
+
+        labelled(at.button, "Withdraw").click()
+        at.run()
+        assert not at.exception, at.exception
+        assert "Nothing has been kept yet." in texts(at)
+        assert "1 withdrawn." in texts(at)
+
         labelled(at.sidebar.selectbox, "Role").set_value("executive")
         at.run()
         assert not at.exception, at.exception
@@ -1023,3 +1062,4 @@ def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tm
         srv.should_exit = True
         thread.join(timeout=5)
         STATE.load(SYNTHETIC_DIR / "sample")
+        STATE._appraisals = None
