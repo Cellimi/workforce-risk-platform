@@ -55,7 +55,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Owner's decisions of 2026-11-16: thresholds reviewed, client reader confirmed, small-group rules kept, Phase 3 opened | Claude Code session | Done, PR #24 (built on PR #23) |
 | Phase 3, step 1: the cost-benefit of an intervention for a unit | Claude Code session | Done, PR #25 (built on PR #24) |
 | Phase 3, step 2: keeping an appraisal with the engagement, with the causes found | Claude Code session | Done, PR #26 (built on PR #25) |
-| Phase 3, step 3: the cost-benefit in the client report | Claude Code session | Done, `claude/phase3-report` (built on PR #26) |
+| Phase 3, step 3: the cost-benefit in the client report | Claude Code session | Done, PR #27 |
+| Phase 3, step 4: several interventions for one unit, side by side | Claude Code session | Done, `claude/phase3-compare` |
 
 ## Where things stand
 
@@ -346,14 +347,31 @@ sits a few people away from cells of the report's own matrix. An appraisal for o
 misconduct in a flagged unit is shown in full. This follows from keeping the small-group
 rules as they are.
 
+### Step 4, built: several interventions for one unit, side by side
+
+`src/wri_engine/interventions/comparison.py`, `side_by_side` in `GET /interventions`, a
+table on the Interventions page, and the same table in the report and the workbook.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| What is compared | Appraisals kept for the same job, location and type of misconduct, two or more | Different units cost different amounts; setting them against each other would say nothing |
+| On what terms | Per year: each proposal's own cost and net saving divided by its own years | One may look three years ahead and another five |
+| The order | By the share each must prevent to pay for itself, least first | It is the one figure that needs no judgement. Ordering by expected saving would rank one person's estimate over another's |
+| A winner | None is named | The product supplies no evidence on what works. The choice is the client's |
+| Adding savings | Never. The page and the report say they are alternatives | Two interventions aimed at the same actions do not prevent the sum of what each prevents alone |
+| In the client's copy | Only appraisals shown with their money are compared | A comparison gives each cost against the unit's, so it may carry no more than the entries do |
+
 ### Not built, in the order proposed
 
-1. **Comparing several interventions for one unit**, side by side.
-2. **Typical costs and effects of common interventions** (transit, childcare, training,
+1. **Typical costs and effects of common interventions** (transit, childcare, training,
    flexible hours), researched and cited. Every such figure is an assumption: researched,
    marked as such, and reviewed by the owner before any report uses it.
-3. **Checking afterwards whether it worked**: the unit's rate after an intervention began
+2. **Checking afterwards whether it worked**: the unit's rate after an intervention began
    against before. Drift already has the arithmetic.
+3. **Interventions used together.** What two would save in combination is not the sum,
+   and nothing here estimates it.
 4. **Rising units in the client report** (Phase 2): still on the Patterns page only.
 
 ## Single sign-on

@@ -461,6 +461,16 @@ def _share(value: Decimal) -> str:
     return f"{(value * 100).normalize():f}%"
 
 
+def _break_even(share: Decimal | None) -> str:
+    """The share of actions an intervention must prevent to pay for itself, in words where
+    a percentage would mislead."""
+    if share is None:
+        return "nothing to save"
+    if share > 1:
+        return "cannot"
+    return f"{_share(share)} prevented"
+
+
 def _interventions(content: ReportContent, styles) -> list:
     """What was found on site, what is proposed, and what it would cost and save."""
     section = content.interventions
@@ -519,6 +529,56 @@ def _interventions(content: ReportContent, styles) -> list:
                 Paragraph(_text(row.break_even_note), styles["small"]),
             ]
         story.append(Paragraph(_text(f"Based on: {row.basis}"), styles["small"]))
+    for table in section.side_by_side:
+        story += [
+            Spacer(1, 8),
+            Paragraph(f"<b>Side by side: {_text(table.unit_name)}</b>", styles["body"]),
+            Paragraph(
+                _text(
+                    f"The discipline costs {money(table.annual_net)} a year. Each proposal "
+                    f"is put per year, so that those looking different distances ahead can "
+                    f"be read together."
+                ),
+                styles["body"],
+            ),
+            Spacer(1, 3),
+            _table(
+                [
+                    "Proposed",
+                    "For",
+                    "Costs, a year",
+                    "Pays for itself at",
+                    "Net saving a year: low",
+                    "expected",
+                    "high",
+                ],
+                [
+                    [
+                        option.name,
+                        option.found,
+                        money(option.yearly_cost),
+                        _break_even(option.break_even),
+                        money(option.yearly_net_low),
+                        money(option.yearly_net_expected),
+                        money(option.yearly_net_high),
+                    ]
+                    for option in table.options
+                ],
+                [
+                    1.55 * inch,
+                    1.3 * inch,
+                    0.8 * inch,
+                    0.85 * inch,
+                    0.8 * inch,
+                    0.8 * inch,
+                    0.75 * inch,
+                ],
+                styles,
+                right_from=2,
+            ),
+            Spacer(1, 3),
+            Paragraph(_text(" ".join(table.notes)), styles["small"]),
+        ]
     if section.not_shown:
         one = section.not_shown == 1
         concerns = "it concerns" if one else "they concern"

@@ -1046,11 +1046,33 @@ def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tm
         assert "Not found or checked by this product." in shown
         assert "Nothing has been kept yet." not in shown
 
+        # A second proposal for the same unit: the two are set side by side, per year.
+        assert "Side by side:" not in shown
+        at.text_input(key="iv_name").set_value("A rota change")
+        at.number_input(key="iv_once").set_value(1000.0)
+        at.number_input(key="iv_each").set_value(0.0)
+        at.number_input(key="iv_years").set_value(4)
+        labelled(at.button, "Work it out and keep").click()
+        at.run()
+        assert not at.exception, at.exception
+        shown = texts(at)
+        assert f"Side by side: {picked.split('  (')[0]}" in shown
+        assert "Their savings cannot be added" in shown
+        side = at.dataframe[-1].value
+        # 1,000 over four years is 250 a year; 5,000 + 3,000 x 2 over two is 5,500 a year.
+        assert list(side["Proposed"]) == ["A rota change", "Flexible start times"]
+        assert list(side["Costs, a year"]) == ["$250", "$5,500"]
+        assert list(side["For"]) == ["Inflexible scheduling, Other"] * 2
+
+        labelled(at.button, "Withdraw").click()
+        at.run()
+        assert not at.exception, at.exception
+        assert "Side by side:" not in texts(at) and "1 withdrawn." in texts(at)
         labelled(at.button, "Withdraw").click()
         at.run()
         assert not at.exception, at.exception
         assert "Nothing has been kept yet." in texts(at)
-        assert "1 withdrawn." in texts(at)
+        assert "2 withdrawn." in texts(at)
 
         labelled(at.sidebar.selectbox, "Role").set_value("executive")
         at.run()

@@ -404,6 +404,45 @@ def _interventions(book: Workbook, content: ReportContent) -> None:
         _put(sheet, row, 1, "Nothing shown.")
         row += 1
     row += 1
+    for table in section.side_by_side:
+        _put(sheet, row, 1, f"Side by side: {table.unit_name}", font=BOLD)
+        _put(sheet, row, 2, "The discipline costs, a year")
+        _put(sheet, row, 3, table.annual_net, number_format=MONEY)
+        row += 1
+        for column, title in enumerate(
+            [
+                "Proposed",
+                "For",
+                "Years",
+                "Costs, a year",
+                "Pays for itself at (share prevented)",
+                "Net saving a year: low",
+                "Net saving a year: expected",
+                "Net saving a year: high",
+            ],
+            start=1,
+        ):
+            _put(sheet, row, column, title, font=BOLD)
+        row += 1
+        for option in table.options:
+            _put(sheet, row, 1, option.name)
+            _put(sheet, row, 2, option.found)
+            _put(sheet, row, 3, option.years)
+            _put(sheet, row, 4, option.yearly_cost, number_format=MONEY)
+            if option.break_even is None:
+                _put(sheet, row, 5, "nothing to save")
+            elif option.break_even > 1:
+                _put(sheet, row, 5, "cannot")
+            else:
+                _put(sheet, row, 5, option.break_even, number_format="0.00%")
+            _put(sheet, row, 6, option.yearly_net_low, number_format=MONEY)
+            _put(sheet, row, 7, option.yearly_net_expected, number_format=MONEY)
+            _put(sheet, row, 8, option.yearly_net_high, number_format=MONEY)
+            row += 1
+        for note in table.notes:
+            _put(sheet, row, 1, note, font=MUTED)
+            row += 1
+        row += 1
     if section.not_shown:
         _put(
             sheet,

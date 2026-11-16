@@ -14,6 +14,7 @@ from wri_engine.interventions.appraisal import (
     appraise,
     unit_baseline,
 )
+from wri_engine.interventions.comparison import ComparedRow, UnitComparison, compare
 from wri_engine.interventions.findings import (
     AppraisalBook,
     Cause,
@@ -29,6 +30,7 @@ __all__ = [
     "AppraisalBook",
     "Cause",
     "CauseList",
+    "ComparedRow",
     "KeptAppraisal",
     "clean_text",
     "finding_problems",
@@ -37,6 +39,8 @@ __all__ = [
     "InvalidIntervention",
     "Scenario",
     "UnitBaseline",
+    "UnitComparison",
     "appraise",
+    "compare",
     "unit_baseline",
 ]

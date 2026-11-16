@@ -1041,6 +1041,18 @@ Only the inputs are kept: the unit, the causes and the consultant's figures. X, 
 every saving, is worked out afresh from the cost baseline each time a kept appraisal is
 shown.
 
+**Several for one unit, side by side.** Where two or more appraisals are kept for the same
+unit and type of misconduct, each is put per year so that proposals looking different
+distances ahead can be read together:
+
+    yearly cost       = Y / years
+    yearly net saving = Z / years   (for each of the three readings)
+
+Nothing else is worked out. They are listed by break-even share, lowest first, because
+that figure rests on no estimate of how well anything works. No proposal is named the
+best, and no savings are added together: two interventions aimed at the same actions do
+not prevent the sum of what each would prevent alone.
+
 **In the client report.** Each kept appraisal is printed with X, Y, the three savings and
 the break-even share, the causes by label, whose finding they are, and the stated basis.
 The client's copy shows "Other" as that word and nothing more. An appraisal for a unit
