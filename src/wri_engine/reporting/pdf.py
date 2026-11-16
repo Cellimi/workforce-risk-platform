@@ -454,6 +454,100 @@ def _patterns(content: ReportContent, styles) -> list:
             )
     if section.flagged:
         story += [Spacer(1, 4), Paragraph(_text(section.cost_note), styles["small"])]
+    story += _rising(section, styles)
+    return story
+
+
+def _times(value: Decimal | None) -> str:
+    return "n/a" if value is None else f"{value:.2f}"
+
+
+def _rising(section, styles) -> list:
+    """Units whose rate rose over the period, by more than the rest of the organization."""
+    rising = section.rising
+    if rising is None:
+        return []
+    story = [
+        Spacer(1, 8),
+        Paragraph("<b>Rising over the period</b>", styles["body"]),
+        Paragraph(_text(rising.note), styles["body"]),
+    ]
+    if rising.earlier_start:
+        story += [
+            Spacer(1, 3),
+            Paragraph(
+                _text(
+                    f"Earlier half: {rising.earlier_start.isoformat()} to "
+                    f"{rising.earlier_end.isoformat()}. Later half: "
+                    f"{rising.later_start.isoformat()} to {rising.later_end.isoformat()}. "
+                    f"The same thresholds apply, to the unit's own rise and to its rise "
+                    f"against the rest of the organization."
+                ),
+                styles["small"],
+            ),
+        ]
+    for view in rising.views:
+        story += [Spacer(1, 5), Paragraph(f"<i>{_text(view.label)}</i>", styles["body"])]
+        if not view.flagged:
+            nothing = (
+                f"{view.comparisons:,} comparisons were made and nothing rose by more than "
+                f"the rest of the organization."
+                if not view.withheld
+                else f"{view.comparisons:,} comparisons were made."
+            )
+            story.append(Paragraph(_text(nothing), styles["body"]))
+        else:
+            story += [
+                Paragraph(
+                    _text(f"{view.comparisons:,} comparisons were made. {len(view.flagged)} rose."),
+                    styles["body"],
+                ),
+                Spacer(1, 3),
+                _table(
+                    [
+                        "Where",
+                        "Actions, earlier then later",
+                        "Times its earlier rate",
+                        "Times the rise elsewhere",
+                        "Cost, earlier then later",
+                        "Estimated excess",
+                    ],
+                    [
+                        [
+                            row.name,
+                            f"{row.earlier_actions:,} then {row.later_actions:,}",
+                            _times(row.own_change),
+                            _times(row.ratio),
+                            f"{money(row.earlier_net)} then {money(row.later_net)}",
+                            money(row.estimated_excess_cost),
+                        ]
+                        for row in view.flagged
+                    ],
+                    [2.1 * inch, 0.85 * inch, 0.75 * inch, 0.8 * inch, 1.3 * inch, 1.0 * inch],
+                    styles,
+                    right_from=1,
+                ),
+            ]
+            for row in view.flagged:
+                worked = f"<b>{_text(row.name)}.</b> {_text(row.explanation)}"
+                if row.formula:
+                    worked += f" Estimated excess: {_text(row.formula)}."
+                story += [Spacer(1, 3), Paragraph(worked, styles["small"])]
+        if view.withheld:
+            one = view.withheld == 1
+            story.append(
+                Paragraph(
+                    _text(
+                        f"{view.withheld} more rose and {'is' if one else 'are'} not shown: "
+                        f"{'it' if one else 'they'} would state a figure about a group of "
+                        f"fewer than {section.min_people} people, or let one be worked out "
+                        f"from the other figures in this report."
+                    ),
+                    styles["small"],
+                )
+            )
+    if rising.flagged:
+        story += [Spacer(1, 4), Paragraph(_text(rising.cost_note), styles["small"])]
     return story
 
 

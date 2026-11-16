@@ -166,7 +166,7 @@ def test_the_working_papers_carry_the_working(county):
             headers=who("hr_analyst", "report-analyst"),
         )
     )
-    assert papers.sheetnames[-1] == "Patterns working"
+    assert papers.sheetnames[-2:] == ["Patterns working", "Rising working"]
     full = {
         by: county.get(
             "/detection/hotspots", params={"by": by}, headers=who("hr_analyst", "report-analyst")
@@ -204,8 +204,9 @@ def test_including_patterns_changes_no_other_figure(county, client_book):
             headers=who("executive", "report-reader"),
         )
     )
-    assert "Patterns" not in without.sheetnames
-    assert [n for n in client_book.sheetnames if n != "Patterns"] == without.sheetnames
+    assert "Patterns" not in without.sheetnames and "Rising" not in without.sheetnames
+    added = ("Patterns", "Rising")
+    assert [n for n in client_book.sheetnames if n not in added] == without.sheetnames
     for name in without.sheetnames:
         assert sheet_rows(client_book, name) == sheet_rows(without, name), name
     pdf = county.get(
@@ -214,6 +215,7 @@ def test_including_patterns_changes_no_other_figure(county, client_book):
         headers=who("executive", "report-reader"),
     )
     assert "Where discipline clusters" not in pdf_text(pdf.content)
+    assert "Rising over the period" not in pdf_text(pdf.content)
 
 
 def test_asking_twice_gives_the_same_report(county, client_pdf):

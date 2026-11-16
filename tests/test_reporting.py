@@ -137,6 +137,7 @@ def test_the_workbook_has_every_sheet_and_the_same_figures(demo_book, demo_summa
         "Low to high",
         "Cost matrix",
         "Patterns",
+        "Rising",
         "Departments",
         "Data quality",
         "Assumptions used",
@@ -475,7 +476,7 @@ def test_a_private_engagements_report_carries_its_own_components(tmp_path):
 # ---------------------------------------------------------------------------
 REAL_ID = re.compile(r"\bE\d{5}\b")
 MASKED_ID = re.compile(r"^EMP-[0-9A-F]{8}$")
-RECORD_SHEETS = ["Actions", "Line items", "Patterns working"]
+RECORD_SHEETS = ["Actions", "Line items", "Patterns working", "Rising working"]
 
 
 def working_papers(demo, who: str, **params):
@@ -531,7 +532,7 @@ def test_the_working_papers_add_up_to_the_report(analyst_papers, demo_summary):
     """Every action and every line item, summing to the cent to the figures the report
     gives. The sheets carry the engine's own amounts, not rounded copies of them."""
     book = analyst_papers
-    assert book.sheetnames[-3:] == RECORD_SHEETS
+    assert book.sheetnames[-4:] == RECORD_SHEETS
     actions = [r for r in sheet_rows(book, "Actions")[1:] if r[1]]
     items = [r for r in sheet_rows(book, "Line items")[1:] if r[1]]
     assert len(actions) == demo_summary["actions_costed"]

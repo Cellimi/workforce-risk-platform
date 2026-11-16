@@ -15,6 +15,7 @@ from wri_engine.reporting.content import (
     build_patterns,
     build_records,
     build_report,
+    build_rising,
     client_wording,
 )
 from wri_engine.reporting.pdf import render_pdf
@@ -30,6 +31,7 @@ __all__ = [
     "build_interventions",
     "build_patterns",
     "build_records",
+    "build_rising",
     "build_report",
     "client_wording",
     "render_pdf",

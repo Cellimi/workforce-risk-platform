@@ -1429,11 +1429,16 @@ def _report_patterns(ctx: Ctx, run, records: bool) -> PatternSection | None:
     the asker's own disclosure ledger, exactly as the matrix beside it is. The working
     papers are for a role that sees every record, and carry everything.
     """
-    views = []
+    views, rising = [], []
     for by in (BY_MISCONDUCT, OVERALL):
         report = _hotspot_report(ctx.state, run, by)
         views.append(report.as_dict() if records else report.for_totals_reader(ctx.ledger()))
-    return build_patterns(views)
+    # Rising units, under the same rule: the client's copy gets the flagged ones, each
+    # released against the asker's ledger; the working papers get everything.
+    for by in (BY_MISCONDUCT, OVERALL):
+        drift = _drift_report(ctx.state, run, by)
+        rising.append(drift.as_dict() if records else drift.for_totals_reader(ctx.ledger()))
+    return build_patterns(views, rising)
 
 
 def _report_interventions(ctx: Ctx, run, records: bool) -> InterventionSection | None:
@@ -1590,8 +1595,9 @@ INTERVENTIONS_IN_REPORT = (
     "label only."
 )
 PATTERNS_IN_REPORT = (
-    "Include where a type of misconduct clusters and what it costs there. The client's "
-    "copy carries the flagged units only; the working papers carry what was assessed."
+    "Include where a type of misconduct clusters and where it is rising, and what it costs "
+    "there. The client's copy carries the flagged units only; the working papers carry what "
+    "was assessed."
 )
 
 

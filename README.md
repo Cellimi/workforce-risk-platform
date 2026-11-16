@@ -132,7 +132,7 @@ Two files, both from the **Executive summary** page (`Prepare the report`), or f
 - **A report to read (PDF).** A cover carrying the consulting firm's name and logo, the
   headline figures, where the money goes, the low-to-high range, where the cost
   concentrates, **where discipline clusters** (the flagged patterns, each with what those
-  actions cost), **what was found and what could be done** (the interventions weighed, each
+  actions cost, and the units rising over the period), **what was found and what could be done** (the interventions weighed, each
   with its cost and saving), what the records could not support, and two appendices: the assumptions
   these figures actually used with the source of each, and the values specific to this
   client with who set them and why.
@@ -449,8 +449,16 @@ figure about the two.
 On the synthetic county nothing is rising, which is right: the generator makes one unit's
 rate higher throughout and changes no rate over time. A test takes three in four of that
 unit's earlier attendance actions out, and the rise is then found and nothing else is.
-`GET /detection/drift` is the endpoint. Rising units are on the Patterns page; they are not
-in the client report yet.
+`GET /detection/drift` is the endpoint.
+
+Rising units also go into the client report and workbook, under "Where discipline
+clusters", by the same rules as the flagged patterns: the client's copy carries the flagged
+units only, each released under the small-group rules, and says when one is held back; the
+working papers carry everything assessed. A rising unit's finding gives figures for five
+groups (the unit in each half and across both, and the rest of the organization in each
+half), so it is held back more often than a level is. On the county with a rise planted in
+it, the rise is held back from a client's report, because the rest of the organization's
+earlier half sits a few people away from small cells of the report's own matrix.
 
 ## Interventions (Phase 3, first step)
 

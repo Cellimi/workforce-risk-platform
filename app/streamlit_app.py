@@ -194,11 +194,11 @@ def report_downloads(api: EngineClient) -> None:
         "what your role may see: small groups are withheld exactly as they are on screen."
     )
     patterns = st.checkbox(
-        "Include where discipline clusters (the Patterns page)",
+        "Include where discipline clusters and where it is rising (the Patterns page)",
         value=True,
         key="report_patterns",
-        help="The flagged units and what they cost. What was assessed and not flagged goes "
-        "in the working papers only.",
+        help="The flagged units and what they cost, and the units rising over the period. "
+        "What was assessed and not flagged goes in the working papers only.",
     )
     interventions = st.checkbox(
         "Include what was found on site and what is proposed (kept on the Interventions page)",
