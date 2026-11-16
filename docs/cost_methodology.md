@@ -1041,6 +1041,14 @@ Only the inputs are kept: the unit, the causes and the consultant's figures. X, 
 every saving, is worked out afresh from the cost baseline each time a kept appraisal is
 shown.
 
+**In the client report.** Each kept appraisal is printed with X, Y, the three savings and
+the break-even share, the causes by label, whose finding they are, and the stated basis.
+The client's copy shows "Other" as that word and nothing more. An appraisal for a unit
+where fewer people were disciplined than the minimum group is left out and counted. X is a
+figure about a group of people, so it is released under the rules of section 9 like a
+matrix cell; where it may not be, the finding and the proposal are printed and the money
+is not.
+
 On the synthetic county, attendance among corrections officers at the main detention center
 costs $232,626 over 2.91 years, $79,940 a year. An intervention costing $246,000 over three
 years could not pay for itself on that alone; one costing $60,000 would need to prevent a

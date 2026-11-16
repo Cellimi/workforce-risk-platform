@@ -31,8 +31,21 @@ small-group rules that govern a cell of the matrix, and one that failed is only 
 working behind the flags, every unit assessed and not flagged, is in the working papers and
 never in the client's copy.
 
-`build_report`, `build_records` and `build_patterns` are pure functions: no I/O, no clock
-read. The date the report was prepared is passed in.
+**Interventions** (`InterventionSection`) are what Phase 3 comes to: what someone found on
+site in a unit, what is proposed for it, what that would cost and what it would save. Again
+each entry arrives already decided for the copy being made:
+
+* the client's copy names a cause by its label only. The words a person typed for "Other"
+  never reach it (decided by the owner on 2026-11-16); they are in the working papers;
+* an entry about fewer people than the minimum group is left out of the client's copy and
+  counted, because a cause said of two or three people is said of them;
+* where the unit's cost may not be released beside the other figures in the report, the
+  entry keeps the finding and the proposal and says the money is withheld.
+
+A saving is a projection. The section says so, says what it assumes, and adds to no total.
+
+`build_report`, `build_records`, `build_patterns` and `build_interventions` are pure
+functions: no I/O, no clock read. The date the report was prepared is passed in.
 """
 
 from __future__ import annotations
@@ -105,6 +118,19 @@ PATTERN_VIEW_LABELS = {
     "misconduct": "By type of misconduct",
     "overall": "Every type of misconduct together",
 }
+
+
+INTERVENTION_NOTE = (
+    "Each cause below is the finding of the person named, made on site. This product did "
+    "not find it and does not check it. What an intervention costs, and how well it is "
+    "expected to work, are that person's figures, with their stated basis. A saving is a "
+    "projection: it is not part of any total in this report."
+)
+MONEY_WITHHELD = (
+    "What the discipline costs in this unit is not shown: with the other figures in this "
+    "report it would let a group of fewer than {min_people} people be worked out. So no "
+    "saving is shown either."
+)
 
 
 def client_wording(source: str) -> str:
@@ -332,6 +358,67 @@ class PatternSection:
 
 
 @dataclass(frozen=True)
+class SavingRow:
+    """One reading of how well an intervention works."""
+
+    label: str
+    reduction: Decimal
+    prevented_total: Decimal
+    net_saving: Decimal
+
+
+@dataclass(frozen=True)
+class InterventionRow:
+    """An intervention proposed for a unit, with what was found there."""
+
+    unit_name: str
+    #: The causes found, by label. "Other" is only ever the word "Other" here.
+    causes: tuple[str, ...]
+    #: What "Other" was said to be. Empty in the client's copy, always.
+    other_cause: str
+    entered_by: str
+    entered_on: str
+    name: str
+    basis: str
+    years: int
+    total_cost: Decimal
+    cost_formula: str
+    #: What the discipline costs a year, from the baseline. None when it is withheld from
+    #: this copy, or when the records no longer show any action for the unit.
+    annual_net: Decimal | None
+    baseline_formula: str
+    savings: tuple[SavingRow, ...]
+    break_even_note: str
+    #: The working papers only.
+    withdrawn_by: str = ""
+    withdrawn_on: str = ""
+
+    @property
+    def found(self) -> str:
+        return ", ".join(self.causes)
+
+
+@dataclass(frozen=True)
+class InterventionSection:
+    rows: list[InterventionRow]
+    #: Kept, and left out of this copy to protect a small group.
+    not_shown: int
+    min_people: int
+    assumes: tuple[str, ...]
+    #: True for the working papers, which carry the words for "Other" and what was withdrawn.
+    working: bool = False
+    note: str = INTERVENTION_NOTE
+
+    @property
+    def current(self) -> list[InterventionRow]:
+        return [row for row in self.rows if not row.withdrawn_on]
+
+    @property
+    def money_withheld(self) -> str:
+        return MONEY_WITHHELD.format(min_people=self.min_people)
+
+
+@dataclass(frozen=True)
 class ReportContent:
     # -- whose it is and what it covers
     branding: Branding
@@ -383,6 +470,9 @@ class ReportContent:
     records: RecordSection | None = None
     #: Where a type of misconduct clusters. None when the report was asked for without it.
     patterns: PatternSection | None = None
+    #: What was found on site and what is proposed. None when nothing is kept, or when the
+    #: report was asked for without it.
+    interventions: InterventionSection | None = None
     extra: dict = field(default_factory=dict)
 
     @property
@@ -613,6 +703,66 @@ def build_patterns(views: list[dict]) -> PatternSection | None:
     )
 
 
+def _intervention_row(entry: dict, working: bool) -> InterventionRow:
+    finding = entry["finding"]
+    appraisal = entry.get("appraisal")
+    proposal = appraisal["intervention"] if appraisal else entry["intervention"]
+    return InterventionRow(
+        unit_name=entry["unit_name"],
+        causes=tuple(cause["label"] for cause in finding["causes"]),
+        # The one place this is decided: a copy that is not the working papers never
+        # carries the words, whatever it was handed.
+        other_cause=finding.get("other_cause", "") if working else "",
+        entered_by=finding["entered_by"],
+        entered_on=finding["entered_at"][:10],
+        name=proposal["name"],
+        basis=proposal["basis"],
+        years=proposal["years"],
+        total_cost=_money(proposal["total_cost"]),
+        cost_formula=proposal["cost_formula"],
+        annual_net=_money(appraisal["unit"]["annual_net"]) if appraisal else None,
+        baseline_formula=appraisal["unit"]["formula"] if appraisal else "",
+        savings=tuple(
+            SavingRow(
+                label=s["label"],
+                reduction=Decimal(s["reduction"]),
+                prevented_total=_money(s["prevented_total"]),
+                net_saving=_money(s["net_saving"]),
+            )
+            for s in (appraisal["scenarios"] if appraisal else [])
+        ),
+        break_even_note=appraisal["break_even_note"] if appraisal else "",
+        withdrawn_by=entry.get("withdrawn_by", "") if working else "",
+        withdrawn_on=entry.get("withdrawn_at", "")[:10] if working else "",
+    )
+
+
+def build_interventions(
+    entries: list[dict],
+    *,
+    not_shown: int,
+    min_people: int,
+    assumes: tuple[str, ...],
+    working: bool = False,
+) -> InterventionSection | None:
+    """Turn kept appraisals into a report section.
+
+    Each entry is a kept appraisal as the API shows it, with `unit_name` added, **as
+    already decided for this copy**: an entry whose `appraisal` is None carries no money,
+    and an entry left out was never handed over. One thing is decided here and not left to
+    the caller: the words typed for "Other" are carried only when `working` is true.
+    """
+    if not entries and not not_shown:
+        return None
+    return InterventionSection(
+        rows=[_intervention_row(entry, working) for entry in entries],
+        not_shown=not_shown,
+        min_people=min_people,
+        assumes=assumes,
+        working=working,
+    )
+
+
 def build_report(
     *,
     runs: dict[str, CostRun],
@@ -638,6 +788,7 @@ def build_report(
     generated_on: date,
     records: RecordSection | None = None,
     patterns: PatternSection | None = None,
+    interventions: InterventionSection | None = None,
 ) -> ReportContent:
     """Assemble a deliverable's content from runs the caller is already entitled to.
 
@@ -721,4 +872,5 @@ def build_report(
         standing=standing,
         records=records,
         patterns=patterns,
+        interventions=interventions,
     )

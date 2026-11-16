@@ -54,7 +54,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 2, step 3: drift (where a type of misconduct is rising) | Claude Code session | Done, PR #23 |
 | Owner's decisions of 2026-11-16: thresholds reviewed, client reader confirmed, small-group rules kept, Phase 3 opened | Claude Code session | Done, PR #24 (built on PR #23) |
 | Phase 3, step 1: the cost-benefit of an intervention for a unit | Claude Code session | Done, PR #25 (built on PR #24) |
-| Phase 3, step 2: keeping an appraisal with the engagement, with the causes found | Claude Code session | Done, `claude/phase3-kept-appraisals` (built on PR #25) |
+| Phase 3, step 2: keeping an appraisal with the engagement, with the causes found | Claude Code session | Done, PR #26 (built on PR #25) |
+| Phase 3, step 3: the cost-benefit in the client report | Claude Code session | Done, `claude/phase3-report` (built on PR #26) |
 
 ## Where things stand
 
@@ -316,18 +317,44 @@ chosen from a short fixed list, and only "Other" takes words.
 **Worth knowing.** Nothing stops a person typing a name into "Other". The box says not to,
 it is one line, and only the lead and the analyst can read it, but it is not checked.
 
+### Step 3, built: the cost-benefit in the client report
+
+The overview's deliverable to management. `InterventionSection` and `build_interventions`
+in `reporting/content.py`, a section in the PDF ("What was found, and what could be done"),
+an **Interventions** sheet in the workbook, an **Interventions working** sheet in the
+working papers, and `_report_interventions` in `api/main.py`, which decides what each copy
+gets.
+
+**The owner's ruling, 2026-11-16**, on whether the client's copy should show the words typed
+for "Other" or only the label: "other". So the client's copy shows the word "Other".
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| "Other" in the client's copy | The word, never what was typed. Decided in one place, `build_interventions`, whatever it is handed | His ruling. One place, so no caller can forget |
+| A finding about fewer people than the minimum group | Left out of the client's copy and counted | A cause said of three people is said of them |
+| A unit's cost in the client's copy | Released like a matrix cell, against the asker's ledger. Where it may not be: the finding and the proposal stay, the money goes, and the report says so | The cost is a figure about a group. The finding is still what management needs to hear |
+| The consultant's name, the intervention's name and the basis | Printed in the client's copy as typed | They are the consultant's own statements to the client. The basis is what makes a projected saving honest |
+| Withdrawn appraisals | Out of the client's copy. In the working papers, marked, with who withdrew them | The working papers are the engagement's record |
+| With nothing kept | No section at all | "Nothing was looked into" is not a finding |
+| Leaving it out | `interventions=false`, and a tick box. Included unless asked otherwise | An appraisal may be kept before it is ready for the client |
+
+**Worth knowing.** As with the every-type flag in Phase 2, an appraisal for a unit with
+every type of misconduct together usually loses its money in the client's copy: that group
+sits a few people away from cells of the report's own matrix. An appraisal for one type of
+misconduct in a flagged unit is shown in full. This follows from keeping the small-group
+rules as they are.
+
 ### Not built, in the order proposed
 
-1. **The cost-benefit in the client report.** The overview's deliverable to management:
-   what was found, what is proposed, what it would cost and save. It needs a ruling on
-   whether the client's copy may carry the words typed for "Other", and it brings the
-   small-group rules into play for a unit's cost.
-2. **Comparing several interventions for one unit**, side by side.
-3. **Typical costs and effects of common interventions** (transit, childcare, training,
+1. **Comparing several interventions for one unit**, side by side.
+2. **Typical costs and effects of common interventions** (transit, childcare, training,
    flexible hours), researched and cited. Every such figure is an assumption: researched,
    marked as such, and reviewed by the owner before any report uses it.
-4. **Checking afterwards whether it worked**: the unit's rate after an intervention began
+3. **Checking afterwards whether it worked**: the unit's rate after an intervention began
    against before. Drift already has the arithmetic.
+4. **Rising units in the client report** (Phase 2): still on the Patterns page only.
 
 ## Single sign-on
 

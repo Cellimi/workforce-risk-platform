@@ -457,6 +457,92 @@ def _patterns(content: ReportContent, styles) -> list:
     return story
 
 
+def _share(value: Decimal) -> str:
+    return f"{(value * 100).normalize():f}%"
+
+
+def _interventions(content: ReportContent, styles) -> list:
+    """What was found on site, what is proposed, and what it would cost and save."""
+    section = content.interventions
+    if section is None:
+        return []
+    story = [
+        Paragraph("What was found, and what could be done", styles["h2"]),
+        Paragraph(_text(section.note), styles["body"]),
+    ]
+    for row in section.current:
+        story += [
+            Spacer(1, 7),
+            Paragraph(f"<b>{_text(row.name)}: {_text(row.unit_name)}</b>", styles["body"]),
+            Paragraph(
+                _text(
+                    f"Found on site: {row.found}. The finding of {row.entered_by}, entered "
+                    f"{row.entered_on}."
+                ),
+                styles["body"],
+            ),
+        ]
+        if row.annual_net is None:
+            story.append(
+                Paragraph(
+                    _text(
+                        f"The intervention would cost {money(row.total_cost)} over "
+                        f"{row.years} years. {section.money_withheld}"
+                    ),
+                    styles["body"],
+                )
+            )
+        else:
+            story += [
+                Spacer(1, 3),
+                _table(
+                    [
+                        "The discipline costs, a year",
+                        f"The intervention costs, {row.years} years",
+                        *(
+                            f"Net saving if it prevents {_share(s.reduction)} ({s.label.lower()})"
+                            for s in row.savings
+                        ),
+                    ],
+                    [
+                        [
+                            money(row.annual_net),
+                            money(row.total_cost),
+                            *(money(s.net_saving) for s in row.savings),
+                        ]
+                    ],
+                    [1.25 * inch, 1.35 * inch, 1.4 * inch, 1.45 * inch, 1.4 * inch],
+                    styles,
+                    right_from=0,
+                ),
+                Spacer(1, 3),
+                Paragraph(_text(row.break_even_note), styles["small"]),
+            ]
+        story.append(Paragraph(_text(f"Based on: {row.basis}"), styles["small"]))
+    if section.not_shown:
+        one = section.not_shown == 1
+        concerns = "it concerns" if one else "they concern"
+        story += [
+            Spacer(1, 5),
+            Paragraph(
+                _text(
+                    f"{section.not_shown} more {'was' if one else 'were'} looked into and "
+                    f"{'is' if one else 'are'} not shown here: {concerns} fewer than "
+                    f"{section.min_people} people."
+                ),
+                styles["small"],
+            ),
+        ]
+    if any(row.savings for row in section.current):
+        story += [
+            Spacer(1, 5),
+            Paragraph(
+                _text("A saving above assumes: " + " ".join(section.assumes)), styles["small"]
+            ),
+        ]
+    return story
+
+
 def _departments(content: ReportContent, styles) -> list:
     if not content.departments:
         return []
@@ -616,6 +702,7 @@ def render_pdf(content: ReportContent) -> bytes:
     story += _range(content, styles)
     story += _matrix(content, styles)
     story += _patterns(content, styles)
+    story += _interventions(content, styles)
     story += _departments(content, styles)
     story += _quality(content, styles)
     story += [

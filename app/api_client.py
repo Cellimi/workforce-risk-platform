@@ -23,6 +23,10 @@ import httpx
 DEFAULT_BASE_URL = os.environ.get("WRI_API_URL", "http://127.0.0.1:8000")
 
 
+def _flag(on: bool) -> str:
+    return "true" if on else "false"
+
+
 class ApiError(RuntimeError):
     def __init__(self, status: int, detail: str):
         self.status = status
@@ -163,18 +167,25 @@ class EngineClient:
     def export_summary(self, mode: str = "base") -> str:
         return self._request("GET", "/exports/summary.md", params={"mode": mode}).text
 
-    def report_pdf(self, mode: str = "base", patterns: bool = True) -> bytes:
+    def report_pdf(
+        self, mode: str = "base", patterns: bool = True, interventions: bool = True
+    ) -> bytes:
         """The report for the client, carrying the firm's name and logo. `patterns` says
-        whether it includes where a type of misconduct clusters."""
-        params = {"mode": mode, "patterns": "true" if patterns else "false"}
+        whether it includes where a type of misconduct clusters; `interventions`, whether
+        it includes what was found on site and what is proposed."""
+        params = {"mode": mode, "patterns": _flag(patterns), "interventions": _flag(interventions)}
         return self._request("GET", "/exports/report.pdf", params=params).content
 
     def report_xlsx(
-        self, mode: str = "base", records: bool = False, patterns: bool = True
+        self,
+        mode: str = "base",
+        records: bool = False,
+        patterns: bool = True,
+        interventions: bool = True,
     ) -> bytes:
         """The workbook that goes with the report. With `records`, the working papers:
         the same workbook plus every action and line item, for roles the server allows."""
-        params = {"mode": mode, "patterns": "true" if patterns else "false"}
+        params = {"mode": mode, "patterns": _flag(patterns), "interventions": _flag(interventions)}
         if records:
             params["records"] = "true"
         return self._request("GET", "/exports/report.xlsx", params=params).content

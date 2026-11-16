@@ -49,7 +49,7 @@ Nothing here says why the unit's rate is what it is, and nothing is about any on
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from wri_engine.costing.engine import CostRun
@@ -104,6 +104,9 @@ class UnitBaseline:
     people: int
     net: Decimal
     window_years: Decimal
+    #: Who the people are. Used only to decide whether the unit's cost may go into a
+    #: client's copy of a report; it never leaves the server.
+    cohort: frozenset[str] = field(default=frozenset(), repr=False, compare=False)
 
     @property
     def annual_net(self) -> Decimal:
@@ -170,6 +173,7 @@ def unit_baseline(
         people=len({action.employee_id for action in theirs}),
         net=sum((action.net for action in theirs), ZERO),
         window_years=window_years,
+        cohort=frozenset(action.employee_id for action in theirs),
     )
 
 

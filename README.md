@@ -132,7 +132,8 @@ Two files, both from the **Executive summary** page (`Prepare the report`), or f
 - **A report to read (PDF).** A cover carrying the consulting firm's name and logo, the
   headline figures, where the money goes, the low-to-high range, where the cost
   concentrates, **where discipline clusters** (the flagged patterns, each with what those
-  actions cost), what the records could not support, and two appendices: the assumptions
+  actions cost), **what was found and what could be done** (the interventions weighed, each
+  with its cost and saving), what the records could not support, and two appendices: the assumptions
   these figures actually used with the source of each, and the values specific to this
   client with who set them and why.
 - **A workbook to work in (Excel).** The same figures, plus every cell of the cost matrix,
@@ -500,7 +501,28 @@ record of a finding, so it needs one:
   corrected client file or a changed assumption is never contradicted by a stale figure.
 
 `GET /interventions`, `POST /interventions` and `DELETE /interventions/{id}` are the
-endpoints, for the lead and the analyst. Kept appraisals are not in the client report yet.
+endpoints, for the lead and the analyst.
+
+### In the client report
+
+Kept appraisals go into the report and the workbook, as a section headed **What was found,
+and what could be done**: for each, the unit, the causes found and whose finding they are,
+what is proposed, what the discipline costs a year, what the intervention costs, the net
+saving three ways, the share it must prevent to pay for itself, and what the expectation is
+based on. Three rules decide what the client's copy carries, whoever asks for the file:
+
+- **A cause is named by its label only.** What was typed for "Other" never reaches the
+  client's copy: it shows the word "Other". The words are in the working papers.
+- **A finding about fewer people than the minimum group is left out and counted.** A cause
+  said of three people is said of them.
+- **A unit's cost is released like a matrix cell.** Where it may not be shown beside the
+  other figures in the report, the entry keeps the finding and the proposal and says the
+  money is withheld.
+
+The section says a saving is a projection and adds to no total. With nothing kept there is
+no such section. It can be left out (`interventions=false`, or the tick box beside **Prepare
+the report**). The working papers add an **Interventions working** sheet: every appraisal
+ever kept, what "Other" was said to be, and what was withdrawn and by whom.
 
 ## What it deliberately does not do
 
