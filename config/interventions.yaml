@@ -1,0 +1,35 @@
+# Interventions -- WRI Phase 3.
+#
+# What an on-site investigation may record as a cause of a pattern in a unit. A person
+# chooses from this list after they have been there; nothing in the product chooses for
+# them, and nothing infers a cause from the data.
+#
+# The list is short on purpose (decided by the owner on 2026-11-16): a fixed choice says
+# what kind of condition was found without carrying anyone's interview notes into the
+# product. "Other" is the one entry that takes words, and only a line of them. Those words
+# are a client's confidential material: they are kept in the engagement's own folder, never
+# in the database, and shown only to roles that see records.
+#
+# The four named causes are the ones the owner's program overview gives as examples. Add to
+# the list here; code reads it and never redefines it.
+
+causes:
+  - id: commuting
+    label: "Commuting burden"
+    description: "Getting to work, or getting there on time, is hard for people in this unit."
+  - id: childcare
+    label: "Childcare or family-care gaps"
+    description: "Care arrangements do not fit the hours the unit works."
+  - id: training
+    label: "Missing training or education"
+    description: "People were not taught what they are being disciplined for getting wrong."
+  - id: scheduling
+    label: "Inflexible scheduling"
+    description: "Start times, shift patterns or leave rules leave no room to manage."
+  - id: other
+    label: "Other"
+    description: "Something else, said in a line. Describe the condition, never a person."
+    takes_text: true
+
+# The longest "Other" may be. A line, not a set of interview notes.
+other_text_max_length: 300

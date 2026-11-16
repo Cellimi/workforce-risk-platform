@@ -131,6 +131,23 @@ class EngineClient:
         body = {**unit, **proposal, "mode": mode}
         return self._request("POST", "/interventions/appraise", json=body).json()
 
+    def intervention_causes(self) -> dict:
+        """The causes an investigation may record: a short fixed list, and "Other"."""
+        return self._request("GET", "/interventions/causes").json()
+
+    def kept_interventions(self, mode: str = "base") -> dict:
+        """The appraisals kept with this engagement, each with what was found on site."""
+        return self._request("GET", "/interventions", params={"mode": mode}).json()
+
+    def keep_intervention(
+        self, unit: dict, proposal: dict, causes: list[str], other_cause: str, mode: str = "base"
+    ) -> dict:
+        body = {**unit, **proposal, "causes": causes, "other_cause": other_cause, "mode": mode}
+        return self._request("POST", "/interventions", json=body).json()
+
+    def withdraw_intervention(self, appraisal_id: str) -> dict:
+        return self._request("DELETE", f"/interventions/{appraisal_id}").json()
+
     def run_scenario(self, overrides: dict, mode: str = "base") -> dict:
         return self._request(
             "POST", "/scenarios/run", json={"overrides": overrides, "mode": mode}

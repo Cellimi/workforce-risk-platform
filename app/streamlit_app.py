@@ -906,6 +906,8 @@ def interventions_page(api: EngineClient) -> None:
     labels = [label for label, _ in choices]
     picked = st.selectbox("Where", labels, key="interventions_unit")
     unit = dict(choices)[picked]
+    allowed = api.intervention_causes()
+    cause_ids = {c["label"]: c["id"] for c in allowed["causes"]}
 
     with st.form("intervention"):
         name = st.text_input("What is proposed", key="iv_name")
@@ -936,8 +938,22 @@ def interventions_page(api: EngineClient) -> None:
             help="For example: what the site visit found, a pilot elsewhere, a published "
             "study. It is shown with the result.",
         )
-        go = st.form_submit_button("Work it out")
-    if not go:
+        st.markdown(
+            "**What the investigation found.** Needed only to keep this with the "
+            "engagement. Choose what you found on site; the product suggests nothing."
+        )
+        found = st.multiselect("Causes found", list(cause_ids), key="iv_causes")
+        other_cause = st.text_input(
+            "If Other, what, in a line",
+            key="iv_other_cause",
+            max_chars=allowed["other_text_max_length"],
+            help="Describe the condition, never a person. Do not name anyone.",
+        )
+        left, right = st.columns(2)
+        go = left.form_submit_button("Work it out")
+        keep = right.form_submit_button("Work it out and keep")
+    if not (go or keep):
+        _kept_section(api)
         return
 
     def share(percent: float) -> str:
@@ -956,17 +972,74 @@ def interventions_page(api: EngineClient) -> None:
         "basis": basis,
     }
     try:
-        result = api.appraise(unit, proposal, mode())
+        if keep:
+            kept = api.keep_intervention(
+                unit, proposal, [cause_ids[label] for label in found], other_cause, mode()
+            )
+            result = kept["appraisal"]
+            result["note"] = kept["note"]
+            st.success(
+                f"Kept with this engagement, as the finding of {kept['finding']['entered_by']}."
+            )
+        else:
+            result = api.appraise(unit, proposal, mode())
     except ApiError as exc:
         problems = exc.detail.get("problems") if isinstance(exc.detail, dict) else None
         if not problems:
             st.error(str(exc))
             return
-        st.error("This cannot be worked out yet:")
+        st.error("This cannot be kept yet:" if keep else "This cannot be worked out yet:")
         for problem in problems:
             st.markdown(f"- {problem[0].upper()}{problem[1:]}.")
         return
     _show_appraisal(result)
+    _kept_section(api)
+
+
+def _kept_section(api: EngineClient) -> None:
+    """The appraisals kept with this engagement, each with whose finding it is."""
+    book = api.kept_interventions(mode())
+    st.divider()
+    st.subheader("Kept with this engagement")
+    if not book["kept"]:
+        st.markdown("Nothing has been kept yet.")
+    for kept in book["kept"]:
+        finding, appraisal = kept["finding"], kept["appraisal"]
+        proposal = appraisal["intervention"] if appraisal else kept["intervention"]
+        with st.container(border=True):
+            where = appraisal["unit"]["name"] if appraisal else kept["work_location"]
+            st.markdown(f"**{proposal['name']}: {where}**")
+            causes = ", ".join(c["label"] for c in finding["causes"])
+            st.markdown(f"Found on site: {causes}.")
+            if finding["other_cause"]:
+                # Words a person typed about a client's workplace: shown as plain text.
+                st.text(f"Other: {finding['other_cause']}")
+            st.caption(
+                f"The finding of {finding['entered_by']}, entered "
+                f"{finding['entered_at'][:10]}. Not found or checked by this product."
+            )
+            if appraisal:
+                expected = appraisal["scenarios"][1]
+                st.markdown(
+                    f"Costs {money(proposal['total_cost'])} over {proposal['years']} years, "
+                    f"against {money(appraisal['unit']['annual_net'])} a year of discipline. "
+                    f"Net saving as expected: {money(expected['net_saving'])} "
+                    f"(a projection). {appraisal['break_even_note']}"
+                )
+            else:
+                st.markdown(
+                    "The records now show no discipline action for this unit, so there is "
+                    "nothing to set the intervention against. The finding stands."
+                )
+            if st.button("Withdraw", key=f"withdraw_{kept['id']}"):
+                api.withdraw_intervention(kept["id"])
+                st.rerun()
+    if book["withdrawn"]:
+        st.caption(
+            f"{book['withdrawn']} withdrawn. A withdrawn appraisal is no longer shown; the "
+            "record of it stays with the engagement."
+        )
+    st.caption(book["note"])
 
 
 def _show_appraisal(result: dict) -> None:

@@ -6,7 +6,9 @@ Everything an installation owns is in its data directory:
                         the firm's name and logo, the license usage log
     pseudonym.salt      what makes an analyst's masked employee ids stable; lose it and
                         every masked id changes
-    engagements/        each client's files, one folder per engagement
+    engagements/        each client's files, one folder per engagement: the export as
+                        received, each person's disclosure ledger, and the appraisals
+                        kept with what an investigation found
     audit_log.jsonl     who asked for what
 
 A backup is one `.tar.gz` holding those, followed by a `MANIFEST.json` that says which

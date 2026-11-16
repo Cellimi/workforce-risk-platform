@@ -476,10 +476,31 @@ What holds:
   assumes: the unit goes on costing what it did, a prevented action costs the unit's
   average, nothing is discounted, and only the cost of discipline counts as a benefit.
 - **For the lead and the analyst.** It works on any unit, whatever its size.
-- **Nothing is saved yet.** The result is worked out and shown; keeping an appraisal with
-  the engagement and putting it in the client report are the next steps.
-
 `POST /interventions/appraise` is the endpoint.
+
+### Keeping an appraisal, with what was found
+
+An appraisal can be kept with the engagement (**Work it out and keep**). It is kept as the
+record of a finding, so it needs one:
+
+- **Causes are chosen from a short fixed list** (`config/interventions.yaml`): commuting
+  burden, childcare or family-care gaps, missing training or education, inflexible
+  scheduling, or **Other**. A person chooses, after going there. The product offers no
+  suggestion and will not keep an appraisal with no cause chosen.
+- **Only "Other" takes words, and only a line** (300 characters). It is for describing a
+  condition, never a person. Interview notes do not belong in the product.
+- **Every finding says whose it is** and when it was entered, and the page says the product
+  did not find or check it.
+- **It lives in the engagement's own folder**, not the database, because those words are a
+  client's confidential material. It survives a restart, is carried by a backup, and is
+  never seen from another engagement.
+- **Nothing is rewritten or removed.** Withdrawing an appraisal stops it being shown and
+  adds a line saying who withdrew it.
+- **The saving beside a kept appraisal is always today's.** Only the inputs are kept, so a
+  corrected client file or a changed assumption is never contradicted by a stale figure.
+
+`GET /interventions`, `POST /interventions` and `DELETE /interventions/{id}` are the
+endpoints, for the lead and the analyst. Kept appraisals are not in the client report yet.
 
 ## What it deliberately does not do
 
@@ -548,6 +569,8 @@ the signed-in user's membership.
 | `GET /costs/summary` | Headline figures |
 | `GET /costs/actions/{id}` | Every line item with its formula (role-gated) |
 | `GET /detection/hotspots` | Where a type of misconduct clusters, with its cost (`by=misconduct` or `overall`). Flagged units for every role; the working for roles that see records |
+| `GET /interventions`, `POST /interventions`, `DELETE /interventions/{id}` | The appraisals kept with the engagement, each with the causes found on site and whose finding it is; keep one; withdraw one (lead and analyst) |
+| `GET /interventions/causes` | The short fixed list of causes an investigation may record |
 | `POST /interventions/appraise` | What an intervention would cost against what a unit's discipline costs: net saving three ways, and the share it must prevent to pay for itself (lead and analyst) |
 | `GET /detection/drift` | Where a type of misconduct is rising: the later half of the period against the earlier, set against the change in the rest of the organization. Same views and same roles |
 | `GET /assumptions` | The registry with sources and statuses |

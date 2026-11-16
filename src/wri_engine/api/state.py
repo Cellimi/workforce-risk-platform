@@ -29,6 +29,7 @@ from wri_engine.aggregation.ledger_file import LedgerFile, basis_of
 from wri_engine.aggregation.suppression import DEFAULT_MIN_CELL_SIZE, DisclosureLedger
 from wri_engine.costing.assumptions import AssumptionSet, Mode, load_assumptions
 from wri_engine.costing.engine import CostRun, run_costing
+from wri_engine.interventions.findings import AppraisalBook
 from wri_engine.orgconfig import OrgConfig, default_org_config, load_org_config
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.schema import CanonicalDataset
@@ -114,6 +115,10 @@ class EngineState:
     #: Where each person's disclosure ledger is kept for this engagement. None keeps them
     #: in memory only, as the synthetic walkthrough does.
     ledger_dir: Path | None = None
+    #: Where this engagement's kept appraisals and findings are written (Phase 3). None
+    #: keeps them in memory only, as the synthetic walkthrough does.
+    interventions_dir: Path | None = None
+    _appraisals: AppraisalBook | None = field(default=None, repr=False)
     _runs: dict[tuple, CostRun] = field(default_factory=dict)
     _ledgers: dict[str, DisclosureLedger] = field(default_factory=dict)
     _ledger_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -230,6 +235,14 @@ class EngineState:
                 )
             return self._ledgers[session_key]
 
+    @property
+    def appraisals(self) -> AppraisalBook:
+        """The appraisals kept with this engagement, and what was found on site."""
+        with self._ledger_lock:
+            if self._appraisals is None:
+                self._appraisals = AppraisalBook(self.interventions_dir)
+            return self._appraisals
+
     def _ledger_file(self, session_key: str) -> LedgerFile | None:
         if self.ledger_dir is None:
             return None
@@ -284,6 +297,7 @@ class Workspaces:
                 state = EngineState(
                     default_source=source,
                     ledger_dir=source.parent / "disclosure",
+                    interventions_dir=source.parent / "interventions",
                     client_name=engagement.client_name if engagement else "Client",
                     sector=engagement.sector if engagement else DEFAULT_SECTOR,
                     occupation_group=engagement.occupation_group if engagement else None,
