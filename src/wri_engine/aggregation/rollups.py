@@ -149,6 +149,10 @@ class Matrix:
     min_cell_size: int
     mode: str = "base"
     withheld_totals: set = field(default_factory=set)
+    #: True when the whole selection may not be released: it is a group smaller than the
+    #: minimum, or with what this person has already seen it would give one away. Then no
+    #: figure about it leaves the server: no cell, no line total, no grand total.
+    selection_withheld: bool = False
     suppressed_net: Decimal = ZERO
     suppressed_gross: Decimal = ZERO
     suppressed_cells: int = 0
@@ -194,7 +198,27 @@ class Matrix:
         """Visible cells plus the suppressed bucket must equal the true total, exactly."""
         return self.visible_net + self.suppressed_net == self.total_net
 
+    def _grand_totals(self) -> dict:
+        if self.selection_withheld:
+            return {
+                "withheld": True,
+                "gross": None,
+                "offset": None,
+                "net": None,
+                "actions": None,
+                "incomplete_actions": None,
+            }
+        return {
+            "withheld": False,
+            "gross": str(self.total_gross),
+            "offset": str(self.total_offset),
+            "net": str(self.total_net),
+            "actions": self.total_actions,
+            "incomplete_actions": self.total_incomplete,
+        }
+
     def as_dict(self) -> dict:
+        hidden = self.selection_withheld
         return {
             "row_dimension": self.row_dimension,
             "row_dimension_label": DIMENSIONS[self.row_dimension],
@@ -205,18 +229,13 @@ class Matrix:
             "cells": [cell.as_dict() for cell in self.cells.values()],
             "row_totals": self.line_totals("row"),
             "col_totals": self.line_totals("col"),
-            "totals": {
-                "gross": str(self.total_gross),
-                "offset": str(self.total_offset),
-                "net": str(self.total_net),
-                "actions": self.total_actions,
-                "incomplete_actions": self.total_incomplete,
-            },
+            "totals": self._grand_totals(),
             "suppression": {
                 "min_cell_size": self.min_cell_size,
                 "suppressed_cells": self.suppressed_cells,
-                "other_suppressed_gross": str(self.suppressed_gross),
-                "other_suppressed_net": str(self.suppressed_net),
+                # With everything withheld, the "other" bucket is the whole selection.
+                "other_suppressed_gross": None if hidden else str(self.suppressed_gross),
+                "other_suppressed_net": None if hidden else str(self.suppressed_net),
                 "reconciles": self.reconciles(),
             },
             "mode": self.mode,
@@ -303,7 +322,14 @@ def build_matrix(
         total_incomplete=sum(1 for ac in selected if ac.cost_incomplete),
     )
 
-    _suppress(matrix, cohorts, min_cell_size, ledger)
+    _suppress(
+        matrix,
+        cohorts,
+        min_cell_size,
+        ledger,
+        selection=frozenset(ac.employee_id for ac in selected),
+        everyone=frozenset(ac.employee_id for ac in run.action_costs),
+    )
     _attach_fte(matrix, fte_by_row)
     return matrix
 
@@ -313,7 +339,13 @@ def _suppress(
     cohorts: dict[tuple[str, str], set[str]],
     min_cell_size: int,
     ledger: DisclosureLedger | None,
+    *,
+    selection: frozenset[str] = frozenset(),
+    everyone: frozenset[str] = frozenset(),
 ) -> None:
+    """Decide what may leave the server. Every figure is about a group of people: a cell,
+    a row or column total, and the grand total of whatever the filters selected. The same
+    rule covers all of them: not fewer than `min_cell_size` different people."""
     frozen = {k: frozenset(v) for k, v in cohorts.items()}
     decisions: dict[tuple[str, str], str] = {
         key: SuppressionReason.THRESHOLD
@@ -323,10 +355,29 @@ def _suppress(
     withheld = apply_complementary_suppression(
         frozen, decisions, matrix.rows, matrix.cols, min_cell_size
     )
+    withheld |= _small_lines(frozen, min_cell_size)
+
+    # The grand total is a figure about everyone the filters selected. Filter down to four
+    # people, or to one, and it is their cost. Then nothing about the selection is released.
+    refuse_selection = None
+    if 0 < len(selection) < min_cell_size:
+        refuse_selection = SuppressionReason.THRESHOLD
 
     if ledger is not None:
         with ledger.releasing():
+            # The unfiltered total is on the summary page for every role, so it is always
+            # counted as already seen. A filtered total is checked against it and against
+            # everything else this person has been shown: all-but-three-people is as much
+            # a disclosure as the three.
+            ledger.record(everyone)
+            if refuse_selection is None and selection != everyone:
+                if ledger.would_expose(selection):
+                    refuse_selection = SuppressionReason.DIFFERENCING
+                else:
+                    ledger.record(selection)
             for key in sorted(frozen, key=lambda k: (-len(frozen[k]), k)):
+                if refuse_selection is not None:
+                    break
                 if key in decisions:
                     continue
                 if ledger.would_expose(frozen[key]):
@@ -348,6 +399,12 @@ def _suppress(
                 frozen, decisions, matrix.rows, matrix.cols, min_cell_size
             )
 
+    if refuse_selection is not None:
+        matrix.selection_withheld = True
+        for key in frozen:
+            decisions.setdefault(key, refuse_selection)
+        withheld = {("row", r) for r in matrix.rows} | {("col", c) for c in matrix.cols}
+
     matrix.withheld_totals = withheld
     for key, reason in decisions.items():
         cell = matrix.cells[key]
@@ -356,6 +413,20 @@ def _suppress(
         matrix.suppressed_gross += cell.gross
         matrix.suppressed_net += cell.net
         matrix.suppressed_cells += 1
+
+
+def _small_lines(
+    cohorts: dict[tuple[str, str], frozenset[str]], min_cell_size: int
+) -> set[tuple[str, str]]:
+    """Rows and columns whose total is about fewer people than the minimum.
+
+    Two withheld cells in a row can be the same one person in two years. The row's total
+    is then that person's cost, however many cells it is spread over."""
+    people: dict[tuple[str, str], set[str]] = {}
+    for (row, col), cohort in cohorts.items():
+        people.setdefault(("row", row), set()).update(cohort)
+        people.setdefault(("col", col), set()).update(cohort)
+    return {line for line, cohort in people.items() if 0 < len(cohort) < min_cell_size}
 
 
 def _attach_fte(matrix: Matrix, fte_by_row: dict[str, int] | None) -> None:
@@ -404,9 +475,13 @@ def summarize(
         run, rows="department", cols="misconduct_category", min_cell_size=min_cell_size
     )
     dept_fte = fte_denominators(data, "department")
-    dept_net: dict[str, Decimal] = {}
-    for cell in dept_matrix.cells.values():
-        dept_net[cell.row] = dept_net.get(cell.row, ZERO) + cell.net
+    # A department's figure is its row total, and is withheld when the row's is: when it
+    # is about fewer people than the minimum, or would give away a withheld cell.
+    dept_net = {
+        line["key"]: Decimal(line["net"])
+        for line in dept_matrix.line_totals("row")
+        if not line["suppressed"]
+    }
 
     return {
         "agency_note": (

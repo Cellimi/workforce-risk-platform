@@ -366,8 +366,9 @@ its own BLS series. They stay `researched` for the same reason. Two more followe
 2026-11-14, splitting sales work from office work, and he reviewed those the same day.
 That makes 186 entries, 22 with a cited source, and nothing awaiting review.
 
-**Enforces use limitation in the engine.** Aggregate cells backed by fewer than five distinct
-employees are never sent to a caller; complementary suppression stops a hidden cell being
+**Enforces use limitation in the engine.** No figure about fewer than five distinct
+employees is sent to a caller: not a cell, not a row or column total, and not the grand
+total of a filtered selection. Complementary suppression stops a hidden cell being
 recovered from a row total; a disclosure ledger kept for each person blocks differencing
 across overlapping queries, and survives a restart. Roles are enforced by the API — an
 `executive` asking for a record drill-down gets a 403, not a hidden button. Every request is

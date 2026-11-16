@@ -476,6 +476,13 @@ def cost_matrix(api: EngineClient) -> None:
 
     data = api.matrix(rows, cols, mode())
     suppression = data["suppression"]
+    if data["totals"].get("withheld"):
+        st.warning(
+            f"Nothing can be shown for this selection: it covers fewer than "
+            f"{suppression['min_cell_size']} people, or with figures already shown to you "
+            f"it would let a group that small be worked out."
+        )
+        return
     left, mid, right = st.columns(3)
     left.metric("Net cost shown", money(data["totals"]["net"]))
     mid.metric(

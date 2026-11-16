@@ -1012,6 +1012,14 @@ def export_matrix(
                     "",
                 ]
             )
+    if matrix.selection_withheld:
+        # Nothing about this selection may be released: not the bucket, not the total.
+        writer.writerow(["# selection withheld: too few people, or would give a small group away"])
+        return Response(
+            buffer.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="wri_cost_matrix.csv"'},
+        )
     writer.writerow(
         [
             "Other (suppressed)",
