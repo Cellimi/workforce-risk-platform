@@ -84,12 +84,30 @@ def test_the_report_calls_out_the_pattern_with_what_it_costs(client_pdf):
     assert "The period is 2023-10-20 to 2026-09-17." in client_pdf
 
 
-def test_unreviewed_thresholds_are_said_in_the_report(client_pdf, client_book):
-    """Rule 7: the two thresholds are starting values until the owner reviews them, and a
-    deliverable that used them says so. Delete this test's reason with their review."""
+def test_an_unreviewed_threshold_would_be_said_in_the_report(client_pdf, client_book):
+    """Rule 7: a threshold the owner has not reviewed is a starting value, and a deliverable
+    that used one says so. He reviewed both on 2026-11-16, so today's report does not."""
     said = "starting values and are still under review"
-    assert said in client_pdf
-    assert said in all_text(client_book)
+    assert said not in client_pdf
+    assert said not in all_text(client_book)
+
+    from wri_engine.reporting.pdf import _pattern_settings
+
+    reviewed = build_patterns([view("flagged_only")])
+    pending = build_patterns(
+        [
+            view(
+                "flagged_only",
+                settings={
+                    "detection_false_discovery_rate": 0.05,
+                    "detection_min_rate_ratio": 1.5,
+                    "unreviewed": ["detection_min_rate_ratio"],
+                },
+            )
+        ]
+    )
+    assert said not in _pattern_settings(reviewed)
+    assert said in _pattern_settings(pending)
 
 
 def test_the_report_says_what_the_patterns_page_says(county, client_book):

@@ -42,7 +42,7 @@ from wri_engine.paths import CONFIG_DIR, PROJECT_ROOT, SYNTHETIC_DIR
 
 #: Detection settings the owner has not reviewed. Both are starting values proposed by the
 #: build. This is the list to read and then delete from, as the cost registry's is.
-DETECTION_AWAITING_OWNER_REVIEW = {"detection_false_discovery_rate", "detection_min_rate_ratio"}
+DETECTION_AWAITING_OWNER_REVIEW: set[str] = set()
 
 HOT = ("corrections_officer", "Main Detention Center")
 HOT_TYPE = "attendance_awol"

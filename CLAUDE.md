@@ -107,7 +107,7 @@ make package LICENSE_PUBLIC_KEY=...   # the install package (needs Docker)
 ## Phase boundary
 
 **Phase 1, the cost baseline, is built. The owner opened Phase 2, detection, on
-2026-11-15.** Phase 3 (root cause, intervention cost-benefit) is closed: do not start it.
+2026-11-15, and Phase 3, root cause and intervention cost-benefit, on 2026-11-16.**
 
 The owner's program overview (given to the build on 2026-11-16) defines Phase 2 as finding
 where **types of misconduct** cluster, calling the pattern out to management, and pairing
@@ -143,3 +143,20 @@ What holds inside Phase 2:
 - **A flag is paired with its cost.** Each finding carries what the baseline says those
   actions cost (an actual). An estimated excess cost is an estimate, is labelled as one,
   and is never added to a baseline figure (rule 9 still governs the baseline).
+
+What holds inside Phase 3 (the owner's program overview: an on-site investigation of a
+flagged unit finds the causes; candidate interventions are each priced and set against
+what the discipline costs):
+
+- **The software does not find causes.** People do, on site. A cause is something a named
+  person entered after an investigation, never something inferred from the data, and the
+  screen says whose finding it is.
+- **A projection is never a baseline figure.** What an intervention would cost and save is
+  an estimate about the future. It is labelled as one, it shows the range it rests on, and
+  it is never added to or netted against anything in the cost baseline (rule 9).
+- **No invented effect.** How much an intervention reduces discipline is the consultant's
+  judgement, entered with its basis. A default the product supplies must be researched,
+  cited and reviewed by the owner like any other assumption (rule 7).
+- **Still about a unit, never a person.** Nothing in Phase 3 scores, ranks or names an
+  individual.
+
