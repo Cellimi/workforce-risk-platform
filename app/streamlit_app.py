@@ -41,6 +41,7 @@ PAGES = [
     "Executive summary",
     "Cost matrix",
     "Drill-down",
+    "Patterns",
     "Assumptions",
     "Data quality",
 ]
@@ -148,7 +149,7 @@ def display_controls() -> None:
 
 def sidebar() -> str:
     st.sidebar.markdown("### Harlow County")
-    st.sidebar.caption("Workforce Risk Intelligence - Phase 1")
+    st.sidebar.caption("Workforce Risk Intelligence")
 
     page = st.sidebar.radio("Page", PAGES, label_visibility="collapsed")
     st.sidebar.divider()
@@ -619,6 +620,128 @@ def heatmap(data: dict, metric: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# patterns (Phase 2): units whose discipline rate stands out
+# ---------------------------------------------------------------------------
+def _unit_name(unit: dict) -> str:
+    """A finding's unit as a reader would say it."""
+    where = f"{unit['row_label']} at {unit['col_label']}"
+    return f"{unit['topic_label']} among {where}" if unit.get("topic_label") else where
+
+
+def _unit_table(rows: list[dict]) -> pd.DataFrame:
+    by_type = any(r.get("topic_label") for r in rows)
+    return pd.DataFrame(
+        [
+            {
+                **({"Type of misconduct": r["topic_label"]} if by_type else {}),
+                "Employee type": r["row_label"],
+                "Work location": r["col_label"],
+                "Actions": r["actions"],
+                "People": r["people"],
+                "Expected": r["expected_actions"],
+                "Times the rate elsewhere": r["ratio"],
+                "Cost of these actions": money(r["net"]),
+                "Adjusted chance value": round(r["q_value"], 4),
+            }
+            for r in rows
+        ]
+    )
+
+
+PATTERN_VIEWS = {
+    "By type of misconduct": "misconduct",
+    "All types together": "overall",
+}
+
+
+def patterns_page(api: EngineClient) -> None:
+    page_header(
+        "Patterns",
+        "Where a type of misconduct is more frequent than the same job shows elsewhere, "
+        "and what it costs there.",
+    )
+    view = st.radio("Look at", list(PATTERN_VIEWS), horizontal=True, key="patterns_view")
+    found = api.hotspots(PATTERN_VIEWS[view], mode())
+    by_type = found["by"] == "misconduct"
+    st.info(found["note"])
+    settings = found["settings"]
+    if settings["unreviewed"]:
+        st.warning(
+            "The thresholds behind this page are starting values that have not been "
+            "reviewed yet: " + ", ".join(f"`{name}`" for name in settings["unreviewed"]) + "."
+        )
+    unit = (
+        "a type of misconduct, in an employee type, at a work location"
+        if by_type
+        else "an employee type at a work location"
+    )
+    st.caption(
+        f"{found['comparisons']} comparisons made (each is {unit}), over "
+        f"{found['window_start']} to {found['window_end']}. A flag needs an adjusted chance "
+        f"value of {settings['detection_false_discovery_rate']:g} or less, a rate at least "
+        f"{settings['detection_min_rate_ratio']:g} times the comparison, and at least "
+        f"{found['min_people']} people disciplined."
+    )
+
+    st.subheader("Flagged")
+    if not found["flagged"] and not found["withheld"]:
+        st.markdown(
+            "No type of misconduct stands out in any unit." if by_type else "No unit stands out."
+        )
+    for unit in found["flagged"]:
+        with st.container(border=True):
+            st.markdown(f"**{_unit_name(unit)}**")
+            one, two, three, four = st.columns(4)
+            one.metric("Times the rate elsewhere", f"{unit['ratio']:.2f}" if unit["ratio"] else "-")
+            two.metric(
+                "Actions, against expected", f"{unit['actions']} / {unit['expected_actions']:g}"
+            )
+            three.metric(
+                "Cost of these actions",
+                money(unit["net"]),
+                help="From the cost baseline: what the records show these actions cost.",
+            )
+            four.metric(
+                "Estimated excess cost",
+                money(unit["estimated_excess_cost"]),
+                help="An estimate, and not part of the cost baseline.",
+            )
+            with st.expander("How this was worked out"):
+                st.markdown(unit["explanation"])
+                st.markdown(f"Estimated excess cost: {unit['formula']}.")
+    if found["withheld"]:
+        st.caption(
+            f"{found['withheld']} more flagged, and withheld from this view: together with "
+            "figures already shown to you, it would let a small group of people be worked "
+            "out. The engagement lead can see it."
+        )
+
+    if found["detail"] != "full":
+        st.caption(
+            "This view shows the flagged units. What was assessed and not flagged is kept to "
+            "the roles that see records, because that list would give away small groups. "
+            "That is decided on the server, not on this screen."
+        )
+        return
+
+    if found["concentrated"]:
+        st.subheader("More actions than expected, among few people")
+        st.caption(
+            "These stand out on the number of actions and not on the number of people. That "
+            "is not a pattern in a unit, and they are not flagged."
+        )
+        st.dataframe(_unit_table(found["concentrated"]), hide_index=True, width="stretch")
+
+    with st.expander(f"Assessed and not flagged ({len(found['not_flagged'])})"):
+        if found["not_flagged"]:
+            st.dataframe(_unit_table(found["not_flagged"]), hide_index=True, width="stretch")
+    if found["not_assessed"]:
+        with st.expander(f"Not assessed ({len(found['not_assessed'])})"):
+            for unit in found["not_assessed"]:
+                st.markdown(f"- **{unit['row_label']} at {unit['col_label']}**: {unit['reason']}")
+
+
+# ---------------------------------------------------------------------------
 # page 3 - drill-down
 # ---------------------------------------------------------------------------
 def drill_down(api: EngineClient) -> None:
@@ -962,6 +1085,7 @@ PAGE_FUNCTIONS = {
     "Executive summary": executive_summary,
     "Cost matrix": cost_matrix,
     "Drill-down": drill_down,
+    "Patterns": patterns_page,
     "Assumptions": assumptions_page,
     "Data quality": data_quality,
     "Load data": licensed.load_data_page,

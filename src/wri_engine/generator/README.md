@@ -81,9 +81,14 @@ One location-and-role combination carries elevated attendance violations, so the
 baseline surfaces **Corrections Officer × Attendance × Main Detention Center** as the most
 expensive cell on its own, from cost alone.
 
-**Phase 1 must never label this an alert, a hotspot, or a risk.** Detection is Phase 2. The
-matrix shows an expensive cell; a human draws the conclusion. This paragraph exists so that
-nobody mistakes a planted pattern for a discovery.
+**The cost baseline must never label this an alert, a hotspot, or a risk.** The matrix
+shows an expensive cell; a human draws the conclusion. This paragraph exists so that nobody
+mistakes a planted pattern for a discovery.
+
+Detection (Phase 2, `wri_engine.detection`) is tested against it: on the full county it
+must flag this unit and none of the other thirty-one. **That test needs the full county.**
+The committed `sample/` is a cut for browsing that keeps mostly employees who were
+disciplined, so every rate in it is meaningless and the pattern is not in it.
 
 ### `misconduct_weights` and `category_severity_tier`
 Attendance (26) and tardiness (16) dominate, as they do in practically every published

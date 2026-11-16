@@ -73,7 +73,7 @@ which branch a pull request targets, and which session has claimed which item.
 
 | Path | What lives there |
 |---|---|
-| `config/` | `assumptions.yaml` (cost coefficients + sources), `org_county.yaml` (departments, grades, taxonomies) |
+| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `org_county.yaml` (departments, grades, taxonomies) |
 | `src/wri_engine/schema/` | Canonical Pydantic models. Source formats never appear here. |
 | `src/wri_engine/adapters/` | One module per source system. Each returns a `CanonicalDataset`. |
 | `src/wri_engine/generator/` | Synthetic data generator, emits *source-format* CSV |
@@ -83,6 +83,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/access/` | Role definitions, enforcement, the audit log (chained with `wri_engine/hashchain.py`, as the license usage log is) |
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
+| `src/wri_engine/detection/` | Phase 2. Which units' discipline rate stands out from the same job elsewhere, with exact statistics checkable by hand. Settings in `config/detection.yaml` |
 | `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
@@ -105,6 +106,34 @@ make package LICENSE_PUBLIC_KEY=...   # the install package (needs Docker)
 
 ## Phase boundary
 
-Phase 1 is the **cost baseline only**. Do not add pattern detection, hotspot alerting, risk
-scoring, or intervention cost-benefit modeling — those are Phases 2 and 3. If the data shows
-a hot cell, the matrix surfaces it as an expensive cell, never as an alert.
+**Phase 1, the cost baseline, is built. The owner opened Phase 2, detection, on
+2026-11-15.** Phase 3 (root cause, intervention cost-benefit) is closed: do not start it.
+
+The owner's program overview (given to the build on 2026-11-16) defines Phase 2 as finding
+where **types of misconduct** cluster, calling the pattern out to management, and pairing
+it with what Phase 1 says it costs at that location or unit. Build to that.
+
+What holds inside Phase 2:
+
+- **Detection reads the baseline and never changes it.** It lives in
+  `src/wri_engine/detection/`. The cost matrix still shows an expensive cell and nothing
+  more; a flag appears only on the Patterns page and its endpoint.
+- **A flag is about a unit, never a person.** A unit is a job at a work location, looked at
+  by type of misconduct (the main view) or with every type together. No individual is
+  scored, ranked or named.
+  Do not build individual risk scores without the owner asking for exactly that.
+- **A flag says a rate stands out. It does not say why**, and the code and the screen must
+  not suggest a cause.
+- **Every flag is explainable** the way every dollar is: the counts, the comparison, the
+  arithmetic and the setting ids it used.
+- **Thresholds live in `config/detection.yaml`**, fetched by id, never written into Python.
+  An unreviewed one is `TBD-MIKE` and the screen says so.
+- **Leadership sees the flags; only record-level roles see the working.** A totals-only
+  role gets the flagged units, each released under the same small-group rules as a cell of
+  the cost matrix (`release_together` in `aggregation/suppression.py`); one that fails is
+  withheld and counted. The list of units assessed and *not* flagged stays with roles that
+  see records, because it would hand over the small groups. See "Who sees what" in
+  `detection/hotspots.py` before changing any of this.
+- **A flag is paired with its cost.** Each finding carries what the baseline says those
+  actions cost (an actual). An estimated excess cost is an estimate, is labelled as one,
+  and is never added to a baseline figure (rule 9 still governs the baseline).
