@@ -70,6 +70,7 @@ from wri_engine.aggregation.rollups import (
     build_matrix,
     fte_denominators,
     summarize,
+    window_years,
 )
 from wri_engine.api.context import Ctx, Runtime, get_ctx
 from wri_engine.api.licensing import require_within_size
@@ -88,6 +89,12 @@ from wri_engine.detection import (
     halves,
     load_detection_settings,
     unit_counts,
+)
+from wri_engine.interventions import (
+    Intervention,
+    InvalidIntervention,
+    appraise,
+    unit_baseline,
 )
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
@@ -863,6 +870,85 @@ def _drift_report(state, run, by: str) -> DriftReport:
         earlier=(start, earlier_ends),
         later=(later_starts, end),
     )
+
+
+# ---------------------------------------------------------------------------
+# interventions (Phase 3)
+# ---------------------------------------------------------------------------
+class AppraisalRequest(BaseModel):
+    """A unit, and what the consultant proposes to do there, in the consultant's figures."""
+
+    role_family: str
+    work_location: str
+    misconduct_category: str = Field("", description="Empty for every type together")
+    name: str
+    one_time_cost: Decimal = Decimal(0)
+    annual_cost_per_person: Decimal = Decimal(0)
+    people_covered: int = 0
+    other_annual_cost: Decimal = Decimal(0)
+    years: int = Field(..., description="How many years to look ahead")
+    reduction_low: Decimal = Field(..., description="Share of actions prevented: 0.1 is 10%")
+    reduction_expected: Decimal
+    reduction_high: Decimal
+    basis: str = Field(..., description="What the three shares are based on")
+    mode: str = Field("base", pattern="^(low|base|high)$")
+
+
+APPRAISAL_NOTE = (
+    "What the discipline costs comes from the cost baseline. What the intervention costs, "
+    "and how well it works, are the figures entered here. The saving is a projection and "
+    "is not part of the cost baseline. Nothing on this page says why the unit's rate is "
+    "what it is: that is for a person to find out on site."
+)
+
+
+@router.post("/interventions/appraise", tags=["interventions"])
+def appraise_intervention(body: AppraisalRequest, ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Set what an intervention would cost against what a unit's discipline costs: the
+    net saving at a low, an expected and a high reading of how well it works, and the share
+    of actions it must prevent to pay for itself.
+
+    For roles that see records, because the unit is any job at any location and its cost
+    is given whatever its size. Nothing is saved, and the costing run is read and not
+    changed. See `wri_engine.interventions.appraisal`.
+    """
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_RECORDS, "/interventions/appraise")
+    unit = {
+        "role_family": body.role_family,
+        "work_location": body.work_location,
+        "misconduct_category": body.misconduct_category,
+    }
+    _audit(ctx, "/interventions/appraise", detail={**unit, "mode": body.mode})
+    state.ensure_loaded()
+    run = state.run(mode=body.mode)
+    baseline = unit_baseline(
+        run, body.role_family, body.work_location, body.misconduct_category, window_years(run)
+    )
+    if baseline is None:
+        raise HTTPException(404, "the records show no discipline action for that unit")
+    proposal = Intervention(
+        name=body.name,
+        one_time_cost=body.one_time_cost,
+        annual_cost_per_person=body.annual_cost_per_person,
+        people_covered=body.people_covered,
+        other_annual_cost=body.other_annual_cost,
+        years=body.years,
+        reduction_low=body.reduction_low,
+        reduction_expected=body.reduction_expected,
+        reduction_high=body.reduction_high,
+        basis=body.basis,
+    )
+    try:
+        result = appraise(baseline, proposal)
+    except InvalidIntervention as exc:
+        raise HTTPException(422, {"problems": exc.problems}) from None
+    return {
+        "caption": _caption(ctx),
+        "note": APPRAISAL_NOTE,
+        "mode": body.mode,
+        **result.as_dict(),
+    }
 
 
 # ---------------------------------------------------------------------------

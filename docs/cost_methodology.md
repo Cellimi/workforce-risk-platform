@@ -984,6 +984,62 @@ elsewhere, and nothing else is.
 
 ---
 
+## 11c. Interventions: what doing something would cost (Phase 3, first step)
+
+Opened by the owner on 2026-11-16. Once someone has been on site and found out what is
+going on in a flagged unit, the question for the client's leadership is:
+
+    It costs you X a year to discipline people here for this.
+    Doing something about it would cost Y.
+    If it works as well as we expect, you come out Z ahead.
+
+**X** is the net cost, in the cost baseline, of the unit's actions of that type over the
+period, divided by the length of the period in years (the same length the executive
+summary's annual figure uses). Nothing about it is estimated here.
+
+**Y** is entered by the consultant:
+
+    Y = one-time cost + (yearly cost per person x people covered + other yearly cost) x years
+
+**How well it works** is entered by the consultant three times, as the share of the unit's
+actions the intervention would prevent: low, expected and high, with the basis for those
+figures in words. The product supplies none of the three and has no default. It holds no
+evidence of its own on what any intervention achieves, and a figure it made up would be
+read as one.
+
+**Z**, for each of the three:
+
+    cost prevented a year = X x share prevented
+    Z = cost prevented a year x years - Y
+
+**The break-even share** needs no judgement:
+
+    break-even share = Y / (X x years)
+
+It is the share of these actions the intervention must prevent to pay for itself. Above
+100% it cannot, on the cost of discipline alone, and the page says so.
+
+**What it assumes**, shown with every result:
+
+- It is a projection, and no part of the cost baseline. No figure here is added to or
+  netted against a baseline figure.
+- Without the intervention the unit goes on costing what it cost a year over the period.
+- A prevented action costs what this unit's actions of this type cost on average. If the
+  intervention prevents mostly the minor ones, the saving is less.
+- Nothing is discounted: money in later years counts the same as money now.
+- Only the cost of discipline is counted as a benefit. Whatever else the intervention
+  improves (attendance itself, turnover, morale) is not.
+
+**What it does not do.** It does not say why the unit's rate is what it is, and it does not
+suggest what to do. Both come from a person's investigation.
+
+On the synthetic county, attendance among corrections officers at the main detention center
+costs $232,626 over 2.91 years, $79,940 a year. An intervention costing $246,000 over three
+years could not pay for itself on that alone; one costing $60,000 would need to prevent a
+quarter of those actions.
+
+---
+
 ## 12. Current results
 
 From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:

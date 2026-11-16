@@ -52,7 +52,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Totals held to the minimum group size, as cells are | Claude Code session | Done, PR #21 |
 | Phase 2, step 2: the flagged patterns in the client report | Claude Code session | Done, PR #22 |
 | Phase 2, step 3: drift (where a type of misconduct is rising) | Claude Code session | Done, PR #23 |
-| Owner's decisions of 2026-11-16: thresholds reviewed, client reader confirmed, small-group rules kept, Phase 3 opened | Claude Code session | Done, `claude/owner-decisions-1116` (built on PR #23) |
+| Owner's decisions of 2026-11-16: thresholds reviewed, client reader confirmed, small-group rules kept, Phase 3 opened | Claude Code session | Done, PR #24 (built on PR #23) |
+| Phase 3, step 1: the cost-benefit of an intervention for a unit | Claude Code session | Done, `claude/phase3-appraisal` (built on PR #24) |
 
 ## Where things stand
 
@@ -256,6 +257,50 @@ has already seen; say if it should be brought into line.
 4. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
    reason; the detection settings cannot yet.
 5. **Anything about protected characteristics.** The data model carries none, by design.
+
+## Phase 3: root cause and interventions
+
+Opened by the owner on 2026-11-16 ("open phase 3"). His program overview describes it:
+with a hotspot flagged and its cost known, people investigate on site (interviews with HR,
+management and employees) to find the causes; candidate solutions are proposed and each is
+priced; and management is given a cost-benefit: the discipline costs X, the intervention
+would cost Y, it is projected to reduce discipline enough to save Z net. The overview says
+the phase was not yet scoped into implementation detail, so the steps below are the
+build's proposal and the decisions in them are his to change.
+
+### Step 1, built: the cost-benefit of one intervention
+
+`src/wri_engine/interventions/appraisal.py`, `POST /interventions/appraise`, and the
+**Interventions** page. The method is in `docs/cost_methodology.md` section 11c.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| Where X comes from | The cost baseline: the unit's net cost for that type, per year | The overview: "it currently costs the organization X". Nothing estimated |
+| Where Y comes from | The consultant types it: one-time, yearly per person covered, other yearly, years | Every client's costs differ. A library of typical costs would be assumptions needing research and his review |
+| How well an intervention works | The consultant's judgement: low, expected, high, with its basis in words. **No default, and refused without the basis** | The product has no evidence on what any intervention achieves. A made-up default would be read as a finding |
+| What is shown | Net saving three ways, and the share of actions it must prevent to pay for itself | The break-even share needs no judgement, so it is the one figure nobody can argue with |
+| Causes | Not recorded, not suggested | A person finds them on site. Recording them is step 2 |
+| Benefits counted | Only the cost of discipline | It is the only benefit the baseline can price. The page says so |
+| Discounting | None | It would be a coefficient needing a source. Horizons are capped at ten years |
+| Who may use it | Engagement lead and analyst | It works on any unit, whatever its size |
+| Saving the result | Not yet: worked out and shown | Where an engagement's investigation notes may be kept is a decision of its own (rule 12) |
+
+### Not built, in the order proposed
+
+1. **Keeping an appraisal with the engagement**, with the investigation's findings: what
+   was found on site, by whom, and which interventions were weighed. Interview notes are a
+   client's confidential material and can name people, so where they live and who may read
+   them needs the owner's ruling before it is built.
+2. **The cost-benefit in the client report.** The overview's deliverable to management.
+   It needs step 1, and the small-group rules for a unit's cost in a client's copy.
+3. **Comparing several interventions for one unit**, side by side.
+4. **Typical costs and effects of common interventions** (transit, childcare, training,
+   flexible hours), researched and cited. Every such figure is an assumption: researched,
+   marked as such, and reviewed by the owner before any report uses it.
+5. **Checking afterwards whether it worked**: the unit's rate after an intervention began
+   against before. Drift already has the arithmetic.
 
 ## Single sign-on
 

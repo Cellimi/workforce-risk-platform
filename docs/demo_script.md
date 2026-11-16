@@ -183,6 +183,10 @@ If you have a spare beat, drag the sensitivity slider in the sidebar from `base`
 >
 > **Phase 3 is intervention cost-benefit** — you can't tell an agency a supervisor training
 > program pays for itself until you have a baseline it can pay for itself *against*.
+> *(The first step is built: the Interventions page. As `hr_analyst`, pick a unit, type what
+> is proposed, what it costs and how well you expect it to work, and it shows the net
+> saving three ways and the share of actions it must prevent to pay for itself. It does not
+> suggest a cause or an effect: those are yours.)*
 >
 > The engine is source-agnostic by design. Today it reads a county HR export. The adapter for
 > a federal payroll system is designed and stubbed — the field mapping is written down. The

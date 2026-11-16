@@ -231,7 +231,7 @@ def pages() -> list[str]:
         return ["Engagement"]
     out = ["Executive summary", "Cost matrix", "Patterns"]
     if can("view_records"):
-        out.append("Drill-down")
+        out += ["Interventions", "Drill-down"]
     out += ["Assumptions", "Data quality"]
     if can("manage_data"):
         out.append("Load data")
