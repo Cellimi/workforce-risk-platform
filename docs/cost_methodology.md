@@ -886,8 +886,9 @@ county, 28 of its 32 job-and-location cells.
 - A job that exists at one location has nothing to be compared with and is not assessed.
 - Where a job exists at two locations, "higher than the other" and "the other is lower"
   are the same fact. The test cannot say which of the two is the unusual one.
-- The two thresholds are starting values the owner has not reviewed. They are judgements
-  about how cautious a flag should be, not facts that can be looked up.
+- The two thresholds were proposed by the build and kept by the owner on review
+  (2026-11-16). They are judgements about how cautious a flag should be, not facts that can
+  be looked up.
 
 On the synthetic county, by type of misconduct: 196 comparisons, one flagged, attendance
 among corrections officers at the main detention center, at 3.40 times the rate of the same

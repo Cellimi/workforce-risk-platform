@@ -51,7 +51,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 2, step 1: hotspot detection (where a type of misconduct clusters, with its cost, shown to leadership) | Claude Code session | Done, PR #20. Reworked 2026-11-16 to the owner's program overview |
 | Totals held to the minimum group size, as cells are | Claude Code session | Done, PR #21 |
 | Phase 2, step 2: the flagged patterns in the client report | Claude Code session | Done, PR #22 |
-| Phase 2, step 3: drift (where a type of misconduct is rising) | Claude Code session | Done, `claude/phase2-drift` |
+| Phase 2, step 3: drift (where a type of misconduct is rising) | Claude Code session | Done, PR #23 |
+| Owner's decisions of 2026-11-16: thresholds reviewed, client reader confirmed, small-group rules kept, Phase 3 opened | Claude Code session | Done, `claude/owner-decisions-1116` (built on PR #23) |
 
 ## Where things stand
 
@@ -89,10 +90,10 @@ series, state and local service occupations and public administration, bracket i
 8. **Phase 2, pattern detection and escalation.** Opened by the owner on 2026-11-15. Step
    1, hotspots, step 2, the flagged patterns in the client report, and step 3, drift over
    time, are built: see "Phase 2: detection" below. Next: rising units in the client report.
-9. **Phase 3** (root-cause investigation; intervention cost-benefit). Closed until the
-   owner opens it. See "Phase boundary" in `CLAUDE.md`. His program overview describes it
-   as an on-site investigation of a flagged unit, then candidate interventions each priced
-   and set against what the discipline costs.
+9. **Phase 3** (root-cause investigation; intervention cost-benefit). Opened by the owner
+   on 2026-11-16. His program overview describes it as an on-site investigation of a
+   flagged unit, then candidate interventions each priced and set against what the
+   discipline costs. See "Phase 3" below and "Phase boundary" in `CLAUDE.md`.
 
 ## Phase 2: detection
 
@@ -135,8 +136,8 @@ estimated excess of $554,786. Tests require exactly that.
 | The measure | Actions per employee-year | Counts alone reward size. Employee-years allow for people joining and leaving |
 | The test | Exact (binomial, given the total), then Benjamini-Hochberg across all comparisons | No approximation to defend, sound at small counts, and checkable by hand |
 | What counts as a comparison | Each location of a job, for each type that job was disciplined for anywhere | A type nobody in the job was disciplined for cannot stand out. Counting it would only make every real comparison harder to pass |
-| `detection_false_discovery_rate` | 0.05, **TBD-MIKE** | A starting value. How many flags may be chance is his call |
-| `detection_min_rate_ratio` | 1.5, **TBD-MIKE** | A starting value. What difference is worth a person's attention is his call |
+| `detection_false_discovery_rate` | 0.05. Reviewed and kept by the owner, 2026-11-16 | How many flags may be chance is his call |
+| `detection_min_rate_ratio` | 1.5. Reviewed and kept by the owner, 2026-11-16 | What difference is worth a person's attention is his call |
 | Fewest people | The engagement's minimum group size (5) | A handful of people is not a pattern in a unit |
 | A few people, many actions | Reported as "concentrated in few people", not flagged | It is a different thing, and flagging it would point at individuals |
 | Who sees the flags | Every role that sees totals, the client reader included | The overview: the pattern is called out to management. See below for how that is made safe |
@@ -163,8 +164,8 @@ nothing a client reader could not already see. It could assess 7 units and misse
 planted one, because the matrix withholds 28 of its 32 job-and-location cells. Detection
 therefore runs on the full records and the *release* of each finding is what is checked.
 
-**For the owner to confirm:** that the client reader should see flagged units on screen
-under these rules. It follows the overview, and it replaces the first build's refusal.
+**Confirmed by the owner on 2026-11-16:** the client reader sees flagged units on screen
+under these rules.
 
 **Found on the way, worth knowing:**
 
@@ -201,7 +202,7 @@ shows the same reader, and to the cent.
 | The working | In the working papers only: every unit assessed, and those that could not be | It is record-level work, for the roles that see records |
 | Cost | The baseline's cost of those actions, and the estimated excess, with a sentence saying the estimate is in no total | The overview pairs the pattern with the Phase 1 cost. Rule 9 governs the totals |
 | Cause | The report says a flag "does not say why the rate is higher" | That is Phase 3 |
-| Unreviewed thresholds | The report says they are starting values still under review | Rule 7. The sentence goes when the owner reviews them |
+| Unreviewed thresholds | The report would say they are starting values still under review | Rule 7. The owner reviewed both on 2026-11-16, so the sentence no longer appears |
 | Leaving it out | `patterns=false`, and a tick box on the screen. Included unless asked otherwise | An engagement scoped to cost alone should not have to carry it |
 | Nothing flagged | The section stays and says nothing stood out | Silence would read as "not looked at" |
 
@@ -212,8 +213,8 @@ small-group rule withholds the flag and the report says "1 more stood out and is
 shown". The by-type flag for the same unit is shown. The disclosure ledger treats any two
 overlapping groups a few people apart as a risk, including pairs where neither contains
 the other and nothing can in fact be subtracted. It is cautious in the safe direction.
-Making it exact would show more, here and in the cost matrix, and is the owner's call,
-together with the open question in "Small groups: totals as well as cells".
+Making it exact would show more, here and in the cost matrix. **The owner decided on
+2026-11-16 to keep the small-group rules as they are**, so this stays.
 
 ### Step 3, built: drift
 
@@ -234,7 +235,7 @@ earlier half and requires that unit, and only it, to be flagged.
 | What a rise is compared with | The change in the rest of the organization for the same type of misconduct | A real client's early records are often thin. Against its own past alone, every unit would then be "rising" |
 | Why not "the same job elsewhere", as hotspots use | Changes are compared, not rates, so jobs can be pooled, and the rest of the organization is a far steadier yardstick than one other location | The synthetic county's planted unit has one other location with 12 such actions |
 | Size | The unit's later rate at least 1.5 times its earlier rate, and its rise at least 1.5 times the rest's | The first stops "held steady while others improved" being called a rise. The second stops a general rise being called the unit's |
-| Thresholds | The hotspot detector's two, unchanged | A rise should not be held to a different standard from a level. Both are still **TBD-MIKE** |
+| Thresholds | The hotspot detector's two, unchanged | A rise should not be held to a different standard from a level. The owner reviewed and kept both on 2026-11-16 |
 | What counts as a comparison | Units with at least the minimum group size of actions in the period | A smaller unit can never be flagged. Counting it makes real comparisons harder to pass. On the county this is 21 comparisons, not 162 |
 | Date of an action | Its decision date, as everywhere else | Undecided recent misconduct is not counted, so a rise is understated if anything |
 | Falls | Listed in the working, never flagged | The question asked was what is getting worse |
@@ -482,6 +483,10 @@ Closing those properly means deciding what may be released by people, not by cel
 every figure on a page at once. It would withhold noticeably more of the matrix, so it is
 his decision and its own piece of work. Also: the ledger compares groups of people, so it
 cannot see two questions about the same people that differ by one action.
+
+**Decided by the owner on 2026-11-16: keep the rules as they are.** Neither tightened as
+above nor loosened (see the ledger's caution under "Phase 2: detection"). The limits in
+this section therefore stand, and are stated here so that nobody takes them for closed.
 
 ## Disclosure ledgers
 

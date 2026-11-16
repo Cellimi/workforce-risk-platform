@@ -6,8 +6,9 @@
 # so is the rule: Python never hardcodes one of these, and a missing id is a hard error.
 #
 # status = TBD-MIKE means the value is a starting point proposed by the build and NOT yet
-# reviewed by the owner. Both entries below are in that state. They are judgements about how
-# cautious a flag should be, not facts that can be looked up, so they are his to set.
+# reviewed by the owner. Neither entry below is in that state: the owner reviewed both on
+# 2026-11-16 and kept the values. They are judgements about how cautious a flag should be,
+# not facts that can be looked up, so they are his to set, and a new one starts as TBD-MIKE.
 
 assumptions:
 - id: detection_false_discovery_rate
@@ -20,11 +21,11 @@ assumptions:
   source: 'Method: Benjamini, Y. and Hochberg, Y. (1995), "Controlling the false discovery rate: a
     practical and powerful approach to multiple testing", Journal of the Royal Statistical Society
     Series B 57(1), 289-300. The method is theirs; the level of 0.05 is a starting value proposed by
-    the build, not a sourced figure.'
+    the build, not a sourced figure. Reviewed and kept by the owner on 2026-11-16.'
   confidence: low
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-15'
+  status: confirmed
+  last_reviewed: '2026-11-16'
   notes: Many units are compared at once, so some would look unusual by chance alone. This is the
     share of flagged units that may be chance findings, on average. Lower is more cautious - fewer
     flags, and fewer of them wrong. 0.05 says that, over many uses, about one flag in twenty is
@@ -39,10 +40,11 @@ assumptions:
     detector: hotspots
   source: Starting value proposed by the build. No external source - what counts as a difference worth
     a person's attention is a judgement for the owner and, in an engagement, for the consultant.
+    Reviewed and kept by the owner on 2026-11-16.
   confidence: low
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-15'
+  status: confirmed
+  last_reviewed: '2026-11-16'
   notes: A very large unit can differ from its comparison by a few percent and still pass a statistical
     test. This is how many times the comparison rate a unit's rate must be before it is flagged, so
     that a flag means a difference large enough to matter and not merely one that is unlikely to be

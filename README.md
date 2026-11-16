@@ -415,8 +415,8 @@ What holds:
 - **Only the engagement lead and the analyst see the working**: what was assessed and not
   flagged, and what could not be assessed. That list would give away the two or three
   people in the small job beside each large one.
-- **The two thresholds are starting values the owner has not reviewed**
-  (`config/detection.yaml`), and the page says so.
+- **The two thresholds are the owner's** (`config/detection.yaml`, reviewed 2026-11-16). A
+  new one starts unreviewed, and the page and the report say so until he has seen it.
 
 On the synthetic county, by type of misconduct, it makes 196 comparisons and flags one:
 attendance among corrections officers at the main detention center, 70 actions where the

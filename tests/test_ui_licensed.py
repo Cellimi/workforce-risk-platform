@@ -867,7 +867,7 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         hot = "Attendance / AWOL among Corrections Officer at Main Detention Center"
         assert hot in shown
         assert "It does not say why, and it says nothing about any one person." in shown
-        assert "have not been reviewed yet" in shown
+        assert "have not been reviewed yet" not in shown, "the owner reviewed them"
         assert "196 comparisons made" in shown
         assert metric(at, "Cost of these actions") == "$232,626"
         assert metric(at, "Estimated excess cost") == "$164,168"
