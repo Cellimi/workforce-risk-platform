@@ -345,6 +345,116 @@ def _patterns_working(book: Workbook, content: ReportContent) -> None:
     _widths(sheet, PATTERN_WIDTHS)
 
 
+def _interventions(book: Workbook, content: ReportContent) -> None:
+    """What was found on site and what is proposed: the figures behind the report's
+    section. The causes are named by label; the words typed for "Other" are not here."""
+    section = content.interventions
+    sheet = book.create_sheet("Interventions")
+    _header(
+        sheet,
+        1,
+        [
+            "Where",
+            "Found on site",
+            "Whose finding",
+            "Entered",
+            "Proposed",
+            "Based on",
+            "Years",
+            "The intervention costs",
+            "The discipline costs, a year",
+            "Prevented: low",
+            "Prevented: expected",
+            "Prevented: high",
+            "Net saving: low",
+            "Net saving: expected",
+            "Net saving: high",
+            "Pays for itself when",
+            "How the costs were worked out",
+        ],
+    )
+    row = 2
+    for found in section.current:
+        _put(sheet, row, 1, found.unit_name)
+        _put(sheet, row, 2, found.found)
+        _put(sheet, row, 3, found.entered_by)
+        _put(sheet, row, 4, found.entered_on)
+        _put(sheet, row, 5, found.name)
+        _put(sheet, row, 6, found.basis)
+        _put(sheet, row, 7, found.years)
+        _put(sheet, row, 8, found.total_cost, number_format=MONEY)
+        worked = found.cost_formula
+        if found.annual_net is None:
+            reason = (
+                "The records now show no discipline action for this unit."
+                if section.working
+                else section.money_withheld
+            )
+            _put(sheet, row, 16, reason)
+        else:
+            _put(sheet, row, 9, found.annual_net, number_format=MONEY)
+            for offset, saving in enumerate(found.savings):
+                _put(sheet, row, 10 + offset, saving.reduction, number_format=SHARE)
+                _put(sheet, row, 13 + offset, saving.net_saving, number_format=MONEY)
+            _put(sheet, row, 16, found.break_even_note)
+            worked = f"{found.baseline_formula}. {found.cost_formula}"
+        _put(sheet, row, 17, worked)
+        row += 1
+    if not section.current:
+        _put(sheet, row, 1, "Nothing shown.")
+        row += 1
+    row += 1
+    if section.not_shown:
+        _put(
+            sheet,
+            row,
+            1,
+            f"{section.not_shown} more looked into and not shown here: fewer than "
+            f"{section.min_people} people concerned.",
+            font=MUTED,
+        )
+        row += 1
+    _put(sheet, row, 1, section.note, font=MUTED)
+    _put(sheet, row + 1, 1, "A saving assumes: " + " ".join(section.assumes), font=MUTED)
+    _widths(sheet, [52, 38, 34, 12, 34, 50, 8, 22, 26, 16, 20, 16, 18, 22, 18, 70, 110])
+
+
+def _interventions_working(book: Workbook, content: ReportContent) -> None:
+    """The working papers: every appraisal ever kept, with what "Other" was said to be and
+    what was withdrawn. Never in the client's copy."""
+    section = content.interventions
+    sheet = book.create_sheet("Interventions working")
+    _header(
+        sheet,
+        1,
+        [
+            "Where",
+            "Found on site",
+            "Other: what was said",
+            "Whose finding",
+            "Entered",
+            "Proposed",
+            "Standing",
+            "Withdrawn by",
+            "Withdrawn on",
+        ],
+    )
+    row = 2
+    for found in section.rows:
+        _put(sheet, row, 1, found.unit_name)
+        _put(sheet, row, 2, found.found)
+        _put(sheet, row, 3, found.other_cause)
+        _put(sheet, row, 4, found.entered_by)
+        _put(sheet, row, 5, found.entered_on)
+        _put(sheet, row, 6, found.name)
+        _put(sheet, row, 7, "Withdrawn" if found.withdrawn_on else "Kept")
+        _put(sheet, row, 8, found.withdrawn_by)
+        _put(sheet, row, 9, found.withdrawn_on)
+        row += 1
+    _put(sheet, row + 1, 1, content.records.note, font=WARNING)
+    _widths(sheet, [52, 38, 70, 34, 12, 34, 12, 34, 14])
+
+
 def _departments(book: Workbook, content: ReportContent) -> None:
     sheet = book.create_sheet("Departments")
     _header(sheet, 1, ["Department", "Active employees", "Net cost", "Per employee per year"])
@@ -518,6 +628,8 @@ def render_xlsx(content: ReportContent) -> bytes:
     _matrix(book, content)
     if content.patterns:
         _patterns(book, content)
+    if content.interventions:
+        _interventions(book, content)
     _departments(book, content)
     _quality(book, content)
     _assumptions(book, content)
@@ -527,6 +639,8 @@ def render_xlsx(content: ReportContent) -> bytes:
         _line_items(book, content)
         if content.patterns:
             _patterns_working(book, content)
+        if content.interventions:
+            _interventions_working(book, content)
         book.properties.title = f"{book.properties.title} - working papers"
     buffer = io.BytesIO()
     book.save(buffer)

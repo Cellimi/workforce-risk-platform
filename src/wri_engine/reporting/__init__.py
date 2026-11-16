@@ -6,10 +6,12 @@ rendered from the same `ReportContent`, so the two files cannot disagree.
 
 from wri_engine.reporting.content import (
     Branding,
+    InterventionSection,
     OverrideRow,
     PatternSection,
     RecordSection,
     ReportContent,
+    build_interventions,
     build_patterns,
     build_records,
     build_report,
@@ -20,10 +22,12 @@ from wri_engine.reporting.xlsx import render_xlsx
 
 __all__ = [
     "Branding",
+    "InterventionSection",
     "OverrideRow",
     "PatternSection",
     "RecordSection",
     "ReportContent",
+    "build_interventions",
     "build_patterns",
     "build_records",
     "build_report",

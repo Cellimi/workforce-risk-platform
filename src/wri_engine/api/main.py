@@ -74,6 +74,7 @@ from wri_engine.aggregation.rollups import (
     summarize,
     window_years,
 )
+from wri_engine.aggregation.suppression import release_together
 from wri_engine.api.context import Ctx, Runtime, get_ctx
 from wri_engine.api.licensing import require_within_size
 from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
@@ -102,12 +103,15 @@ from wri_engine.interventions import (
     load_causes,
     unit_baseline,
 )
+from wri_engine.interventions.appraisal import ASSUMES as APPRAISAL_ASSUMES
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
+    InterventionSection,
     OverrideRow,
     PatternSection,
     ReportContent,
+    build_interventions,
     build_patterns,
     build_records,
     build_report,
@@ -984,9 +988,10 @@ def _entered_by(ctx: Ctx) -> str:
     return f"{ctx.user.name} ({ctx.user.email})" if ctx.user.name else ctx.user.email
 
 
-def _kept_view(kept: KeptAppraisal, run) -> dict:
+def _kept_view(kept: KeptAppraisal, run, with_money: bool = True) -> dict:
     """A kept appraisal as it is shown: the finding as entered, and the saving as the cost
-    baseline now gives it."""
+    baseline now gives it. `with_money=False` leaves out everything that rests on what the
+    unit's discipline costs."""
     allowed = load_causes()
     view = {
         "id": kept.id,
@@ -1004,7 +1009,7 @@ def _kept_view(kept: KeptAppraisal, run) -> dict:
         },
     }
     baseline = unit_baseline(run, kept.row, kept.col, kept.topic, window_years(run))
-    if baseline is None:
+    if baseline is None or not with_money:
         # A corrected file can leave a unit with no actions. The finding stands; there is
         # nothing to set the intervention against.
         return {**view, "appraisal": None, "intervention": kept.intervention.as_dict()}
@@ -1414,8 +1419,58 @@ def _report_patterns(ctx: Ctx, run, records: bool) -> PatternSection | None:
     return build_patterns(views)
 
 
+def _report_interventions(ctx: Ctx, run, records: bool) -> InterventionSection | None:
+    """The interventions section of a deliverable, decided for the copy being made.
+
+    The working papers carry every appraisal ever kept, in full. The client's copy is
+    decided entry by entry, whoever asks for it:
+
+    * about fewer people than the minimum group, or about a unit the records no longer
+      show: left out, and counted. A cause said of two or three people is said of them;
+    * the unit's cost may not be released beside what this asker has already been shown
+      (the same rule as a matrix cell, against their disclosure ledger): the finding and
+      the proposal stay, and the money is withheld;
+    * otherwise in full.
+
+    The words typed for "Other" are dropped from the client's copy in
+    `reporting.content.build_interventions`, not here, so no caller can forget to.
+    """
+    state = ctx.state
+    minimum = state.min_cell_size
+    entries, not_shown = [], 0
+    for kept in state.appraisals.everything():
+        baseline = unit_baseline(run, kept.row, kept.col, kept.topic, window_years(run))
+        topic = f"{kept.topic} among " if kept.topic else ""
+        name = baseline.name if baseline else f"{topic}{kept.row} at {kept.col}"
+        extra = {
+            "unit_name": name,
+            "withdrawn_by": kept.withdrawn_by,
+            "withdrawn_at": kept.withdrawn_at,
+        }
+        if records:
+            entries.append({**_kept_view(kept, run), **extra})
+        elif kept.is_withdrawn:
+            continue
+        elif baseline is None or baseline.people < minimum:
+            not_shown += 1
+        else:
+            releasable = release_together(ctx.ledger(), [baseline.cohort], minimum)
+            entries.append({**_kept_view(kept, run, with_money=releasable), **extra})
+    return build_interventions(
+        entries,
+        not_shown=not_shown,
+        min_people=minimum,
+        assumes=APPRAISAL_ASSUMES,
+        working=records,
+    )
+
+
 def _report_content(
-    ctx: Ctx, mode: str, records: bool = False, patterns: bool = True
+    ctx: Ctx,
+    mode: str,
+    records: bool = False,
+    patterns: bool = True,
+    interventions: bool = True,
 ) -> ReportContent:
     """Assemble a deliverable for this caller.
 
@@ -1492,6 +1547,7 @@ def _report_content(
         generated_on=date.today(),
         records=record_section,
         patterns=_report_patterns(ctx, runs[mode], records) if patterns else None,
+        interventions=(_report_interventions(ctx, runs[mode], records) if interventions else None),
     )
 
 
@@ -1503,6 +1559,11 @@ def _download(data: bytes, media_type: str, filename: str) -> Response:
     )
 
 
+INTERVENTIONS_IN_REPORT = (
+    "Include the appraisals kept with the engagement: what was found on site, what is "
+    "proposed, and what it would cost and save. The client's copy names a cause by its "
+    "label only."
+)
 PATTERNS_IN_REPORT = (
     "Include where a type of misconduct clusters and what it costs there. The client's "
     "copy carries the flagged units only; the working papers carry what was assessed."
@@ -1513,12 +1574,17 @@ PATTERNS_IN_REPORT = (
 def export_report_pdf(
     mode: str = Query("base", pattern="^(low|base|high)$"),
     patterns: bool = Query(True, description=PATTERNS_IN_REPORT),
+    interventions: bool = Query(True, description=INTERVENTIONS_IN_REPORT),
     ctx: Ctx = Depends(get_ctx),
 ) -> Response:
     """The report a consultant hands a client, carrying the firm's name and logo."""
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.pdf")
-    _audit(ctx, "/exports/report.pdf", detail={"mode": mode, "patterns": patterns})
-    content = _report_content(ctx, mode, patterns=patterns)
+    _audit(
+        ctx,
+        "/exports/report.pdf",
+        detail={"mode": mode, "patterns": patterns, "interventions": interventions},
+    )
+    content = _report_content(ctx, mode, patterns=patterns, interventions=interventions)
     _usage(ctx, "report_generated", format="pdf", mode=mode)
     return _download(render_pdf(content), "application/pdf", f"{content.file_stem}.pdf")
 
@@ -1532,19 +1598,22 @@ def export_report_xlsx(
         "may see record-level detail; the client's copy is the one without them.",
     ),
     patterns: bool = Query(True, description=PATTERNS_IN_REPORT),
+    interventions: bool = Query(True, description=INTERVENTIONS_IN_REPORT),
     ctx: Ctx = Depends(get_ctx),
 ) -> Response:
     """The workbook that goes with the report: the same figures, plus every matrix cell and
     every assumption with its bounds. With `records=true`, the working papers."""
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.xlsx")
-    detail = {"mode": mode, "patterns": patterns}
+    detail = {"mode": mode, "patterns": patterns, "interventions": interventions}
     usage = {"format": "xlsx", "mode": mode}
     if records:
         _guard(ctx, Capability.VIEW_RECORDS, "/exports/report.xlsx")
         detail["records"] = True
         usage["records"] = True
     _audit(ctx, "/exports/report.xlsx", detail=detail)
-    content = _report_content(ctx, mode, records=records, patterns=patterns)
+    content = _report_content(
+        ctx, mode, records=records, patterns=patterns, interventions=interventions
+    )
     _usage(ctx, "report_generated", **usage)
     return _download(
         render_xlsx(content),

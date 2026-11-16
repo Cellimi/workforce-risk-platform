@@ -200,7 +200,14 @@ def report_downloads(api: EngineClient) -> None:
         help="The flagged units and what they cost. What was assessed and not flagged goes "
         "in the working papers only.",
     )
-    key = (st.session_state.get("engagement_id"), mode(), patterns)
+    interventions = st.checkbox(
+        "Include what was found on site and what is proposed (kept on the Interventions page)",
+        value=True,
+        key="report_interventions",
+        help="The client's copy names a cause by its label only: what was typed for "
+        '"Other" goes in the working papers. Nothing is added if nothing has been kept.',
+    )
+    key = (st.session_state.get("engagement_id"), mode(), patterns, interventions)
     prepared = st.session_state.get("report_files")
     if prepared and prepared["key"] != key:
         prepared = None
@@ -212,11 +219,13 @@ def report_downloads(api: EngineClient) -> None:
         try:
             prepared = {
                 "key": key,
-                "pdf": api.report_pdf(mode(), patterns=patterns),
-                "xlsx": api.report_xlsx(mode(), patterns=patterns),
+                "pdf": api.report_pdf(mode(), patterns=patterns, interventions=interventions),
+                "xlsx": api.report_xlsx(mode(), patterns=patterns, interventions=interventions),
             }
             if with_records:
-                prepared["records"] = api.report_xlsx(mode(), records=True, patterns=patterns)
+                prepared["records"] = api.report_xlsx(
+                    mode(), records=True, patterns=patterns, interventions=interventions
+                )
         except ApiError as exc:
             st.error(str(exc))
             return
