@@ -352,6 +352,11 @@ def _matrix(content: ReportContent, styles) -> list:
     ]
 
 
+def _or_withheld(row, shown: str) -> str:
+    """A comparison figure, or the word "withheld" where this copy may not carry it."""
+    return "withheld" if row.comparison_withheld else shown
+
+
 def _pattern_settings(section) -> str:
     """How a flag is decided, and over what period, in one sentence each."""
     text = (
@@ -418,10 +423,10 @@ def _patterns(content: ReportContent, styles) -> list:
                         [
                             row.name,
                             f"{row.actions:,}",
-                            f"{row.expected_actions:,}",
-                            "n/a" if row.ratio is None else f"{row.ratio:.2f}",
+                            _or_withheld(row, f"{row.expected_actions:,}"),
+                            _or_withheld(row, "n/a" if row.ratio is None else f"{row.ratio:.2f}"),
                             money(row.net),
-                            money(row.estimated_excess_cost),
+                            _or_withheld(row, money(row.estimated_excess_cost)),
                         ]
                         for row in view.flagged
                     ],
@@ -432,13 +437,10 @@ def _patterns(content: ReportContent, styles) -> list:
             )
             for row in view.flagged:
                 story.append(Spacer(1, 3))
-                story.append(
-                    Paragraph(
-                        f"<b>{_text(row.name)}.</b> {_text(row.explanation)} "
-                        f"Estimated excess: {_text(row.formula)}.",
-                        styles["small"],
-                    )
-                )
+                worked = f"<b>{_text(row.name)}.</b> {_text(row.explanation)}"
+                if row.formula:
+                    worked += f" Estimated excess: {_text(row.formula)}."
+                story.append(Paragraph(worked, styles["small"]))
         if view.withheld:
             one = view.withheld == 1
             story.append(
@@ -517,9 +519,9 @@ def _rising(section, styles) -> list:
                             row.name,
                             f"{row.earlier_actions:,} then {row.later_actions:,}",
                             _times(row.own_change),
-                            _times(row.ratio),
+                            _or_withheld(row, _times(row.ratio)),
                             f"{money(row.earlier_net)} then {money(row.later_net)}",
-                            money(row.estimated_excess_cost),
+                            _or_withheld(row, money(row.estimated_excess_cost)),
                         ]
                         for row in view.flagged
                     ],

@@ -134,8 +134,10 @@ What holds inside Phase 2:
   An unreviewed one is `TBD-MIKE` and the screen says so.
 - **Leadership sees the flags; only record-level roles see the working.** A totals-only
   role gets the flagged units, each released under the same small-group rules as a cell of
-  the cost matrix (`release_together` in `aggregation/suppression.py`); one that fails is
-  withheld and counted. The list of units assessed and *not* flagged stays with roles that
+  the cost matrix (`release_together` in `aggregation/suppression.py`). Where only the
+  comparison fails, the unit's own figures are shown, the comparison's are marked withheld,
+  and the finding says why; where the unit itself fails, the finding is withheld and
+  counted (the owner's "most transparent way", 2026-11-16). The list of units assessed and *not* flagged stays with roles that
   see records, because it would hand over the small groups. See "Who sees what" in
   `detection/hotspots.py` before changing any of this.
 - **The client report carries the flags, never the working.** `_report_patterns` in

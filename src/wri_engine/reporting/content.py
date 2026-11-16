@@ -313,19 +313,23 @@ class PatternRow:
     actions: int
     people: int
     employee_years: Decimal
-    comparison_actions: int
-    comparison_people: int
-    comparison_employee_years: Decimal
-    expected_actions: Decimal
+    #: The comparison's figures. None when they may not be released in this copy.
+    comparison_actions: int | None
+    comparison_people: int | None
+    comparison_employee_years: Decimal | None
+    expected_actions: Decimal | None
     #: The unit's rate over the rate elsewhere. None when elsewhere had no such action.
     ratio: Decimal | None
-    adjusted_chance: float
+    adjusted_chance: float | None
     #: What the cost baseline shows these actions cost. An actual.
     net: Decimal
     #: Flagged units only. An estimate, and in no total.
     estimated_excess_cost: Decimal | None
     explanation: str
     formula: str
+    #: True when this copy shows the unit's own figures and not its comparison's, because
+    #: those would let a small group be worked out. The explanation says so.
+    comparison_withheld: bool = False
 
     @property
     def name(self) -> str:
@@ -363,12 +367,13 @@ class RisingRow:
     later_people: int
     #: The unit's later rate over its earlier rate. None when it had no earlier action.
     own_change: Decimal | None
-    elsewhere_earlier_actions: int
-    elsewhere_later_actions: int
+    #: The rest of the organization's figures. None when they may not be released in this copy.
+    elsewhere_earlier_actions: int | None
+    elsewhere_later_actions: int | None
     elsewhere_change: Decimal | None
     #: How many times the rest's rise the unit's was. None when either is.
     ratio: Decimal | None
-    adjusted_chance: float
+    adjusted_chance: float | None
     #: What the cost baseline shows the unit's actions cost in each half. Actuals.
     earlier_net: Decimal
     later_net: Decimal
@@ -376,6 +381,8 @@ class RisingRow:
     estimated_excess_cost: Decimal | None
     explanation: str
     formula: str
+    #: True when this copy shows the unit's own figures and not the rest's.
+    comparison_withheld: bool = False
 
     @property
     def name(self) -> str:
@@ -745,6 +752,10 @@ def build_records(
     return RecordSection(identifiers=identifiers, actions=action_rows, line_items=item_rows)
 
 
+def _decimal(value) -> Decimal | None:
+    return None if value is None else Decimal(str(value))
+
+
 def _pattern_row(found: dict) -> PatternRow:
     ratio = found["ratio"]
     return PatternRow(
@@ -757,19 +768,16 @@ def _pattern_row(found: dict) -> PatternRow:
         employee_years=Decimal(str(found["employee_years"])),
         comparison_actions=found["comparison_actions"],
         comparison_people=found["comparison_people"],
-        comparison_employee_years=Decimal(str(found["comparison_employee_years"])),
-        expected_actions=Decimal(str(found["expected_actions"])),
+        comparison_employee_years=_decimal(found["comparison_employee_years"]),
+        expected_actions=_decimal(found["expected_actions"]),
         ratio=None if ratio is None else Decimal(str(ratio)),
         adjusted_chance=found["q_value"],
         net=_money(found["net"]),
         estimated_excess_cost=_optional_money(found["estimated_excess_cost"]),
         explanation=found["explanation"],
         formula=found["formula"],
+        comparison_withheld=found.get("comparison_withheld", False),
     )
-
-
-def _decimal(value) -> Decimal | None:
-    return None if value is None else Decimal(str(value))
 
 
 def _day(value: str | None) -> date | None:
@@ -797,6 +805,7 @@ def _rising_row(found: dict) -> RisingRow:
         estimated_excess_cost=_optional_money(found["estimated_excess_cost"]),
         explanation=found["explanation"],
         formula=found["formula"],
+        comparison_withheld=found.get("comparison_withheld", False),
     )
 
 

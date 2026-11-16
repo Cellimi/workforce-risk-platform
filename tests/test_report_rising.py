@@ -98,32 +98,43 @@ def test_the_planted_rise_is_found(county):
     assert (hot["own_change"], hot["ratio"]) == (3.91, 4.46)
 
 
-def test_the_clients_copy_carries_rising_under_the_small_group_rules(county):
-    """The rise is held back from the client's copy. Its comparison, the rest of the
-    organization in the earlier half, is fifty people a few people away from small cells of
-    the report's own cost matrix, which is printed first, and the rules the owner kept
-    on 2026-11-16 treat that as a risk. The copy says one rose and is not shown, and gives
-    none of its figures."""
+def test_the_clients_copy_shows_the_rise_and_withholds_only_the_comparison(county):
+    """The rest of the organization's earlier half is fifty people a few people away from
+    small cells of the report's own cost matrix, which is printed first, so its figures may
+    not be released. The unit's own may. The client's copy shows the rising unit with what
+    it cost in each half, marks the comparison figures withheld, and says why (owner, on
+    2026-11-16: "make it the most transparent way")."""
     reader = who("executive", "rise-reader")
     text = pdf_text(county.get("/exports/report.pdf", headers=reader).content)
     assert "Rising over the period" in text
     assert "Earlier half: 2023-11-12 to 2025-04-14. Later half: 2025-04-15 to 2026-09-17." in text
-    assert "By type of misconduct 21 comparisons were made. 1 more rose and is not shown" in text
-    assert "it would state a figure about a group of fewer than 5 people" in text
-    assert (
-        "Every type of misconduct together 17 comparisons were made and nothing rose by more "
-        "than the rest of the organization." in text
-    )
-    assert "It does not say why, and it says nothing about any one person." in text
+    assert "By type of misconduct 21 comparisons were made. 1 rose." in text
+    assert f"{HOT_NAME} 9 then 33 3.91 withheld $29,523 then $151,348 withheld" in text
+    assert "It rose by at least 1.5 times as much as the same type did in the rest of the" in text
+    assert "The figures for the rest of the organization are not shown here" in text
+    assert "1 more rose" not in text
     book = book_of(county.get("/exports/report.xlsx", headers=reader))
     assert "Rising" in book.sheetnames and "Rising working" not in book.sheetnames
+    header, *rows = sheet_rows(book, "Rising")
+    (hot,) = [dict(zip(header, r, strict=True)) for r in rows if r[4] == "Rising"]
+    assert (hot["Actions, earlier half"], hot["Actions, later half"]) == (9, 33)
+    assert Decimal(str(hot["Cost, later half"])) == Decimal("151347.88")
+    for column in (
+        "Actions elsewhere, earlier half",
+        "Actions elsewhere, later half",
+        "Times the earlier rate elsewhere",
+        "Times the rise elsewhere",
+        "Adjusted chance value",
+        "Estimated excess (not in any total)",
+    ):
+        assert hot[column] == "withheld", column
     cells = all_text(book)
-    assert "1 more rose and not shown here" in cells
     for copy in (text, cells):
-        for figure in ("9 then 33", "151,348", "151348", "117,409", "117409", "4.46"):
+        # Nothing about the rest of the organization: its counts, its change, the ratio.
+        for figure in ("50 to 41", "0.88", "4.46", "117,409", "117409"):
             assert figure not in copy
         assert not re.search(IDS, copy)
-    assert "Not flagged" not in " ".join(str(r[4]) for r in sheet_rows(book, "Rising")[1:] if r[4])
+    assert "Not flagged" not in " ".join(str(r[4]) for r in rows if r[4])
 
 
 def test_a_reader_who_has_seen_nothing_else_is_shown_it(county):

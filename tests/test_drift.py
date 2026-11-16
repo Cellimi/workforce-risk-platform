@@ -520,3 +520,39 @@ def test_a_rise_only_a_little_more_than_everyones_is_not_the_units():
     assert a.q_value < 0.001 and a.own_change == pytest.approx(3.0)
     assert a.ratio == pytest.approx(1.25) and a.status == "not_flagged"
     assert "less than 1.5 times the rise in the rest of the organization" in a.explanation
+
+
+def test_a_rising_unit_is_shown_without_a_rest_that_would_give_away_a_small_group():
+    """The rest of the organization is forty actions among four people in each half, so
+    its figures would give those four away. The unit's own are about forty-odd people, so
+    they are shown, with what it cost in each half, and the finding says what is left out
+    and why."""
+    counts = {**unit("j", "A", (6, 6), (40, 40)), **unit("k", "B", (40, 4), (40, 4))}
+    same = staff(j_A=100, k_B=100)
+    report = find_drift(counts, same, same, SETTINGS, by=OVERALL)
+    assert len(report.flagged) == 1
+    ledger = DisclosureLedger(min_cell_size=5)
+    shown = report.for_totals_reader(ledger)
+    assert shown["withheld"] == 0
+    (one,) = shown["flagged"]
+    assert one["comparison_withheld"] is True
+    assert (one["earlier_actions"], one["later_actions"]) == (6, 40)
+    assert (one["earlier_net"], one["later_net"]) == ("6000", "40000")
+    assert one["own_change"] == pytest.approx(6.67, abs=0.01)
+    for name in (
+        "elsewhere_earlier_actions",
+        "elsewhere_later_actions",
+        "elsewhere_change",
+        "ratio",
+        "expected_later_actions",
+        "p_value",
+        "q_value",
+        "q_value_people",
+        "estimated_excess_cost",
+    ):
+        assert one[name] is None, name
+    assert one["formula"] == ""
+    assert "The figures for the rest of the organization are not shown here" in one["explanation"]
+    assert "went from 40 to 40" not in one["explanation"]
+    # Only the unit's three groups were recorded as released.
+    assert sorted(len(c) for c in ledger.released) == [6, 40, 46]

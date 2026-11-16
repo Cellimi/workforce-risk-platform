@@ -454,11 +454,15 @@ unit's earlier attendance actions out, and the rise is then found and nothing el
 Rising units also go into the client report and workbook, under "Where discipline
 clusters", by the same rules as the flagged patterns: the client's copy carries the flagged
 units only, each released under the small-group rules, and says when one is held back; the
-working papers carry everything assessed. A rising unit's finding gives figures for five
-groups (the unit in each half and across both, and the rest of the organization in each
-half), so it is held back more often than a level is. On the county with a rise planted in
-it, the rise is held back from a client's report, because the rest of the organization's
-earlier half sits a few people away from small cells of the report's own matrix.
+working papers carry everything assessed.
+
+**As much of a finding as can be shown, is.** Where a unit's own groups pass the
+small-group rules and its comparison's do not, the client sees the unit's own figures with
+the comparison's marked "withheld", and the finding says why. On the county with a rise
+planted in it, the client's report shows the rising unit (9 actions then 33, its cost in
+each half, 3.91 times its earlier rate) with the rest of the organization's figures
+withheld, because the rest's earlier half sits a few people away from small cells of the
+report's own matrix. A finding whose own unit fails is still withheld and counted.
 
 ## Interventions (Phase 3, first step)
 

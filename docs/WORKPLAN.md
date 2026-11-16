@@ -57,7 +57,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 3, step 2: keeping an appraisal with the engagement, with the causes found | Claude Code session | Done, PR #26 (built on PR #25) |
 | Phase 3, step 3: the cost-benefit in the client report | Claude Code session | Done, PR #27 |
 | Phase 3, step 4: several interventions for one unit, side by side | Claude Code session | Done, PR #28 |
-| Phase 2, step 4: rising units in the client report | Claude Code session | Done, `claude/rising-in-report` (built on PR #28) |
+| Phase 2, step 4: rising units in the client report | Claude Code session | Done, PR #29 |
+| Show as much of a finding as can safely be shown | Claude Code session | Done, `claude/partial-release` |
 
 ## Where things stand
 
@@ -155,8 +156,10 @@ people, like a cell of the cost matrix, so it goes through the same two rules
 (`release_together` in `aggregation/suppression.py`): the group is at least the minimum
 size, and with what this reader has already been shown it does not let a smaller group be
 worked out by subtraction. A finding gives figures for three groups (the unit, its
-comparison, the two together) and all three must pass. A finding that fails is withheld and
-the reader is told one was. What is released is recorded in the reader's ledger, so a later
+comparison, the two together). Where all three pass, it is shown in full. Where the unit
+passes and the comparison does not, the unit's own figures are shown, the comparison's
+are marked withheld, and the finding says why. Where the unit fails, the finding is
+withheld and the reader is told one was. What is released is recorded in the reader's ledger, so a later
 request for the cost matrix is checked against it too.
 
 On the synthetic county a client reader is shown the by-type finding even after going
@@ -244,7 +247,7 @@ earlier half and requires that unit, and only it, to be flagged.
 | What counts as a comparison | Units with at least the minimum group size of actions in the period | A smaller unit can never be flagged. Counting it makes real comparisons harder to pass. On the county this is 21 comparisons, not 162 |
 | Date of an action | Its decision date, as everywhere else | Undecided recent misconduct is not counted, so a rise is understated if anything |
 | Falls | Listed in the working, never flagged | The question asked was what is getting worse |
-| Who sees it | As hotspots. A rise from fewer than five people is withheld from a totals reader | The finding would state a figure about those few |
+| Who sees it | As hotspots. A rise from fewer than five people is withheld from a totals reader; one whose rest-of-organization figures fail is shown with them marked withheld | The finding would state a figure about those few |
 
 **Worth knowing.** Hotspots still count every unit as a comparison, including ones too
 small to flag (196 by type on the county). Applying the rule drift uses would make the
@@ -271,22 +274,22 @@ papers. `_report_patterns` in `api/main.py` adds drift beside hotspots, decided 
 way: `for_totals_reader` for the client's copy whoever asks, `as_dict` for the working
 papers. The patterns option (`patterns=false`, the tick box) covers both.
 
-**Worth knowing: a rising unit is held back from a client's copy more often than a level
-is.** Its finding gives figures for five groups: the unit in each half, the unit across
-both, and the rest of the organization in each half. Each must pass the small-group rules
-against what the report has already printed, and the report's cost matrix comes first. On
-the county with a rise planted in it, the rest of the organization's earlier half (fifty
-people) sits a few people away from four small matrix cells, so the rise is held back and
-the report says "1 more rose and is not shown". A reader who has seen nothing else is shown
-it, and the working papers carry it. This follows from keeping the small-group rules as
-they are (decided 2026-11-16). Two ways to show more, both the owner's call:
+**Decided by the owner on 2026-11-16: "make it the most transparent way".** A finding is
+now released in as much of it as can be. Where the unit's own groups pass the small-group
+rules and the comparison's do not, the unit's own figures are shown (its actions, people
+and cost, and for a rise its change against its own earlier rate), the comparison's are
+marked "withheld", and the finding says which figures are left out and why. The check
+itself is unchanged. On the county with a rise planted in it, the client's report now
+shows the rising unit (9 actions then 33, $29,523 then $151,348, 3.91 times its earlier
+rate) with the rest of the organization's figures withheld, where before it said only "1
+more rose and is not shown".
 
-1. Make the ledger's check exact: flag only a group that can actually be isolated by
-   subtraction (one contains the other), not any two overlapping groups. This would show
-   more in the cost matrix and on the Patterns page as well.
-2. In the client's copy, state a rising unit's comparison as the whole organization rather
-   than "everyone else". The whole organization's figure is safer to release, but the
-   finding then reads less directly.
+**One option offered to the owner was found unsafe and not built.** "Make the check exact:
+withhold only a group that one figure contains and another does not" misses three-figure
+subtractions. Given figures for groups C and P that overlap, and for Q, the part of P
+outside C, a reader computes C - (P - Q), which is the part of C outside P: possibly two
+or three people. The present check, which treats any two groups a few people apart as a
+risk, stops the first step. It stays.
 
 ## Phase 3: root cause and interventions
 
