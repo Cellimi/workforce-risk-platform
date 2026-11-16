@@ -352,6 +352,111 @@ def _matrix(content: ReportContent, styles) -> list:
     ]
 
 
+def _pattern_settings(section) -> str:
+    """How a flag is decided, and over what period, in one sentence each."""
+    text = (
+        f"A flag needs an adjusted chance value of {section.false_discovery_rate:f} or "
+        f"less, which allows for every comparison made, a rate at least "
+        f"{section.min_rate_ratio:f} times the rate elsewhere, and at least "
+        f"{section.min_people} different people disciplined."
+    )
+    if section.window_start and section.window_end:
+        text = (
+            f"The period is {section.window_start.isoformat()} to "
+            f"{section.window_end.isoformat()}. " + text
+        )
+    if section.unreviewed:
+        text += (
+            " The thresholds that decide a flag are the product's starting values and are "
+            "still under review."
+        )
+    return text
+
+
+def _patterns(content: ReportContent, styles) -> list:
+    """Where a type of misconduct clusters, and what it costs there."""
+    section = content.patterns
+    if section is None:
+        return []
+    story = [
+        Paragraph("Where discipline clusters", styles["h2"]),
+        Paragraph(_text(section.note), styles["body"]),
+        Spacer(1, 3),
+        Paragraph(_text(_pattern_settings(section)), styles["small"]),
+    ]
+    for view in section.views:
+        story += [Spacer(1, 6), Paragraph(f"<b>{_text(view.label)}</b>", styles["body"])]
+        if not view.flagged:
+            nothing = (
+                f"{view.comparisons:,} comparisons were made and nothing stood out."
+                if not view.withheld
+                else f"{view.comparisons:,} comparisons were made."
+            )
+            story.append(Paragraph(_text(nothing), styles["body"]))
+        else:
+            story.append(
+                Paragraph(
+                    _text(
+                        f"{view.comparisons:,} comparisons were made. "
+                        f"{len(view.flagged)} stood out."
+                    ),
+                    styles["body"],
+                )
+            )
+            story.append(Spacer(1, 3))
+            story.append(
+                _table(
+                    [
+                        "Where",
+                        "Actions",
+                        "Expected at the rate elsewhere",
+                        "Times the rate elsewhere",
+                        "Cost of these actions",
+                        "Estimated excess",
+                    ],
+                    [
+                        [
+                            row.name,
+                            f"{row.actions:,}",
+                            f"{row.expected_actions:,}",
+                            "n/a" if row.ratio is None else f"{row.ratio:.2f}",
+                            money(row.net),
+                            money(row.estimated_excess_cost),
+                        ]
+                        for row in view.flagged
+                    ],
+                    [2.4 * inch, 0.6 * inch, 0.95 * inch, 0.85 * inch, 1.05 * inch, 1.05 * inch],
+                    styles,
+                    right_from=1,
+                )
+            )
+            for row in view.flagged:
+                story.append(Spacer(1, 3))
+                story.append(
+                    Paragraph(
+                        f"<b>{_text(row.name)}.</b> {_text(row.explanation)} "
+                        f"Estimated excess: {_text(row.formula)}.",
+                        styles["small"],
+                    )
+                )
+        if view.withheld:
+            one = view.withheld == 1
+            story.append(
+                Paragraph(
+                    _text(
+                        f"{view.withheld} more stood out and {'is' if one else 'are'} not "
+                        f"shown: with the other figures in this report "
+                        f"{'it' if one else 'they'} would let a group of fewer than "
+                        f"{section.min_people} people be worked out."
+                    ),
+                    styles["small"],
+                )
+            )
+    if section.flagged:
+        story += [Spacer(1, 4), Paragraph(_text(section.cost_note), styles["small"])]
+    return story
+
+
 def _departments(content: ReportContent, styles) -> list:
     if not content.departments:
         return []
@@ -510,6 +615,7 @@ def render_pdf(content: ReportContent) -> bytes:
     story += _components(content, styles)
     story += _range(content, styles)
     story += _matrix(content, styles)
+    story += _patterns(content, styles)
     story += _departments(content, styles)
     story += _quality(content, styles)
     story += [

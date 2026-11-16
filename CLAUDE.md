@@ -81,7 +81,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/costing/` | Assumptions loader, components C1-C7, engine orchestration |
 | `src/wri_engine/aggregation/` | Rollups + small-group suppression |
 | `src/wri_engine/access/` | Role definitions, enforcement, the audit log (chained with `wri_engine/hashchain.py`, as the license usage log is) |
-| `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only; the record-level working papers are a separate, role-gated file |
+| `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only, and of the patterns it holds the flagged units only; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/detection/` | Phase 2. Which units' discipline rate stands out from the same job elsewhere, with exact statistics checkable by hand. Settings in `config/detection.yaml` |
 | `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
@@ -134,6 +134,9 @@ What holds inside Phase 2:
   withheld and counted. The list of units assessed and *not* flagged stays with roles that
   see records, because it would hand over the small groups. See "Who sees what" in
   `detection/hotspots.py` before changing any of this.
+- **The client report carries the flags, never the working.** `_report_patterns` in
+  `api/main.py` builds the client's copy with `for_totals_reader` whoever is asking, because
+  that file leaves the building. Units assessed and not flagged go in the working papers.
 - **A flag is paired with its cost.** Each finding carries what the baseline says those
   actions cost (an actual). An estimated excess cost is an estimate, is labelled as one,
   and is never added to a baseline figure (rule 9 still governs the baseline).

@@ -50,6 +50,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, PR #19 |
 | Phase 2, step 1: hotspot detection (where a type of misconduct clusters, with its cost, shown to leadership) | Claude Code session | Done, PR #20. Reworked 2026-11-16 to the owner's program overview |
 | Totals held to the minimum group size, as cells are | Claude Code session | Done, PR #21 |
+| Phase 2, step 2: the flagged patterns in the client report | Claude Code session | Done, `claude/patterns-in-report` |
 
 ## Where things stand
 
@@ -85,8 +86,8 @@ series, state and local service occupations and public administration, bracket i
    in, an operator's script, a configuration guide and an upgrade path with a way back. See
    "Install package" below.
 8. **Phase 2, pattern detection and escalation.** Opened by the owner on 2026-11-15. Step
-   1, hotspots, is built: see "Phase 2: detection" below. Next: the flagged patterns in the
-   client report.
+   1, hotspots, and step 2, the flagged patterns in the client report, are built: see
+   "Phase 2: detection" below. Next: drift over time.
 9. **Phase 3** (root-cause investigation; intervention cost-benefit). Closed until the
    owner opens it. See "Phase boundary" in `CLAUDE.md`. His program overview describes it
    as an on-site investigation of a flagged unit, then candidate interventions each priced
@@ -177,17 +178,51 @@ under these rules. It follows the overview, and it replaces the first build's re
   clearer to be flagged. Across nine seeded counties nothing but the planted unit was ever
   flagged; the overall view found it in eight and the by-type view in seven.
 
+### Step 2, built: the patterns in the client report
+
+The overview's "escalation": the pattern put in front of the client's leadership with what
+it costs. `reporting/content.py` (`PatternSection`, `build_patterns`), a section in the PDF
+("Where discipline clusters"), a **Patterns** sheet in the workbook, and a **Patterns
+working** sheet in the working papers. `_report_patterns` in `api/main.py` decides what
+each copy gets.
+
+On the full synthetic county the client's report names attendance among corrections
+officers at the main detention center: 70 actions against 20.6 expected, $232,626 in the
+baseline, an estimated excess of $164,168. Tests hold the report to what the Patterns page
+shows the same reader, and to the cent.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| What the client's copy carries | Flagged units only, both views, each with its arithmetic | A flag is for leadership. The list of units not flagged would give away the small groups |
+| Whose rules the client's copy follows | A totals reader's, whoever asks for the file | The file is sent to the client. A lead's wider access is not a reason to put more in it |
+| The working | In the working papers only: every unit assessed, and those that could not be | It is record-level work, for the roles that see records |
+| Cost | The baseline's cost of those actions, and the estimated excess, with a sentence saying the estimate is in no total | The overview pairs the pattern with the Phase 1 cost. Rule 9 governs the totals |
+| Cause | The report says a flag "does not say why the rate is higher" | That is Phase 3 |
+| Unreviewed thresholds | The report says they are starting values still under review | Rule 7. The sentence goes when the owner reviews them |
+| Leaving it out | `patterns=false`, and a tick box on the screen. Included unless asked otherwise | An engagement scoped to cost alone should not have to carry it |
+| Nothing flagged | The section stays and says nothing stood out | Silence would read as "not looked at" |
+
+**Worth knowing: the every-type-together flag is usually left out of the client's copy.**
+The report's own matrix (job against type of misconduct) is built first, and the group
+behind an every-type flag sits a few people away from several of its cells, so the
+small-group rule withholds the flag and the report says "1 more stood out and is not
+shown". The by-type flag for the same unit is shown. The disclosure ledger treats any two
+overlapping groups a few people apart as a risk, including pairs where neither contains
+the other and nothing can in fact be subtracted. It is cautious in the safe direction.
+Making it exact would show more, here and in the cost matrix, and is the owner's call,
+together with the open question in "Small groups: totals as well as cells".
+
 ### Not built
 
-1. **The flagged patterns in the client report.** The overview's "escalation": the PDF and
-   workbook do not carry them yet. The next step.
-2. **Drift**: which units are getting worse over time.
-3. **Other ways of grouping**: by department, bargaining unit or supervisor.
+1. **Drift**: which units are getting worse over time. The next step.
+2. **Other ways of grouping**: by department, bargaining unit or supervisor.
    Supervisor-level findings are findings about a named person's decisions and need the
    owner's ruling first.
-4. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
+3. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
    reason; the detection settings cannot yet.
-5. **Anything about protected characteristics.** The data model carries none, by design.
+4. **Anything about protected characteristics.** The data model carries none, by design.
 
 ## Single sign-on
 
