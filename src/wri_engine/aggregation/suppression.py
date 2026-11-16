@@ -95,7 +95,9 @@ class DisclosureLedger:
         can compute the totals for `C - L` and `L - C` by subtraction whenever one contains
         the other. Either residual being non-empty and under the threshold is a disclosure.
         """
-        if not cohort:
+        if not cohort or cohort in self._seen:
+            # A group this person has already been given a figure for tells them nothing
+            # new by being shown again.
             return False
         for prior in self.released:
             for residual in (cohort - prior, prior - cohort):

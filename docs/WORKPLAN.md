@@ -47,6 +47,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 (built on PR #15) |
 | An audit log that shows when it has been edited | Claude Code session | Done, PR #17 (built on PR #16) |
 | Fixed dependency versions and a smaller image | Claude Code session | Done, `claude/pinned-dependencies` (built on PR #17) |
+| Totals held to the minimum group size, as cells are | Claude Code session | Done, `claude/small-group-totals` |
 
 ## Where things stand
 
@@ -219,6 +220,39 @@ and the firm administrator's Engagement page say whether it holds together.
 - The API now writes the log where `wri-admin audit` and the backup read it (the
   installation's data directory, or `WRI_AUDIT_LOG`). Before, the two agreed only when the
   data directory came from the environment, which it does in the container.
+
+## Small groups: totals as well as cells
+
+**Found on 2026-11-16, in what was already merged.** A reader who sees totals only could
+filter the cost matrix down to a single action. Every cell came back withheld, and the
+grand total and the "Other (suppressed)" line beside them carried that one person's cost,
+on screen and in the CSV download. Nothing suggests anyone did this; the data so far is
+synthetic. It broke the product's own rule, so it was fixed without waiting.
+
+**The rule now**, in `aggregation/rollups.py`: every figure is about a group of people, and
+none is released for fewer than the engagement's minimum.
+
+- **The grand total of a selection.** Fewer than the minimum number of people selected:
+  nothing about the selection is released, no cell, no line total, no grand total, no
+  bucket. The response says `"withheld": true` and carries no money.
+- **A filtered total and the disclosure ledger.** The unfiltered total is on the summary
+  page for every role, so it always counts as seen. A filtered selection that leaves out
+  one to four people, or sits that close to anything else the person has been shown, is
+  withheld in the same way.
+- **Row and column totals.** A total about fewer people than the minimum is withheld. Two
+  withheld cells in a row can be the same one person in two years.
+- **The summary's department list** leaves out a department whose total is withheld.
+- A group a person has already been given a figure for may be shown to them again.
+
+**What this does not settle, for the owner.** The matrix protects a withheld cell by
+making sure no row or column holds exactly one of them. That is a rule about the number of
+cells, not the number of people: two withheld cells can still add up to two or three
+people, and their combined figure can be worked out from the totals around them. One
+withheld row total can likewise be worked out from the grand total and the other rows.
+Closing those properly means deciding what may be released by people, not by cells, across
+every figure on a page at once. It would withhold noticeably more of the matrix, so it is
+his decision and its own piece of work. Also: the ledger compares groups of people, so it
+cannot see two questions about the same people that differ by one action.
 
 ## Disclosure ledgers
 

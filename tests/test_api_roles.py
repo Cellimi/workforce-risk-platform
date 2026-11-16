@@ -222,3 +222,51 @@ def test_audit_log_records_role_endpoint_and_filters(client, tmp_path):
     )
     denied = [e for e in entries if e["outcome"] == "denied"]
     assert denied and denied[-1]["role"] == "executive"
+
+
+# ---------------------------------------------------------------------------
+# a filtered total is a figure about people
+# ---------------------------------------------------------------------------
+def test_a_client_reader_cannot_filter_their_way_to_one_persons_cost(client):
+    """The cells of a one-person selection were always withheld. The grand total and the
+    'Other (suppressed)' line beside them were not, on screen or in the download."""
+    dims = ("role_family", "work_location", "misconduct_category", "year")
+    seen: dict = {}
+    for action in STATE.run(mode="base").action_costs:
+        seen.setdefault(tuple(str(action.dimensions[d]) for d in dims), []).append(action)
+    key, (only,) = next((k, v) for k, v in sorted(seen.items()) if len(v) == 1)
+    params = {
+        "rows": "role_family",
+        "cols": "year",
+        "filters": json.dumps({d: [v] for d, v in zip(dims, key, strict=True)}),
+    }
+    for who in ("executive", "hr_analyst", "admin"):
+        on_screen = client.get("/costs/matrix", params=params, headers=headers(who, f"one-{who}"))
+        assert on_screen.status_code == 200
+        body = on_screen.json()
+        assert body["totals"]["withheld"] is True and body["totals"]["net"] is None
+        assert body["suppression"]["other_suppressed_net"] is None
+        download = client.get(
+            "/exports/matrix.csv", params=params, headers=headers(who, f"one-{who}")
+        )
+        assert download.status_code == 200
+        assert "selection withheld" in download.text and "TOTAL" not in download.text
+        for text in (on_screen.text, download.text):
+            assert str(only.net) not in text and str(only.gross) not in text
+
+    # An ordinary question is answered as before.
+    whole = client.get("/costs/matrix", headers=headers("executive", "one-whole")).json()
+    assert whole["totals"]["withheld"] is False and whole["totals"]["net"] is not None
+    assert "TOTAL" in client.get("/exports/matrix.csv", headers=headers("executive")).text
+
+
+def test_the_summary_lists_no_department_about_fewer_people_than_the_minimum(client):
+    people: dict = {}
+    for action in STATE.run(mode="base").action_costs:
+        people.setdefault(str(action.dimensions["department"]), set()).add(action.employee_id)
+    listed = client.get("/costs/summary", headers=headers("executive")).json()[
+        "department_cost_per_fte_per_year"
+    ]
+    assert listed, "the sample has departments large enough to list"
+    for row in listed:
+        assert len(people[row["department"]]) >= 5, row
