@@ -956,6 +956,10 @@ earlier half and in the later half: two actuals. And an estimated excess:
 
 It is an estimate, labelled as one, and in no total.
 
+**In the client report** rising units sit under "Where discipline clusters", decided as in
+section 11a: flagged units only, each under the small-group rules, with a count of any held
+back. The working papers carry every unit assessed.
+
 **Who sees what** is as in section 11a. A totals reader's finding must pass the small-group
 rules for every group it gives a figure for: the people disciplined in the unit in the
 earlier half, in the later half and across both, and the comparison's in each half. A unit

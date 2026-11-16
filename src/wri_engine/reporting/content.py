@@ -114,6 +114,20 @@ PATTERN_COST_NOTE = (
     "beyond what the rate elsewhere would give, at this unit's average cost per action. It "
     "is an estimate, and it is not added to any total."
 )
+RISING_NOTE = (
+    "A unit is flagged as rising where its rate in the later half of the period was higher "
+    "than in the earlier half, by more than the same type of misconduct rose in the rest of "
+    "the organization: by more than chance would explain, by enough to matter, and among "
+    "enough different people. A flag says where to look. It does not say why, and it says "
+    "nothing about any one person."
+)
+RISING_COST_NOTE = (
+    "The cost in each half is what the records show those actions cost, and is already part "
+    "of every total in this report. The estimated excess is the later half's actions beyond "
+    "what the earlier rate would have given had it changed only as the rest of the "
+    "organization did, at this unit's average cost per action. It is an estimate, and it is "
+    "not added to any total."
+)
 PATTERN_VIEW_LABELS = {
     "misconduct": "By type of misconduct",
     "overall": "Every type of misconduct together",
@@ -336,6 +350,71 @@ class PatternView:
 
 
 @dataclass(frozen=True)
+class RisingRow:
+    """One unit, its earlier half against its later half."""
+
+    status: str
+    topic_label: str
+    row_label: str
+    col_label: str
+    earlier_actions: int
+    earlier_people: int
+    later_actions: int
+    later_people: int
+    #: The unit's later rate over its earlier rate. None when it had no earlier action.
+    own_change: Decimal | None
+    elsewhere_earlier_actions: int
+    elsewhere_later_actions: int
+    elsewhere_change: Decimal | None
+    #: How many times the rest's rise the unit's was. None when either is.
+    ratio: Decimal | None
+    adjusted_chance: float
+    #: What the cost baseline shows the unit's actions cost in each half. Actuals.
+    earlier_net: Decimal
+    later_net: Decimal
+    #: Flagged units only, and only when there is a change elsewhere to go by. An estimate.
+    estimated_excess_cost: Decimal | None
+    explanation: str
+    formula: str
+
+    @property
+    def name(self) -> str:
+        where = f"{self.row_label} at {self.col_label}"
+        return f"{self.topic_label} among {where}" if self.topic_label else where
+
+
+@dataclass(frozen=True)
+class RisingView:
+    """One way of looking, for rises: by type of misconduct, or every type together."""
+
+    by: str
+    label: str
+    comparisons: int
+    flagged: list[RisingRow]
+    #: Flagged, and left out of this copy to protect a small group.
+    withheld: int
+    #: The working papers only: every unit assessed, flagged or not.
+    working: list[RisingRow] = field(default_factory=list)
+    #: The working papers only: (job, location, why it could not be assessed).
+    not_assessed: list[tuple[str, str, str]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class RisingSection:
+    earlier_start: date | None
+    earlier_end: date | None
+    later_start: date | None
+    later_end: date | None
+    views: list[RisingView]
+    note: str = RISING_NOTE
+    cost_note: str = RISING_COST_NOTE
+
+    @property
+    def flagged(self) -> list[RisingRow]:
+        return [row for view in self.views for row in view.flagged]
+
+
+@dataclass(frozen=True)
 class PatternSection:
     window_start: date | None
     window_end: date | None
@@ -347,6 +426,8 @@ class PatternSection:
     views: list[PatternView]
     note: str = PATTERN_NOTE
     cost_note: str = PATTERN_COST_NOTE
+    #: Units rising over the period. None when the report was asked for without it.
+    rising: RisingSection | None = None
 
     @property
     def flagged(self) -> list[PatternRow]:
@@ -687,7 +768,75 @@ def _pattern_row(found: dict) -> PatternRow:
     )
 
 
-def build_patterns(views: list[dict]) -> PatternSection | None:
+def _decimal(value) -> Decimal | None:
+    return None if value is None else Decimal(str(value))
+
+
+def _day(value: str | None) -> date | None:
+    return date.fromisoformat(value) if value else None
+
+
+def _rising_row(found: dict) -> RisingRow:
+    return RisingRow(
+        status=found["status"],
+        topic_label=found["topic_label"],
+        row_label=found["row_label"],
+        col_label=found["col_label"],
+        earlier_actions=found["earlier_actions"],
+        earlier_people=found["earlier_people"],
+        later_actions=found["later_actions"],
+        later_people=found["later_people"],
+        own_change=_decimal(found["own_change"]),
+        elsewhere_earlier_actions=found["elsewhere_earlier_actions"],
+        elsewhere_later_actions=found["elsewhere_later_actions"],
+        elsewhere_change=_decimal(found["elsewhere_change"]),
+        ratio=_decimal(found["ratio"]),
+        adjusted_chance=found["q_value"],
+        earlier_net=_money(found["earlier_net"]),
+        later_net=_money(found["later_net"]),
+        estimated_excess_cost=_optional_money(found["estimated_excess_cost"]),
+        explanation=found["explanation"],
+        formula=found["formula"],
+    )
+
+
+def build_rising(views: list[dict]) -> RisingSection | None:
+    """Turn drift's findings into a report section, **as already decided for this copy**:
+    `DriftReport.for_totals_reader` for the client's copy, `DriftReport.as_dict` for the
+    working papers. As with `build_patterns`, nothing here chooses what may be shown."""
+    if not views:
+        return None
+    first = views[0]
+    return RisingSection(
+        earlier_start=_day(first["earlier_start"]),
+        earlier_end=_day(first["earlier_end"]),
+        later_start=_day(first["later_start"]),
+        later_end=_day(first["later_end"]),
+        views=[
+            RisingView(
+                by=view["by"],
+                label=PATTERN_VIEW_LABELS[view["by"]],
+                comparisons=view["comparisons"],
+                flagged=[_rising_row(f) for f in view["flagged"]],
+                withheld=view["withheld"],
+                working=[
+                    _rising_row(f)
+                    for key in ("flagged", "concentrated", "not_flagged")
+                    for f in view.get(key, [])
+                ]
+                if view["detail"] == "full"
+                else [],
+                not_assessed=[
+                    (n["row_label"], n["col_label"], n["reason"])
+                    for n in view.get("not_assessed", [])
+                ],
+            )
+            for view in views
+        ],
+    )
+
+
+def build_patterns(views: list[dict], rising: list[dict] | None = None) -> PatternSection | None:
     """Turn detection's findings into a report section.
 
     Each item of `views` is what detection gave for one way of looking, **as already
@@ -700,13 +849,18 @@ def build_patterns(views: list[dict]) -> PatternSection | None:
         return None
     first = views[0]
     settings = first["settings"]
+    # A threshold not yet reviewed is said once, whichever detector used it.
+    unreviewed = list(settings["unreviewed"])
+    for view in rising or []:
+        unreviewed += [i for i in view["settings"]["unreviewed"] if i not in unreviewed]
     return PatternSection(
         window_start=date.fromisoformat(first["window_start"]) if first["window_start"] else None,
         window_end=date.fromisoformat(first["window_end"]) if first["window_end"] else None,
         min_people=first["min_people"],
         false_discovery_rate=Decimal(str(settings["detection_false_discovery_rate"])),
         min_rate_ratio=Decimal(str(settings["detection_min_rate_ratio"])),
-        unreviewed=tuple(settings["unreviewed"]),
+        unreviewed=tuple(unreviewed),
+        rising=build_rising(rising or []),
         views=[
             PatternView(
                 by=view["by"],

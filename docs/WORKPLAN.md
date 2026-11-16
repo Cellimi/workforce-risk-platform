@@ -56,7 +56,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 3, step 1: the cost-benefit of an intervention for a unit | Claude Code session | Done, PR #25 (built on PR #24) |
 | Phase 3, step 2: keeping an appraisal with the engagement, with the causes found | Claude Code session | Done, PR #26 (built on PR #25) |
 | Phase 3, step 3: the cost-benefit in the client report | Claude Code session | Done, PR #27 |
-| Phase 3, step 4: several interventions for one unit, side by side | Claude Code session | Done, `claude/phase3-compare` |
+| Phase 3, step 4: several interventions for one unit, side by side | Claude Code session | Done, PR #28 |
+| Phase 2, step 4: rising units in the client report | Claude Code session | Done, `claude/rising-in-report` (built on PR #28) |
 
 ## Where things stand
 
@@ -93,7 +94,7 @@ series, state and local service occupations and public administration, bracket i
    "Install package" below.
 8. **Phase 2, pattern detection and escalation.** Opened by the owner on 2026-11-15. Step
    1, hotspots, step 2, the flagged patterns in the client report, and step 3, drift over
-   time, are built: see "Phase 2: detection" below. Next: rising units in the client report.
+   time, are built, and both are in the client report: see "Phase 2: detection" below.
 9. **Phase 3** (root-cause investigation; intervention cost-benefit). Opened by the owner
    on 2026-11-16. His program overview describes it as an on-site investigation of a
    flagged unit, then candidate interventions each priced and set against what the
@@ -252,7 +253,7 @@ has already seen; say if it should be brought into line.
 
 ### Not built
 
-1. **Rising units in the client report.** They are on the Patterns page only. The next step.
+1. ~~**Rising units in the client report.**~~ Built: see "Step 4" below.
 2. **A finer view of time**: when a rise began, whether it is still going, units that fell.
 3. **Other ways of grouping**: by department, bargaining unit or supervisor.
    Supervisor-level findings are findings about a named person's decisions and need the
@@ -260,6 +261,32 @@ has already seen; say if it should be brought into line.
 4. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
    reason; the detection settings cannot yet.
 5. **Anything about protected characteristics.** The data model carries none, by design.
+
+### Phase 2, step 4, built: rising units in the client report
+
+Asked for by the owner on 2026-11-16. `RisingSection` and `build_rising` in
+`reporting/content.py`, a "Rising over the period" part of "Where discipline clusters" in
+the PDF, a **Rising** sheet in the workbook and a **Rising working** sheet in the working
+papers. `_report_patterns` in `api/main.py` adds drift beside hotspots, decided the same
+way: `for_totals_reader` for the client's copy whoever asks, `as_dict` for the working
+papers. The patterns option (`patterns=false`, the tick box) covers both.
+
+**Worth knowing: a rising unit is held back from a client's copy more often than a level
+is.** Its finding gives figures for five groups: the unit in each half, the unit across
+both, and the rest of the organization in each half. Each must pass the small-group rules
+against what the report has already printed, and the report's cost matrix comes first. On
+the county with a rise planted in it, the rest of the organization's earlier half (fifty
+people) sits a few people away from four small matrix cells, so the rise is held back and
+the report says "1 more rose and is not shown". A reader who has seen nothing else is shown
+it, and the working papers carry it. This follows from keeping the small-group rules as
+they are (decided 2026-11-16). Two ways to show more, both the owner's call:
+
+1. Make the ledger's check exact: flag only a group that can actually be isolated by
+   subtraction (one contains the other), not any two overlapping groups. This would show
+   more in the cost matrix and on the Patterns page as well.
+2. In the client's copy, state a rising unit's comparison as the whole organization rather
+   than "everyone else". The whole organization's figure is safer to release, but the
+   finding then reads less directly.
 
 ## Phase 3: root cause and interventions
 
@@ -372,7 +399,6 @@ table on the Interventions page, and the same table in the report and the workbo
    against before. Drift already has the arithmetic.
 3. **Interventions used together.** What two would save in combination is not the sum,
    and nothing here estimates it.
-4. **Rising units in the client report** (Phase 2): still on the Patterns page only.
 
 ## Single sign-on
 

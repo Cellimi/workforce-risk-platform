@@ -140,7 +140,8 @@ What holds inside Phase 2:
   `detection/hotspots.py` before changing any of this.
 - **The client report carries the flags, never the working.** `_report_patterns` in
   `api/main.py` builds the client's copy with `for_totals_reader` whoever is asking, because
-  that file leaves the building. Units assessed and not flagged go in the working papers.
+  that file leaves the building, for hotspots and for rising units alike. Units assessed and
+  not flagged go in the working papers.
 - **A flag is paired with its cost.** Each finding carries what the baseline says those
   actions cost (an actual). An estimated excess cost is an estimate, is labelled as one,
   and is never added to a baseline figure (rule 9 still governs the baseline).

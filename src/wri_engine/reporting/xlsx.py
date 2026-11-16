@@ -320,6 +320,129 @@ def _patterns(book: Workbook, content: ReportContent) -> None:
     _widths(sheet, PATTERN_WIDTHS)
 
 
+RISING_COLUMNS = [
+    "View",
+    "Type of misconduct",
+    "Employee type",
+    "Work location",
+    "Result",
+    "Actions, earlier half",
+    "People, earlier half",
+    "Actions, later half",
+    "People, later half",
+    "Times its earlier rate",
+    "Actions elsewhere, earlier half",
+    "Actions elsewhere, later half",
+    "Times the earlier rate elsewhere",
+    "Times the rise elsewhere",
+    "Adjusted chance value",
+    "Cost, earlier half",
+    "Cost, later half",
+    "Estimated excess (not in any total)",
+    "How it was worked out",
+]
+RISING_RESULTS = {
+    "flagged": "Rising",
+    "concentrated": "Not flagged: concentrated in few people",
+    "not_flagged": "Not flagged",
+}
+RISING_WIDTHS = [30, 26, 28, 30, 22, 12, 12, 12, 12, 14, 16, 16, 18, 16, 14, 16, 16, 22, 120]
+
+
+def _rising_rows(sheet, start: int, label: str, rows) -> int:
+    row = start
+    for found in rows:
+        _put(sheet, row, 1, label)
+        _put(sheet, row, 2, found.topic_label or "All types")
+        _put(sheet, row, 3, found.row_label)
+        _put(sheet, row, 4, found.col_label)
+        _put(sheet, row, 5, RISING_RESULTS[found.status])
+        _put(sheet, row, 6, found.earlier_actions)
+        _put(sheet, row, 7, found.earlier_people)
+        _put(sheet, row, 8, found.later_actions)
+        _put(sheet, row, 9, found.later_people)
+        _put(sheet, row, 10, found.own_change if found.own_change is not None else "n/a")
+        _put(sheet, row, 11, found.elsewhere_earlier_actions)
+        _put(sheet, row, 12, found.elsewhere_later_actions)
+        elsewhere = found.elsewhere_change
+        _put(sheet, row, 13, elsewhere if elsewhere is not None else "n/a")
+        _put(sheet, row, 14, found.ratio if found.ratio is not None else "n/a")
+        _put(sheet, row, 15, found.adjusted_chance, number_format="0.0000")
+        _put(sheet, row, 16, found.earlier_net, number_format=MONEY)
+        _put(sheet, row, 17, found.later_net, number_format=MONEY)
+        if found.estimated_excess_cost is not None:
+            _put(sheet, row, 18, found.estimated_excess_cost, number_format=MONEY)
+        worked = found.explanation
+        if found.formula:
+            worked += f" Estimated excess: {found.formula}."
+        _put(sheet, row, 19, worked)
+        row += 1
+    return row
+
+
+def _rising(book: Workbook, content: ReportContent) -> None:
+    """Units rising over the period: the same ones the report lists, with the figures."""
+    section = content.patterns
+    rising = section.rising
+    sheet = book.create_sheet("Rising")
+    _header(sheet, 1, RISING_COLUMNS)
+    row = 2
+    for view in rising.views:
+        row = _rising_rows(sheet, row, view.label, view.flagged)
+    if not rising.flagged:
+        _put(sheet, row, 1, "Nothing rose by more than the rest of the organization.")
+        row += 1
+    row += 1
+    for view in rising.views:
+        text = f"{view.label}: {view.comparisons:,} comparisons made, {len(view.flagged)} shown"
+        if view.withheld:
+            text += (
+                f", {view.withheld} more rose and not shown here, to protect a group of fewer "
+                f"than {section.min_people} people"
+            )
+        _put(sheet, row, 1, text + ".", font=MUTED)
+        row += 1
+    if rising.earlier_start:
+        _put(
+            sheet,
+            row,
+            1,
+            f"Earlier half: {rising.earlier_start.isoformat()} to "
+            f"{rising.earlier_end.isoformat()}. Later half: {rising.later_start.isoformat()} "
+            f"to {rising.later_end.isoformat()}.",
+            font=MUTED,
+        )
+        row += 1
+    _put(sheet, row, 1, rising.note, font=MUTED)
+    _put(sheet, row + 1, 1, rising.cost_note, font=MUTED)
+    _widths(sheet, RISING_WIDTHS)
+
+
+def _rising_working(book: Workbook, content: ReportContent) -> None:
+    """The working papers: every unit assessed for a rise, flagged or not, and those that
+    could not be. Never in the client's copy."""
+    rising = content.patterns.rising
+    sheet = book.create_sheet("Rising working")
+    _header(sheet, 1, RISING_COLUMNS)
+    row = 2
+    for view in rising.views:
+        row = _rising_rows(sheet, row, view.label, view.working)
+    row += 1
+    missing = [(view.label, *entry) for view in rising.views for entry in view.not_assessed]
+    if missing:
+        _put(sheet, row, 1, "Not assessed", font=BOLD)
+        row += 1
+        for label, job, place, reason in missing:
+            _put(sheet, row, 1, label)
+            _put(sheet, row, 3, job)
+            _put(sheet, row, 4, place)
+            _put(sheet, row, 5, reason)
+            row += 1
+        row += 1
+    _put(sheet, row, 1, content.records.note, font=WARNING)
+    _widths(sheet, RISING_WIDTHS)
+
+
 def _patterns_working(book: Workbook, content: ReportContent) -> None:
     """The working papers: every unit assessed, flagged or not, and those that could not
     be. Never in the client's copy: this list would give away its small groups."""
@@ -667,6 +790,8 @@ def render_xlsx(content: ReportContent) -> bytes:
     _matrix(book, content)
     if content.patterns:
         _patterns(book, content)
+        if content.patterns.rising:
+            _rising(book, content)
     if content.interventions:
         _interventions(book, content)
     _departments(book, content)
@@ -678,6 +803,8 @@ def render_xlsx(content: ReportContent) -> bytes:
         _line_items(book, content)
         if content.patterns:
             _patterns_working(book, content)
+            if content.patterns.rising:
+                _rising_working(book, content)
         if content.interventions:
             _interventions_working(book, content)
         book.properties.title = f"{book.properties.title} - working papers"
