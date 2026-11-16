@@ -50,7 +50,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, PR #19 |
 | Phase 2, step 1: hotspot detection (where a type of misconduct clusters, with its cost, shown to leadership) | Claude Code session | Done, PR #20. Reworked 2026-11-16 to the owner's program overview |
 | Totals held to the minimum group size, as cells are | Claude Code session | Done, PR #21 |
-| Phase 2, step 2: the flagged patterns in the client report | Claude Code session | Done, `claude/patterns-in-report` |
+| Phase 2, step 2: the flagged patterns in the client report | Claude Code session | Done, PR #22 |
+| Phase 2, step 3: drift (where a type of misconduct is rising) | Claude Code session | Done, `claude/phase2-drift` |
 
 ## Where things stand
 
@@ -86,8 +87,8 @@ series, state and local service occupations and public administration, bracket i
    in, an operator's script, a configuration guide and an upgrade path with a way back. See
    "Install package" below.
 8. **Phase 2, pattern detection and escalation.** Opened by the owner on 2026-11-15. Step
-   1, hotspots, and step 2, the flagged patterns in the client report, are built: see
-   "Phase 2: detection" below. Next: drift over time.
+   1, hotspots, step 2, the flagged patterns in the client report, and step 3, drift over
+   time, are built: see "Phase 2: detection" below. Next: rising units in the client report.
 9. **Phase 3** (root-cause investigation; intervention cost-benefit). Closed until the
    owner opens it. See "Phase boundary" in `CLAUDE.md`. His program overview describes it
    as an on-site investigation of a flagged unit, then candidate interventions each priced
@@ -214,15 +215,46 @@ the other and nothing can in fact be subtracted. It is cautious in the safe dire
 Making it exact would show more, here and in the cost matrix, and is the owner's call,
 together with the open question in "Small groups: totals as well as cells".
 
+### Step 3, built: drift
+
+Which units are getting worse. `detection/drift.py`, `shifted_upper_tail` in
+`detection/stats.py`, `GET /detection/drift?by=misconduct|overall`, and a **Rising over the
+period** section on the Patterns page. The method is in `docs/cost_methodology.md` section
+11b. No new threshold: it uses the hotspot detector's two.
+
+On the full synthetic county nothing is rising, in either view, and five seeded counties
+agree. That is right: the generator plants a level, not a change. A test thins one unit's
+earlier half and requires that unit, and only it, to be flagged.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| What "over time" means | The later half of the period against the earlier half, cut by date | It needs no setting and uses every record. "The last twelve months against the year before" would need a threshold of its own |
+| What a rise is compared with | The change in the rest of the organization for the same type of misconduct | A real client's early records are often thin. Against its own past alone, every unit would then be "rising" |
+| Why not "the same job elsewhere", as hotspots use | Changes are compared, not rates, so jobs can be pooled, and the rest of the organization is a far steadier yardstick than one other location | The synthetic county's planted unit has one other location with 12 such actions |
+| Size | The unit's later rate at least 1.5 times its earlier rate, and its rise at least 1.5 times the rest's | The first stops "held steady while others improved" being called a rise. The second stops a general rise being called the unit's |
+| Thresholds | The hotspot detector's two, unchanged | A rise should not be held to a different standard from a level. Both are still **TBD-MIKE** |
+| What counts as a comparison | Units with at least the minimum group size of actions in the period | A smaller unit can never be flagged. Counting it makes real comparisons harder to pass. On the county this is 21 comparisons, not 162 |
+| Date of an action | Its decision date, as everywhere else | Undecided recent misconduct is not counted, so a rise is understated if anything |
+| Falls | Listed in the working, never flagged | The question asked was what is getting worse |
+| Who sees it | As hotspots. A rise from fewer than five people is withheld from a totals reader | The finding would state a figure about those few |
+
+**Worth knowing.** Hotspots still count every unit as a comparison, including ones too
+small to flag (196 by type on the county). Applying the rule drift uses would make the
+by-type hotspot view more sensitive. It was left alone because it changes results the owner
+has already seen; say if it should be brought into line.
+
 ### Not built
 
-1. **Drift**: which units are getting worse over time. The next step.
-2. **Other ways of grouping**: by department, bargaining unit or supervisor.
+1. **Rising units in the client report.** They are on the Patterns page only. The next step.
+2. **A finer view of time**: when a rise began, whether it is still going, units that fell.
+3. **Other ways of grouping**: by department, bargaining unit or supervisor.
    Supervisor-level findings are findings about a named person's decisions and need the
    owner's ruling first.
-3. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
+4. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
    reason; the detection settings cannot yet.
-4. **Anything about protected characteristics.** The data model carries none, by design.
+5. **Anything about protected characteristics.** The data model carries none, by design.
 
 ## Single sign-on
 

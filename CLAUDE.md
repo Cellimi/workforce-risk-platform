@@ -83,7 +83,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/access/` | Role definitions, enforcement, the audit log (chained with `wri_engine/hashchain.py`, as the license usage log is) |
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only, and of the patterns it holds the flagged units only; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
-| `src/wri_engine/detection/` | Phase 2. Which units' discipline rate stands out from the same job elsewhere, with exact statistics checkable by hand. Settings in `config/detection.yaml` |
+| `src/wri_engine/detection/` | Phase 2. `hotspots.py`: which units' discipline rate stands out from the same job elsewhere. `drift.py`: which are rising, and rising more than the rest of the organization. Exact statistics checkable by hand (`stats.py`). Settings in `config/detection.yaml` |
 | `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
@@ -122,8 +122,11 @@ What holds inside Phase 2:
   by type of misconduct (the main view) or with every type together. No individual is
   scored, ranked or named.
   Do not build individual risk scores without the owner asking for exactly that.
-- **A flag says a rate stands out. It does not say why**, and the code and the screen must
-  not suggest a cause.
+- **A flag says a rate stands out, or is rising. It does not say why**, and the code and
+  the screen must not suggest a cause.
+- **A rise is a unit's only if it is more than everyone's.** Drift sets a unit's change
+  against the change in the rest of the organization for the same type of misconduct, so
+  that thin early records or a new policy do not flag every unit. See `detection/drift.py`.
 - **Every flag is explainable** the way every dollar is: the counts, the comparison, the
   arithmetic and the setting ids it used.
 - **Thresholds live in `config/detection.yaml`**, fetched by id, never written into Python.

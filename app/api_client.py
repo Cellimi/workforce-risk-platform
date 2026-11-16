@@ -106,6 +106,12 @@ class EngineClient:
         params = {"by": by, "mode": mode}
         return self._request("GET", "/detection/hotspots", params=params).json()
 
+    def drift(self, by: str = "misconduct", mode: str = "base") -> dict:
+        """Where a type of misconduct is rising: the later half of the period against the
+        earlier, compared with the change in the rest of the organization (Phase 2)."""
+        params = {"by": by, "mode": mode}
+        return self._request("GET", "/detection/drift", params=params).json()
+
     def actions(self, filters: dict | None = None, mode: str = "base", limit: int = 200) -> dict:
         params: dict[str, Any] = {"mode": mode, "limit": limit}
         if filters:

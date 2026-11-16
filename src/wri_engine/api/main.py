@@ -79,9 +79,13 @@ from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_ph
 from wri_engine.detection import (
     BY_MISCONDUCT,
     OVERALL,
+    DriftReport,
     HotspotReport,
+    drift_counts,
     employee_years,
+    find_drift,
     find_hotspots,
+    halves,
     load_detection_settings,
     unit_counts,
 )
@@ -799,6 +803,65 @@ def _hotspot_report(state, run, by: str) -> HotspotReport:
         min_people=state.min_cell_size,
         window_start=start,
         window_end=end,
+    )
+
+
+DRIFT_NOTE = (
+    "A flag says a unit's rate went up between the earlier and the later half of the "
+    "period, by more than the same type of misconduct went up in the rest of the "
+    "organization, by more than chance and by enough to matter. It does not say why, and it "
+    "says nothing about any one person. The cost in each half comes from the cost baseline. "
+    "The estimated excess cost is an estimate and is not part of the cost baseline."
+)
+
+
+@router.get("/detection/drift", tags=["detection"])
+def detection_drift(
+    by: str = Query(BY_MISCONDUCT, pattern=f"^({BY_MISCONDUCT}|{OVERALL})$"),
+    mode: str = Query("base", pattern="^(low|base|high)$"),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """Where a type of misconduct is rising: a job at a work location whose rate in the
+    later half of the period is higher than in the earlier half, by more than the same type
+    rose in the rest of the organization, with what its actions cost in each half.
+
+    Who sees what is as for `/detection/hotspots`: flagged units for every role that sees
+    totals, under the small-group rules; the working for roles that see records. See
+    `wri_engine.detection.drift`.
+
+    This reads the costing run and changes nothing in it.
+    """
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/detection/drift")
+    full = allows(ctx.role, Capability.VIEW_RECORDS)
+    _audit(
+        ctx,
+        "/detection/drift",
+        detail={"by": by, "mode": mode, "detail": "full" if full else "flagged_only"},
+    )
+    state.ensure_loaded()
+    report = _drift_report(state, state.run(mode=mode), by)
+    body = report.as_dict() if full else report.for_totals_reader(ctx.ledger())
+    return {"caption": _caption(ctx), "note": DRIFT_NOTE, **body}
+
+
+def _drift_report(state, run, by: str) -> DriftReport:
+    """Drift over one costing run. Reads it; changes nothing in it."""
+    decided = sorted(str(ac.dimensions["decision_date"]) for ac in run.action_costs)
+    settings = load_detection_settings()
+    if not decided:
+        return find_drift({}, {}, {}, settings, by=by, min_people=state.min_cell_size)
+    start, end = date.fromisoformat(decided[0]), date.fromisoformat(decided[-1])
+    earlier_ends, later_starts = halves(start, end)
+    return find_drift(
+        drift_counts(run, later_starts, by),
+        employee_years(state.dataset, start, earlier_ends),
+        employee_years(state.dataset, later_starts, end),
+        settings,
+        by=by,
+        min_people=state.min_cell_size,
+        earlier=(start, earlier_ends),
+        later=(later_starts, end),
     )
 
 

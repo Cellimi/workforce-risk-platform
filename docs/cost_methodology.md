@@ -905,6 +905,84 @@ more of it than thirty did.
 
 ---
 
+## 11b. Detection: where a type of misconduct is rising (Phase 2)
+
+Section 11a asks whether a unit's rate is higher than the same job's elsewhere. This asks
+whether it is getting worse.
+
+**The two halves.** The period the records cover, from the first decided action to the
+last, is cut in half by date. Each unit's rate in the later half (actions per
+employee-year) is set against its rate in the earlier half.
+
+**What a rise is compared with.** The change, over the same two halves, in the rest of the
+organization for the same type of misconduct (or for all discipline, in the every-type
+view). A rise that reached everyone is not a pattern in a unit: it is thin early records,
+a new policy, or a change in how things are written up. Rates differ between jobs, but this
+compares changes, not rates.
+
+**The test.** Take every action of this type in the organization, in both halves. Some
+number of them are later ones, and some number are the unit's. If the unit had changed as
+everyone else did, its actions would be no more likely to be later ones than anyone
+else's. The number of the unit's actions that are later then follows the hypergeometric
+distribution behind Fisher's exact test, and the chance of a number at least as large as
+the one seen is its upper tail. One allowance is made: if the unit's staffing grew more
+than everyone else's between the halves, more of its actions would be later ones for that
+reason alone, and each possible outcome is weighted for it.
+
+**A flag needs all of:**
+
+1. an adjusted chance value at or below `detection_false_discovery_rate` (0.05), after
+   Benjamini-Hochberg across the comparisons;
+2. a later rate at least `detection_min_rate_ratio` (1.5) times the unit's own earlier
+   rate, so that "held steady while everyone else improved" is not called a rise;
+3. a rise at least `detection_min_rate_ratio` times the rise in the rest of the
+   organization, so that a general rise is not called the unit's;
+4. at least the engagement's minimum group size of different people disciplined in the
+   later half;
+5. the same result counting people instead of actions. Otherwise it is reported as
+   *concentrated in few people* and not flagged.
+
+**What is compared.** Every unit with at least the minimum group size of actions in the
+period. A smaller unit can never meet point 4, so testing it would only make every real
+comparison harder to pass. Leaving it out depends on the unit's total alone, which the
+test takes as given, so it cannot favour a flag. It is still listed, as not flagged.
+
+**The costs beside a flag.** What the baseline shows the unit's actions cost in the
+earlier half and in the later half: two actuals. And an estimated excess:
+
+    (later actions - earlier rate x the rest's change x later staffing)
+        x the unit's average net cost per action in the later half
+
+It is an estimate, labelled as one, and in no total.
+
+**Who sees what** is as in section 11a. A totals reader's finding must pass the small-group
+rules for every group it gives a figure for: the people disciplined in the unit in the
+earlier half, in the later half and across both, and the comparison's in each half. A unit
+that rose from two people to twenty is therefore withheld from a totals reader.
+
+**Limits.**
+
+- An action is dated by its decision. Misconduct late in the period that is not yet decided
+  is not counted, so the later half runs low if anything.
+- Two halves say the later is higher than the earlier. They do not say when it changed or
+  whether it is still changing.
+- The roster records where a person works now; someone who moved is counted at their
+  current location in both halves.
+- A change that reached one whole job across the organization, and no other job, shows in
+  each of that job's units.
+- Only rises are flagged.
+
+On the synthetic county: 21 comparisons by type and 17 with every type together, and
+nothing rising in either. That is the right answer, because the generator makes one unit's
+rate higher throughout and changes no rate over time: attendance among corrections officers
+at the main detention center went from 37 actions to 33, 0.95 times its earlier rate, while
+the rest of the organization's went from 48 to 43. Five differently seeded counties gave
+nothing rising either. With three in four of that unit's earlier attendance actions taken
+out (9, then 33), it is flagged at 3.91 times its earlier rate and 4.46 times the rise
+elsewhere, and nothing else is.
+
+---
+
 ## 12. Current results
 
 From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:
