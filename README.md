@@ -503,6 +503,26 @@ record of a finding, so it needs one:
 `GET /interventions`, `POST /interventions` and `DELETE /interventions/{id}` are the
 endpoints, for the lead and the analyst.
 
+### Several proposals for one unit, side by side
+
+When two or more appraisals are kept for the same unit and the same type of misconduct,
+the page sets them next to each other on yearly terms: what each costs a year, the share
+of actions it must prevent to pay for itself, and its net saving a year at the low,
+expected and high reading. Yearly, because one proposal may look three years ahead and
+another five.
+
+- **They are listed by what each has to prove, least first**: the share it must prevent to
+  pay for itself, which needs no judgement about how well anything works. The expected
+  savings are shown beside it and are not ranked against each other, because each rests
+  on its own estimate.
+- **Nothing is named the best.** The choice is the client's.
+- **The savings cannot be added.** They are alternatives: two interventions aimed at the
+  same actions do not prevent the sum of what each would prevent alone.
+
+The comparison is part of `GET /interventions` (`side_by_side`) and goes into the client
+report under the same rules as the appraisals themselves: a client's copy compares only
+those it shows with their money.
+
 ### In the client report
 
 Kept appraisals go into the report and the workbook, as a section headed **What was found,

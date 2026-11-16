@@ -94,11 +94,13 @@ from wri_engine.detection import (
     unit_counts,
 )
 from wri_engine.interventions import (
+    Appraisal,
     Intervention,
     InvalidIntervention,
     KeptAppraisal,
     appraise,
     clean_text,
+    compare,
     finding_problems,
     load_causes,
     unit_baseline,
@@ -1040,13 +1042,28 @@ def kept_interventions(
     state.ensure_loaded()
     run = state.run(mode=mode)
     everything = state.appraisals.everything()
+    current = [k for k in everything if not k.is_withdrawn]
     return {
         "caption": _caption(ctx),
         "note": FINDING_NOTE,
         "mode": mode,
-        "kept": [_kept_view(k, run) for k in everything if not k.is_withdrawn],
+        "kept": [_kept_view(k, run) for k in current],
         "withdrawn": sum(1 for k in everything if k.is_withdrawn),
+        # Where two or more are kept for the same unit and type: the same figures, per
+        # year, next to each other. See `wri_engine.interventions.comparison`.
+        "side_by_side": [c.as_dict() for c in compare(_appraisals_of(current, run))],
     }
+
+
+def _appraisals_of(kept: list[KeptAppraisal], run) -> list[tuple[str, Appraisal]]:
+    """Each kept appraisal worked out against the run, by the id it was kept under. One
+    whose unit the records no longer show has nothing to be worked out against."""
+    worked = []
+    for one in kept:
+        baseline = unit_baseline(run, one.row, one.col, one.topic, window_years(run))
+        if baseline is not None:
+            worked.append((one.id, appraise(baseline, one.intervention)))
+    return worked
 
 
 @router.post("/interventions", tags=["interventions"])
@@ -1438,6 +1455,9 @@ def _report_interventions(ctx: Ctx, run, records: bool) -> InterventionSection |
     state = ctx.state
     minimum = state.min_cell_size
     entries, not_shown = [], 0
+    #: Those this copy shows with their money. Only these are set side by side: a
+    #: comparison gives each one's cost against the unit's, so it may carry no more.
+    with_money: list[KeptAppraisal] = []
     for kept in state.appraisals.everything():
         baseline = unit_baseline(run, kept.row, kept.col, kept.topic, window_years(run))
         topic = f"{kept.topic} among " if kept.topic else ""
@@ -1449,6 +1469,8 @@ def _report_interventions(ctx: Ctx, run, records: bool) -> InterventionSection |
         }
         if records:
             entries.append({**_kept_view(kept, run), **extra})
+            if not kept.is_withdrawn:
+                with_money.append(kept)
         elif kept.is_withdrawn:
             continue
         elif baseline is None or baseline.people < minimum:
@@ -1456,12 +1478,15 @@ def _report_interventions(ctx: Ctx, run, records: bool) -> InterventionSection |
         else:
             releasable = release_together(ctx.ledger(), [baseline.cohort], minimum)
             entries.append({**_kept_view(kept, run, with_money=releasable), **extra})
+            if releasable:
+                with_money.append(kept)
     return build_interventions(
         entries,
         not_shown=not_shown,
         min_people=minimum,
         assumes=APPRAISAL_ASSUMES,
         working=records,
+        side_by_side=[c.as_dict() for c in compare(_appraisals_of(with_money, run))],
     )
 
 

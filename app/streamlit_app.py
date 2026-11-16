@@ -1043,12 +1043,54 @@ def _kept_section(api: EngineClient) -> None:
             if st.button("Withdraw", key=f"withdraw_{kept['id']}"):
                 api.withdraw_intervention(kept["id"])
                 st.rerun()
+    found_for = {
+        kept["id"]: ", ".join(c["label"] for c in kept["finding"]["causes"])
+        for kept in book["kept"]
+    }
+    for compared in book["side_by_side"]:
+        st.markdown(f"**Side by side: {compared['unit']['name']}**")
+        st.caption(
+            f"The discipline costs {money(compared['unit']['annual_net'])} a year. Each "
+            "proposal is put per year, so that those looking different distances ahead can "
+            "be read together."
+        )
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Proposed": row["name"],
+                        "For": found_for.get(row["key"], ""),
+                        "Years": row["years"],
+                        "Costs, a year": money(row["yearly_cost"]),
+                        "Pays for itself at": _break_even(row),
+                        "Net saving a year: low": money(row["yearly_net_saving_low"]),
+                        "Net saving a year: expected": money(row["yearly_net_saving_expected"]),
+                        "Net saving a year: high": money(row["yearly_net_saving_high"]),
+                    }
+                    for row in compared["rows"]
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+        for note in compared["notes"]:
+            st.caption(note)
     if book["withdrawn"]:
         st.caption(
             f"{book['withdrawn']} withdrawn. A withdrawn appraisal is no longer shown; the "
             "record of it stays with the engagement."
         )
     st.caption(book["note"])
+
+
+def _break_even(row: dict) -> str:
+    """The share of actions a proposal must prevent to pay for itself, in words where a
+    percentage would mislead."""
+    if row["break_even"] is None:
+        return "nothing to save"
+    if not row["can_pay_for_itself"]:
+        return "cannot"
+    return f"{(Decimal(row['break_even']) * 100).normalize():f}% prevented"
 
 
 def _show_appraisal(result: dict) -> None:

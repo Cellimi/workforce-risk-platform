@@ -84,7 +84,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only: of the patterns it holds the flagged units only, and of a finding the cause labels only, never the words typed for "Other"; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/detection/` | Phase 2. `hotspots.py`: which units' discipline rate stands out from the same job elsewhere. `drift.py`: which are rising, and rising more than the rest of the organization. Exact statistics checkable by hand (`stats.py`). Settings in `config/detection.yaml` |
-| `src/wri_engine/interventions/` | Phase 3. `appraisal.py`: what an intervention would cost, set against what a unit's discipline costs in the baseline. The consultant supplies the costs and how well it works; the product supplies no effect size. `findings.py`: the appraisals kept with an engagement and the causes found on site, in the engagement's own folder |
+| `src/wri_engine/interventions/` | Phase 3. `appraisal.py`: what an intervention would cost, set against what a unit's discipline costs in the baseline. The consultant supplies the costs and how well it works; the product supplies no effect size. `findings.py`: the appraisals kept with an engagement and the causes found on site, in the engagement's own folder. `comparison.py`: several kept for one unit, side by side on yearly terms |
 | `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
@@ -168,6 +168,9 @@ what the discipline costs):
 - **No invented effect.** How much an intervention reduces discipline is the consultant's
   judgement, entered with its basis. A default the product supplies must be researched,
   cited and reviewed by the owner like any other assumption (rule 7).
+- **The product does not choose between interventions.** Set side by side they are listed
+  by the share each must prevent to pay for itself, which needs no judgement. Nothing is
+  named the best, and savings are never added together: they are alternatives.
 - **Still about a unit, never a person.** Nothing in Phase 3 scores, ranks or names an
   individual.
 

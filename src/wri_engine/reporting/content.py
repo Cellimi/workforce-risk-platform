@@ -399,6 +399,32 @@ class InterventionRow:
 
 
 @dataclass(frozen=True)
+class ComparedOption:
+    """One of several interventions kept for a unit, on yearly terms."""
+
+    name: str
+    #: The causes it answers, by label.
+    found: str
+    years: int
+    yearly_cost: Decimal
+    yearly_net_low: Decimal
+    yearly_net_expected: Decimal
+    yearly_net_high: Decimal
+    #: The share of actions it must prevent to pay for itself, or None.
+    break_even: Decimal | None
+
+
+@dataclass(frozen=True)
+class SideBySide:
+    """The interventions kept for one unit, next to each other."""
+
+    unit_name: str
+    annual_net: Decimal
+    options: tuple[ComparedOption, ...]
+    notes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class InterventionSection:
     rows: list[InterventionRow]
     #: Kept, and left out of this copy to protect a small group.
@@ -407,6 +433,8 @@ class InterventionSection:
     assumes: tuple[str, ...]
     #: True for the working papers, which carry the words for "Other" and what was withdrawn.
     working: bool = False
+    #: Units with two or more interventions shown with their money, set next to each other.
+    side_by_side: tuple[SideBySide, ...] = ()
     note: str = INTERVENTION_NOTE
 
     @property
@@ -744,6 +772,7 @@ def build_interventions(
     min_people: int,
     assumes: tuple[str, ...],
     working: bool = False,
+    side_by_side: list[dict] | None = None,
 ) -> InterventionSection | None:
     """Turn kept appraisals into a report section.
 
@@ -754,12 +783,37 @@ def build_interventions(
     """
     if not entries and not not_shown:
         return None
+    rows = [_intervention_row(entry, working) for entry in entries]
+    found = {entry.get("id"): row.found for entry, row in zip(entries, rows, strict=True)}
     return InterventionSection(
-        rows=[_intervention_row(entry, working) for entry in entries],
+        rows=rows,
         not_shown=not_shown,
         min_people=min_people,
         assumes=assumes,
         working=working,
+        side_by_side=tuple(
+            SideBySide(
+                unit_name=compared["unit"]["name"],
+                annual_net=_money(compared["unit"]["annual_net"]),
+                options=tuple(
+                    ComparedOption(
+                        name=option["name"],
+                        found=found.get(option["key"], ""),
+                        years=option["years"],
+                        yearly_cost=_money(option["yearly_cost"]),
+                        yearly_net_low=_money(option["yearly_net_saving_low"]),
+                        yearly_net_expected=_money(option["yearly_net_saving_expected"]),
+                        yearly_net_high=_money(option["yearly_net_saving_high"]),
+                        break_even=None
+                        if option["break_even"] is None
+                        else Decimal(option["break_even"]),
+                    )
+                    for option in compared["rows"]
+                ),
+                notes=tuple(compared["notes"]),
+            )
+            for compared in (side_by_side or [])
+        ),
     )
 
 
