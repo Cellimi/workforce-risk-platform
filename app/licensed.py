@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import html
 import json
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from api_client import ApiError, EngineClient
 
@@ -113,23 +115,111 @@ def _error(exc: ApiError) -> None:
 # ---------------------------------------------------------------------------
 # sign-in
 # ---------------------------------------------------------------------------
+#: The cookie that ties a sign-in at the identity provider to the browser that started it.
+SSO_COOKIE = "wri_sso"
+
+
+def browser_cookie(name: str) -> str | None:
+    """A cookie this browser sent, or None. Read-only: Streamlit shows cookies, it does not
+    set them."""
+    try:
+        return st.context.cookies.get(name)
+    except Exception:  # noqa: BLE001 - no browser behind this run
+        return None
+
+
+def _keep_in_browser(name: str, value: str) -> None:
+    """Have the browser keep a short-lived cookie. It is sent back when the identity
+    provider returns the person here, and at no other site."""
+    script = (
+        "<script>document.cookie = "
+        + json.dumps(f"{name}={value}; path=/; max-age=600; SameSite=Lax")
+        + " + (location.protocol === 'https:' ? '; Secure' : '');</script>"
+    )
+    components.html(script, height=0)
+
+
+def _signed_in_as(api_url: str, body: dict) -> None:
+    st.session_state["token"] = body["token"]
+    st.session_state.pop("sso_pending", None)
+    refresh(EngineClient(base_url=api_url, token=body["token"]))
+
+
+def _back_from_provider(api_url: str) -> bool:
+    """Finish a sign-in when the identity provider has sent the browser back here. True if
+    there was one to deal with, whether or not it succeeded."""
+    params = st.query_params
+    if "error" in params:
+        st.query_params.clear()
+        st.warning("The sign-in was cancelled, or your identity provider refused it.")
+        return False
+    if "code" not in params or "state" not in params:
+        return False
+    code, state = params["code"], params["state"]
+    binding = browser_cookie(SSO_COOKIE)
+    st.query_params.clear()
+    if not binding:
+        st.error(
+            "This sign-in was not started from this browser, or took too long. Please start again."
+        )
+        return False
+    try:
+        body = EngineClient(base_url=api_url).sso_complete(code, state, binding)
+    except ApiError as exc:
+        _error(exc)
+        return False
+    _signed_in_as(api_url, body)
+    st.rerun()
+    return True
+
+
 def sign_in_page(api_url: str) -> None:
     st.title("Workforce Risk Intelligence")
+    _back_from_provider(api_url)
+    api = EngineClient(base_url=api_url)
+    try:
+        how = api.sso()
+    except ApiError:
+        how = {"enabled": False, "name": "", "password_sign_in": True}
     st.markdown("Sign in to see your engagements.")
+
+    if how["enabled"]:
+        pending = st.session_state.get("sso_pending")
+        if pending:
+            # The browser keeps a secret from this step and must hand it back on return, so
+            # a link to someone else's half-finished sign-in cannot be finished here.
+            _keep_in_browser(SSO_COOKIE, pending["binding"])
+            st.markdown(
+                f'<a href="{html.escape(pending["authorization_url"], quote=True)}" '
+                f'target="_self">Continue to {html.escape(how["name"])}</a>',
+                unsafe_allow_html=True,
+            )
+            st.caption("You will sign in there and be brought back here.")
+        elif st.button(f"Sign in with {how['name']}", type="primary"):
+            try:
+                st.session_state["sso_pending"] = api.sso_start()
+            except ApiError as exc:
+                _error(exc)
+                return
+            st.rerun()
+        if not how["password_sign_in"]:
+            return
+        st.divider()
+
     with st.form("sign_in"):
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Sign in", type="primary")
+        submitted = st.form_submit_button(
+            "Sign in", type="secondary" if how["enabled"] else "primary"
+        )
     if not submitted:
         return
-    api = EngineClient(base_url=api_url)
     try:
         body = api.login(email, password)
     except ApiError as exc:
         _error(exc)
         return
-    st.session_state["token"] = body["token"]
-    refresh(EngineClient(base_url=api_url, token=body["token"]))
+    _signed_in_as(api_url, body)
     st.rerun()
 
 
@@ -139,7 +229,7 @@ def sign_in_page(api_url: str) -> None:
 def pages() -> list[str]:
     if not engagement():
         return ["Engagement"]
-    out = ["Executive summary", "Cost matrix"]
+    out = ["Executive summary", "Cost matrix", "Patterns"]
     if can("view_records"):
         out.append("Drill-down")
     out += ["Assumptions", "Data quality"]
@@ -549,6 +639,7 @@ def _users(api: EngineClient) -> None:
     st.subheader("Users")
     try:
         users = api.users()
+        how = api.sso()
     except ApiError as exc:
         _error(exc)
         return
@@ -560,6 +651,7 @@ def _users(api: EngineClient) -> None:
                     "Name": u["name"],
                     "Firm administrator": "yes" if u["is_firm_admin"] else "",
                     "Active": "yes" if u["is_active"] else "no",
+                    "Signs in with": _signs_in_with(u, how),
                 }
                 for u in users
             ]
@@ -572,15 +664,24 @@ def _users(api: EngineClient) -> None:
         st.markdown("**Create a user**")
         email = st.text_input("Email")
         name = st.text_input("Name")
-        password = st.text_input(
-            "Starting password",
-            type="password",
-            help="At least 12 characters. Give it to the person directly.",
-        )
+        password = None
+        if how["password_sign_in"]:
+            password = st.text_input(
+                "Starting password",
+                type="password",
+                help="At least 12 characters. Give it to the person directly."
+                + (
+                    f" Leave it empty for an account that signs in only with {how['name']}."
+                    if how["enabled"]
+                    else ""
+                ),
+            )
+        else:
+            st.caption(f"The person signs in with {how['name']}. No password is set here.")
         firm_admin = st.checkbox("Firm administrator")
         if st.form_submit_button("Create user"):
             try:
-                api.create_user(email, password, name=name, is_firm_admin=firm_admin)
+                api.create_user(email, password or None, name=name, is_firm_admin=firm_admin)
                 st.success(f"Created {email}.")
                 st.rerun()
             except ApiError as exc:
@@ -600,6 +701,32 @@ def _users(api: EngineClient) -> None:
                     st.rerun()
                 except ApiError as exc:
                     _error(exc)
+    linked = [u for u in users if u["sso_linked"]]
+    if how["enabled"] and linked:
+        with st.form("sso_link"):
+            st.markdown(f"**Reset a {how['name']} link**")
+            st.caption(
+                "An account answers to one identity at the identity provider: the person "
+                "who first signed in with it. If that email address now belongs to someone "
+                "else there, reset the link and the next person to sign in with the address "
+                "takes the account. It signs the account out everywhere."
+            )
+            by_email = {u["email"]: u for u in linked}
+            target = st.selectbox("Account", list(by_email))
+            if st.form_submit_button("Reset link"):
+                try:
+                    api.reset_sso_link(by_email[target]["id"])
+                    st.rerun()
+                except ApiError as exc:
+                    _error(exc)
+
+
+def _signs_in_with(user: dict, how: dict) -> str:
+    if user["sso_linked"]:
+        return how["name"] or "single sign-on"
+    if user["has_password"]:
+        return "password"
+    return f"{how['name'] or 'single sign-on'} (not yet used)"
 
 
 # ---------------------------------------------------------------------------

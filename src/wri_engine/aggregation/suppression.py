@@ -161,3 +161,29 @@ def apply_complementary_suppression(
                 suppressed[victim] = SuppressionReason.COMPLEMENTARY
                 changed = True
     return withheld_totals
+
+
+def release_together(
+    ledger: DisclosureLedger, cohorts: list[frozenset[str]], min_cell_size: int
+) -> bool:
+    """Decide whether figures about several groups of people may leave the server at once,
+    and record them if so. All or nothing.
+
+    For a result that is not a cell of a matrix but still gives figures for groups: a
+    detection finding gives them for a unit, for its comparison and for the two together.
+    Every group must be at least `min_cell_size` people (an empty one says nothing about
+    anyone and is ignored), no two of them may differ by a group smaller than that, and
+    none may expose a small group against what `ledger` already holds.
+    """
+    groups = [c for c in dict.fromkeys(cohorts) if c]
+    with ledger.releasing():
+        for index, cohort in enumerate(groups):
+            if len(cohort) < min_cell_size or ledger.would_expose(cohort):
+                return False
+            for other in groups[index + 1 :]:
+                for residual in (cohort - other, other - cohort):
+                    if 0 < len(residual) < min_cell_size:
+                        return False
+        for cohort in groups:
+            ledger.record(cohort)
+    return True

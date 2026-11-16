@@ -568,11 +568,11 @@ def test_the_guide_covers_every_command_and_every_setting():
     for command in commands:
         assert f"./wri {command}" in guide, command
     settings = re.findall(r"^(WRI_[A-Z_]+)=", (DEPLOY / "wri.env.example").read_text(), re.M)
-    assert len(settings) == 6
+    assert len(settings) == 15
     for setting in settings:
         assert f"`{setting}`" in guide, setting
     compose = (DEPLOY / "compose.yaml").read_text()
     for setting in settings:
         assert setting in compose, setting
     # The guide does not promise what the product does not do.
-    assert "No single sign-on" in guide and "No TLS of its own" in guide
+    assert "No TLS of its own" in guide and "does not sign you out" in guide

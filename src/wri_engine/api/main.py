@@ -76,6 +76,14 @@ from wri_engine.api.licensing import require_within_size
 from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
 from wri_engine.costing.assumptions import MissingAssumptionError
 from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_phrase
+from wri_engine.detection import (
+    BY_MISCONDUCT,
+    OVERALL,
+    employee_years,
+    find_hotspots,
+    load_detection_settings,
+    unit_counts,
+)
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
@@ -731,6 +739,63 @@ def action_detail(
 
 
 # ---------------------------------------------------------------------------
+# detection (Phase 2)
+# ---------------------------------------------------------------------------
+HOTSPOT_NOTE = (
+    "A flag says a unit's discipline rate is higher than the same job's at other locations, "
+    "by more than chance and by enough to matter. It does not say why, and it says nothing "
+    "about any one person. The cost of the unit's actions comes from the cost baseline. "
+    "The estimated excess cost is an estimate and is not part of the cost baseline."
+)
+
+
+@router.get("/detection/hotspots", tags=["detection"])
+def detection_hotspots(
+    by: str = Query(BY_MISCONDUCT, pattern=f"^({BY_MISCONDUCT}|{OVERALL})$"),
+    mode: str = Query("base", pattern="^(low|base|high)$"),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """Where discipline clusters: a type of misconduct, in a job, at a work location, whose
+    rate stands out from the same job elsewhere, with what those actions cost in the
+    baseline and what the difference is estimated to cost. `by=overall` counts every type
+    of misconduct together.
+
+    Every role that sees totals sees the flagged units. A role that sees records also gets
+    the working: what was assessed and not flagged, and what could not be assessed. A
+    totals-only reader's flagged units pass the same small-group rules as a cell of the
+    cost matrix, and one that fails is withheld and counted. See
+    `wri_engine.detection.hotspots`, "Who sees what".
+
+    This reads the costing run and changes nothing in it.
+    """
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/detection/hotspots")
+    full = allows(ctx.role, Capability.VIEW_RECORDS)
+    _audit(
+        ctx,
+        "/detection/hotspots",
+        detail={"by": by, "mode": mode, "detail": "full" if full else "flagged_only"},
+    )
+    state.ensure_loaded()
+    run = state.run(mode=mode)
+    decided = sorted(str(ac.dimensions["decision_date"]) for ac in run.action_costs)
+    start = date.fromisoformat(decided[0]) if decided else None
+    end = date.fromisoformat(decided[-1]) if decided else None
+    exposure = employee_years(state.dataset, start, end) if decided else {}
+    report = find_hotspots(
+        unit_counts(run, by),
+        exposure,
+        load_detection_settings(),
+        by=by,
+        min_people=state.min_cell_size,
+        window_start=start,
+        window_end=end,
+    )
+    body = report.as_dict() if full else report.for_totals_reader(ctx.ledger())
+    return {"caption": _caption(ctx), "note": HOTSPOT_NOTE, **body}
+
+
+# ---------------------------------------------------------------------------
 # assumptions and scenarios
 # ---------------------------------------------------------------------------
 @router.get("/assumptions", tags=["assumptions"])
@@ -1300,6 +1365,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Read once, and loudly: an installation given a verification key that cannot be
         # read must not start up quietly unlicensed.
         runtime.license_public_key = load_public_key(settings.license_public_key)
+    if settings.sso is not None:
+        from wri_engine.sso import OidcClient
+
+        # The provider is not contacted here: an installation must still start, and its
+        # password accounts still work, while the identity provider is unreachable.
+        runtime.sso = OidcClient(settings.sso)
     set_pseudonym_salt(_installation_salt(settings))
     runtime.store = Store(settings.database_url)
     runtime.workspaces = Workspaces(settings.engagements_dir, runtime.store)

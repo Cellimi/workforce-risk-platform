@@ -31,6 +31,9 @@ dependencies = [
     "openpyxl>=3.1",
     "pillow>=10.0",
     "cryptography>=42.0",
+    # Single sign-on: talking to the firm's identity provider, and checking what it signs.
+    "httpx>=0.27",
+    "pyjwt[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +66,7 @@ filterwarnings = ["error::DeprecationWarning:wri_engine.*"]
 source = [
     "wri_engine.costing",
     "wri_engine.aggregation",
+    "wri_engine.detection",
     "wri_engine.adapters",
     "wri_engine.access",
     "wri_engine.store",

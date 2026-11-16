@@ -143,6 +143,10 @@ def texts(at) -> str:
     return "\n".join(str(p) for p in parts)
 
 
+def expanders(at) -> list[str]:
+    return [e.label for e in at.expander]
+
+
 def sign_in(at, who):
     labelled(at.text_input, "Email").input(who[0])
     labelled(at.text_input, "Password").input(who[1])
@@ -665,3 +669,269 @@ def test_a_firm_administrator_sees_whether_the_audit_log_holds(server, monkeypat
 
     at = sign_in(open_app(url), LEAD)
     assert "Audit log" not in [s.value for s in at.subheader]
+
+
+# ---------------------------------------------------------------------------
+# single sign-on on screen
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sso_server(tmp_path):
+    """A licensed installation with single sign-on, and the stand-in provider behind it."""
+    from oidc_provider import Person, Provider
+    from wri_engine.sso import OidcClient
+
+    provider = Provider()
+    settings = Settings(
+        auth_mode="local",
+        data_dir=tmp_path,
+        sso_issuer=provider.issuer,
+        sso_client_id=provider.client_id,
+        sso_client_secret=provider.client_secret,
+        sso_redirect_url=provider.redirect_url,
+        sso_name="Firm sign-in",
+    )
+    app = create_app(settings)
+    app.state.runtime.sso = OidcClient(settings.sso, http=provider.http)
+    store = app.state.runtime.store
+    store.create_user(*OWNER, name="Owner", is_firm_admin=True)
+    store.create_user("pat@firm.example", None, name="Pat")
+    provider.signing_in_as = Person(subject="idp-0001", email="pat@firm.example")
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    yield f"http://127.0.0.1:{port}", store, provider, app
+    srv.should_exit = True
+    thread.join(timeout=5)
+
+
+def _returned_from_provider(url: str, params: dict, cookie: str | None, monkeypatch):
+    """The app as the browser finds it on coming back: a fresh session, the provider's
+    answer in the address, and whatever cookie this browser holds."""
+    import sys
+
+    sys.path.insert(0, str(Path(APP).parent))
+    import licensed
+
+    monkeypatch.setattr(licensed, "browser_cookie", lambda name: cookie)
+    at = st_testing.AppTest.from_file(APP, default_timeout=60)
+    at.session_state["api_url"] = url
+    for key, value in params.items():
+        at.query_params[key] = value
+    return at.run()
+
+
+def test_a_person_signs_in_through_the_identity_provider(sso_server, monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+
+    url, store, provider, _app = sso_server
+    at = open_app(url)
+    # Both ways in are offered: the provider first, the password form below it.
+    assert "Email" in [t.label for t in at.text_input]
+    labelled(at.button, "Sign in with Firm sign-in").click()
+    at.run()
+    assert not at.exception, at.exception
+    pending = at.session_state["sso_pending"]
+    link = next(m.value for m in at.markdown if "Continue to Firm sign-in" in m.value)
+    assert 'target="_self"' in link and "https://idp.test/authorize?" in link
+    assert provider.client_secret not in link
+
+    # The browser goes to the provider and is sent back with a code.
+    sent_back = provider.http.get(pending["authorization_url"])
+    answer = {k: v[0] for k, v in parse_qs(urlsplit(sent_back.headers["location"]).query).items()}
+
+    back = _returned_from_provider(url, answer, pending["binding"], monkeypatch)
+    assert not back.exception, back.exception
+    assert back.session_state["user"]["email"] == "pat@firm.example"
+    assert "Signed in as" in texts(back)
+    assert dict(back.query_params) == {}, "the one-time code does not stay in the address"
+    assert store.get_user_by_email("pat@firm.example").sso_linked is True
+
+
+def test_a_link_finished_in_another_browser_signs_nobody_in(sso_server, monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+
+    url, _store, provider, _app = sso_server
+    at = open_app(url)
+    labelled(at.button, "Sign in with Firm sign-in").click()
+    at.run()
+    pending = at.session_state["sso_pending"]
+    sent_back = provider.http.get(pending["authorization_url"])
+    answer = {k: v[0] for k, v in parse_qs(urlsplit(sent_back.headers["location"]).query).items()}
+
+    for cookie in (None, "some-other-browsers-secret"):
+        other = _returned_from_provider(url, answer, cookie, monkeypatch)
+        assert not other.exception, other.exception
+        assert "token" not in other.session_state
+        assert "start again" in " ".join(e.value for e in other.error).lower()
+
+
+def test_cancelling_at_the_provider_returns_to_the_sign_in_page(sso_server, monkeypatch):
+    url, _store, _provider, _app = sso_server
+    back = _returned_from_provider(url, {"error": "access_denied"}, None, monkeypatch)
+    assert not back.exception, back.exception
+    assert "cancelled" in " ".join(w.value for w in back.warning)
+    assert "Sign in with Firm sign-in" in [b.label for b in back.button]
+
+
+def test_with_passwords_off_only_the_provider_is_offered(tmp_path):
+    from oidc_provider import Provider
+
+    provider = Provider()
+    app = create_app(
+        Settings(
+            auth_mode="local",
+            data_dir=tmp_path,
+            sso_issuer=provider.issuer,
+            sso_client_id=provider.client_id,
+            sso_redirect_url=provider.redirect_url,
+            sso_name="Firm sign-in",
+            password_sign_in=False,
+        )
+    )
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    try:
+        at = open_app(f"http://127.0.0.1:{port}")
+        assert not at.exception, at.exception
+        assert "Sign in with Firm sign-in" in [b.label for b in at.button]
+        assert [t.label for t in at.text_input] == []
+    finally:
+        srv.should_exit = True
+        thread.join(timeout=5)
+
+
+def test_without_single_sign_on_the_sign_in_page_is_as_it_was(server):
+    url, _store = server
+    at = open_app(url)
+    assert [b.label for b in at.button] == ["Sign in"]
+    assert [t.label for t in at.text_input] == ["Email", "Password"]
+
+
+def test_a_firm_administrator_creates_an_account_with_no_password(sso_server):
+    url, store, _provider, _app = sso_server
+    at = sign_in(open_app(url), OWNER)
+    labelled(at.text_input, "Email").input("sam@firm.example")
+    labelled(at.button, "Create user").click()
+    at.run()
+    assert not at.exception, at.exception
+    created = store.get_user_by_email("sam@firm.example")
+    assert created is not None and created.has_password is False
+    shown = at.dataframe[0].value
+    methods = dict(zip(shown["Email"], shown["Signs in with"], strict=True))
+    assert methods["sam@firm.example"] == "Firm sign-in (not yet used)"
+    assert methods[OWNER[0]] == "password"
+
+
+# ---------------------------------------------------------------------------
+# patterns (Phase 2) on screen
+# ---------------------------------------------------------------------------
+def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
+    """On the whole synthetic county, a role that sees records is shown the one planted
+    unit by type of misconduct, what those actions cost, what the difference is estimated
+    to cost and how that was worked out, and can look at every type together. A role that
+    sees totals only is shown the flagged unit with its cost, and not the working."""
+    from wri_engine.api.state import STATE
+    from wri_engine.generator import generate
+    from wri_engine.paths import SYNTHETIC_DIR
+
+    county = tmp_path / "county"
+    generate(seed=20260917).write(county)
+    STATE.load(county)
+    app = create_app(Settings(auth_mode="demo", data_dir=tmp_path))
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    try:
+        at = open_app(f"http://127.0.0.1:{port}")
+        labelled(at.sidebar.selectbox, "Role").set_value("hr_analyst")
+        at.run()
+        at = go(at, "Patterns")
+        assert not at.exception, at.exception
+        shown = texts(at)
+        hot = "Attendance / AWOL among Corrections Officer at Main Detention Center"
+        assert hot in shown
+        assert "It does not say why, and it says nothing about any one person." in shown
+        assert "have not been reviewed yet" in shown
+        assert "196 comparisons made" in shown
+        assert metric(at, "Cost of these actions") == "$232,626"
+        assert metric(at, "Estimated excess cost") == "$164,168"
+        assert metric(at, "Times the rate elsewhere") == "3.40"
+        assert "70 Attendance / AWOL actions among 64 people" in shown
+        assert "an estimate, not part of the cost baseline" in shown
+        assert "Assessed and not flagged (133)" in expanders(at)
+        # Nobody is named, on this page of all pages.
+        import re
+
+        assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
+
+        labelled(at.radio, "Look at").set_value("All types together")
+        at.run()
+        assert not at.exception, at.exception
+        shown = texts(at)
+        assert "29 comparisons made" in shown
+        assert metric(at, "Estimated excess cost") == "$554,786"
+        assert metric(at, "Times the rate elsewhere") == "2.07"
+        assert "160 actions among 126 people" in shown
+
+        # Leadership sees the flag and what it costs, and not the working behind it.
+        labelled(at.radio, "Look at").set_value("By type of misconduct")
+        labelled(at.sidebar.selectbox, "Role").set_value("executive")
+        at.run()
+        assert not at.exception, at.exception
+        shown = texts(at)
+        assert hot in shown
+        assert metric(at, "Cost of these actions") == "$232,626"
+        assert not any("not flagged" in label for label in expanders(at))
+        assert "decided on the server" in shown
+        assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
+    finally:
+        srv.should_exit = True
+        thread.join(timeout=5)
+        STATE.load(SYNTHETIC_DIR / "sample")
+
+
+def test_patterns_is_offered_to_everyone_and_the_working_only_to_record_roles(server):
+    url, store = server
+    owner = store.get_user_by_email(OWNER[0])
+    engagement = store.create_engagement(
+        name="FY26 review",
+        client_name="Pine Valley County",
+        sector="public_sector",
+        created_by=owner.id,
+    )
+    _upload_sample(url, store, engagement.id)
+    store.set_member(engagement.id, store.get_user_by_email(LEAD[0]).id, "hr_analyst")
+    store.set_member(engagement.id, store.get_user_by_email(READER[0]).id, "executive")
+
+    at = sign_in(open_app(url), LEAD)
+    assert "Patterns" in at.sidebar.radio[0].options
+    at = go(at, "Patterns")
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert "comparisons made" in texts(at)
+    assert any("Assessed and not flagged" in label for label in expanders(at))
+
+    at = sign_in(open_app(url), READER)
+    assert "Patterns" in at.sidebar.radio[0].options
+    assert "Drill-down" not in at.sidebar.radio[0].options
+    at = go(at, "Patterns")
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert "comparisons made" in texts(at)
+    assert not any("not flagged" in label for label in expanders(at))

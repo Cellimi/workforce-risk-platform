@@ -29,6 +29,16 @@ services:
       WRI_SESSION_HOURS: ${WRI_SESSION_HOURS:-12}
       WRI_MAX_UPLOAD_MB: ${WRI_MAX_UPLOAD_MB:-50}
       WRI_DATABASE_URL: ${WRI_DATABASE_URL:-}
+      # Single sign-on. All empty means off. See "Single sign-on" in INSTALL.md.
+      WRI_SSO_ISSUER: ${WRI_SSO_ISSUER:-}
+      WRI_SSO_CLIENT_ID: ${WRI_SSO_CLIENT_ID:-}
+      WRI_SSO_CLIENT_SECRET: ${WRI_SSO_CLIENT_SECRET:-}
+      WRI_SSO_REDIRECT_URL: ${WRI_SSO_REDIRECT_URL:-}
+      WRI_SSO_NAME: ${WRI_SSO_NAME:-}
+      WRI_SSO_SCOPES: ${WRI_SSO_SCOPES:-}
+      WRI_SSO_EMAIL_CLAIM: ${WRI_SSO_EMAIL_CLAIM:-}
+      WRI_SSO_REQUIRE_VERIFIED_EMAIL: ${WRI_SSO_REQUIRE_VERIFIED_EMAIL:-}
+      WRI_PASSWORD_SIGN_IN: ${WRI_PASSWORD_SIGN_IN:-}
     volumes:
       - wri-data:/data
     healthcheck:
