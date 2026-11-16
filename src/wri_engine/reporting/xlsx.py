@@ -213,6 +213,138 @@ def _matrix(book: Workbook, content: ReportContent) -> None:
     _widths(sheet, [34, 34, 10, 11, 16, 16, 16, 16, 14, 34])
 
 
+PATTERN_COLUMNS = [
+    "View",
+    "Type of misconduct",
+    "Employee type",
+    "Work location",
+    "Result",
+    "Actions",
+    "People",
+    "Employee-years",
+    "Actions elsewhere",
+    "People elsewhere",
+    "Employee-years elsewhere",
+    "Expected at the rate elsewhere",
+    "Times the rate elsewhere",
+    "Adjusted chance value",
+    "Cost of these actions",
+    "Estimated excess (not in any total)",
+    "How it was worked out",
+]
+PATTERN_RESULTS = {
+    "flagged": "Flagged",
+    "concentrated": "Not flagged: concentrated in few people",
+    "not_flagged": "Not flagged",
+}
+
+
+def _pattern_rows(sheet, start: int, label: str, rows) -> int:
+    row = start
+    for found in rows:
+        _put(sheet, row, 1, label)
+        _put(sheet, row, 2, found.topic_label or "All types")
+        _put(sheet, row, 3, found.row_label)
+        _put(sheet, row, 4, found.col_label)
+        _put(sheet, row, 5, PATTERN_RESULTS[found.status])
+        _put(sheet, row, 6, found.actions)
+        _put(sheet, row, 7, found.people)
+        _put(sheet, row, 8, found.employee_years)
+        _put(sheet, row, 9, found.comparison_actions)
+        _put(sheet, row, 10, found.comparison_people)
+        _put(sheet, row, 11, found.comparison_employee_years)
+        _put(sheet, row, 12, found.expected_actions)
+        _put(sheet, row, 13, found.ratio if found.ratio is not None else "n/a")
+        _put(sheet, row, 14, found.adjusted_chance, number_format="0.0000")
+        _put(sheet, row, 15, found.net, number_format=MONEY)
+        if found.estimated_excess_cost is not None:
+            _put(sheet, row, 16, found.estimated_excess_cost, number_format=MONEY)
+        worked = found.explanation
+        if found.formula:
+            worked += f" Estimated excess: {found.formula}."
+        _put(sheet, row, 17, worked)
+        row += 1
+    return row
+
+
+PATTERN_WIDTHS = [30, 26, 28, 30, 22, 9, 9, 15, 17, 16, 23, 28, 23, 21, 22, 32, 120]
+
+
+def _patterns(book: Workbook, content: ReportContent) -> None:
+    """The flagged units: the same ones the report lists, with the figures behind each."""
+    section = content.patterns
+    sheet = book.create_sheet("Patterns")
+    _header(sheet, 1, PATTERN_COLUMNS)
+    row = 2
+    for view in section.views:
+        row = _pattern_rows(sheet, row, view.label, view.flagged)
+    if not section.flagged:
+        _put(sheet, row, 1, "Nothing stood out.")
+        row += 1
+    row += 1
+    for view in section.views:
+        text = f"{view.label}: {view.comparisons:,} comparisons made, {len(view.flagged)} shown"
+        if view.withheld:
+            text += (
+                f", {view.withheld} more stood out and not shown here, to protect a group "
+                f"of fewer than {section.min_people} people"
+            )
+        _put(sheet, row, 1, text + ".", font=MUTED)
+        row += 1
+    if section.window_start and section.window_end:
+        period = f"{section.window_start.isoformat()} to {section.window_end.isoformat()}"
+        _put(sheet, row, 1, f"Period: {period}.", font=MUTED)
+        row += 1
+    _put(
+        sheet,
+        row,
+        1,
+        f"A flag needs an adjusted chance value of {section.false_discovery_rate:f} or less, "
+        f"a rate at least {section.min_rate_ratio:f} times the rate elsewhere, and at least "
+        f"{section.min_people} different people disciplined.",
+        font=MUTED,
+    )
+    row += 1
+    if section.unreviewed:
+        _put(
+            sheet,
+            row,
+            1,
+            "The thresholds that decide a flag are the product's starting values and are "
+            "still under review.",
+            font=WARNING,
+        )
+        row += 1
+    _put(sheet, row, 1, section.note, font=MUTED)
+    _put(sheet, row + 1, 1, section.cost_note, font=MUTED)
+    _widths(sheet, PATTERN_WIDTHS)
+
+
+def _patterns_working(book: Workbook, content: ReportContent) -> None:
+    """The working papers: every unit assessed, flagged or not, and those that could not
+    be. Never in the client's copy: this list would give away its small groups."""
+    section = content.patterns
+    sheet = book.create_sheet("Patterns working")
+    _header(sheet, 1, PATTERN_COLUMNS)
+    row = 2
+    for view in section.views:
+        row = _pattern_rows(sheet, row, view.label, view.working)
+    row += 1
+    missing = [(view.label, *entry) for view in section.views for entry in view.not_assessed]
+    if missing:
+        _put(sheet, row, 1, "Not assessed", font=BOLD)
+        row += 1
+        for label, job, place, reason in missing:
+            _put(sheet, row, 1, label)
+            _put(sheet, row, 3, job)
+            _put(sheet, row, 4, place)
+            _put(sheet, row, 5, reason)
+            row += 1
+        row += 1
+    _put(sheet, row, 1, content.records.note, font=WARNING)
+    _widths(sheet, PATTERN_WIDTHS)
+
+
 def _departments(book: Workbook, content: ReportContent) -> None:
     sheet = book.create_sheet("Departments")
     _header(sheet, 1, ["Department", "Active employees", "Net cost", "Per employee per year"])
@@ -384,6 +516,8 @@ def render_xlsx(content: ReportContent) -> bytes:
     _components(book, content)
     _range(book, content)
     _matrix(book, content)
+    if content.patterns:
+        _patterns(book, content)
     _departments(book, content)
     _quality(book, content)
     _assumptions(book, content)
@@ -391,6 +525,8 @@ def render_xlsx(content: ReportContent) -> bytes:
     if content.records:
         _actions(book, content)
         _line_items(book, content)
+        if content.patterns:
+            _patterns_working(book, content)
         book.properties.title = f"{book.properties.title} - working papers"
     buffer = io.BytesIO()
     book.save(buffer)

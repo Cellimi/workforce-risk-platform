@@ -79,6 +79,7 @@ from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_ph
 from wri_engine.detection import (
     BY_MISCONDUCT,
     OVERALL,
+    HotspotReport,
     employee_years,
     find_hotspots,
     load_detection_settings,
@@ -88,7 +89,9 @@ from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
     OverrideRow,
+    PatternSection,
     ReportContent,
+    build_patterns,
     build_records,
     build_report,
     render_pdf,
@@ -777,12 +780,18 @@ def detection_hotspots(
         detail={"by": by, "mode": mode, "detail": "full" if full else "flagged_only"},
     )
     state.ensure_loaded()
-    run = state.run(mode=mode)
+    report = _hotspot_report(state, state.run(mode=mode), by)
+    body = report.as_dict() if full else report.for_totals_reader(ctx.ledger())
+    return {"caption": _caption(ctx), "note": HOTSPOT_NOTE, **body}
+
+
+def _hotspot_report(state, run, by: str) -> HotspotReport:
+    """Detection over one costing run. Reads it; changes nothing in it."""
     decided = sorted(str(ac.dimensions["decision_date"]) for ac in run.action_costs)
     start = date.fromisoformat(decided[0]) if decided else None
     end = date.fromisoformat(decided[-1]) if decided else None
     exposure = employee_years(state.dataset, start, end) if decided else {}
-    report = find_hotspots(
+    return find_hotspots(
         unit_counts(run, by),
         exposure,
         load_detection_settings(),
@@ -791,8 +800,6 @@ def detection_hotspots(
         window_start=start,
         window_end=end,
     )
-    body = report.as_dict() if full else report.for_totals_reader(ctx.ledger())
-    return {"caption": _caption(ctx), "note": HOTSPOT_NOTE, **body}
 
 
 # ---------------------------------------------------------------------------
@@ -1077,7 +1084,24 @@ def export_summary(
 REPORT_ROWS, REPORT_COLS = "role_family", "misconduct_category"
 
 
-def _report_content(ctx: Ctx, mode: str, records: bool = False) -> ReportContent:
+def _report_patterns(ctx: Ctx, run, records: bool) -> PatternSection | None:
+    """The patterns section of a deliverable, decided for the copy being made.
+
+    The client's copy leaves the building, so whoever asks for it, it carries what a reader
+    of totals may see: the flagged units, each released under the small-group rules against
+    the asker's own disclosure ledger, exactly as the matrix beside it is. The working
+    papers are for a role that sees every record, and carry everything.
+    """
+    views = []
+    for by in (BY_MISCONDUCT, OVERALL):
+        report = _hotspot_report(ctx.state, run, by)
+        views.append(report.as_dict() if records else report.for_totals_reader(ctx.ledger()))
+    return build_patterns(views)
+
+
+def _report_content(
+    ctx: Ctx, mode: str, records: bool = False, patterns: bool = True
+) -> ReportContent:
     """Assemble a deliverable for this caller.
 
     Everything in it is something the caller could already see on screen: the matrix is
@@ -1152,6 +1176,7 @@ def _report_content(ctx: Ctx, mode: str, records: bool = False) -> ReportContent
         standing=_assumption_standing(state.effective_assumptions),
         generated_on=date.today(),
         records=record_section,
+        patterns=_report_patterns(ctx, runs[mode], records) if patterns else None,
     )
 
 
@@ -1163,15 +1188,22 @@ def _download(data: bytes, media_type: str, filename: str) -> Response:
     )
 
 
+PATTERNS_IN_REPORT = (
+    "Include where a type of misconduct clusters and what it costs there. The client's "
+    "copy carries the flagged units only; the working papers carry what was assessed."
+)
+
+
 @router.get("/exports/report.pdf", tags=["exports"])
 def export_report_pdf(
     mode: str = Query("base", pattern="^(low|base|high)$"),
+    patterns: bool = Query(True, description=PATTERNS_IN_REPORT),
     ctx: Ctx = Depends(get_ctx),
 ) -> Response:
     """The report a consultant hands a client, carrying the firm's name and logo."""
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.pdf")
-    _audit(ctx, "/exports/report.pdf", detail={"mode": mode})
-    content = _report_content(ctx, mode)
+    _audit(ctx, "/exports/report.pdf", detail={"mode": mode, "patterns": patterns})
+    content = _report_content(ctx, mode, patterns=patterns)
     _usage(ctx, "report_generated", format="pdf", mode=mode)
     return _download(render_pdf(content), "application/pdf", f"{content.file_stem}.pdf")
 
@@ -1184,19 +1216,20 @@ def export_report_xlsx(
         description="Add the working papers: every action and line item. Needs a role that "
         "may see record-level detail; the client's copy is the one without them.",
     ),
+    patterns: bool = Query(True, description=PATTERNS_IN_REPORT),
     ctx: Ctx = Depends(get_ctx),
 ) -> Response:
     """The workbook that goes with the report: the same figures, plus every matrix cell and
     every assumption with its bounds. With `records=true`, the working papers."""
     _guard(ctx, Capability.VIEW_AGGREGATES, "/exports/report.xlsx")
-    detail = {"mode": mode}
+    detail = {"mode": mode, "patterns": patterns}
     usage = {"format": "xlsx", "mode": mode}
     if records:
         _guard(ctx, Capability.VIEW_RECORDS, "/exports/report.xlsx")
         detail["records"] = True
         usage["records"] = True
     _audit(ctx, "/exports/report.xlsx", detail=detail)
-    content = _report_content(ctx, mode, records=records)
+    content = _report_content(ctx, mode, records=records, patterns=patterns)
     _usage(ctx, "report_generated", **usage)
     return _download(
         render_xlsx(content),

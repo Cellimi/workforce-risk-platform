@@ -24,8 +24,15 @@ Wording for the client is settled here too. The registry records who estimated a
 "Professional estimate". `client_wording` makes that change in one place, so the PDF and
 the workbook cannot word a source differently, and the registry is left as the record it is.
 
-`build_report` and `build_records` are pure functions: no I/O, no clock read. The date the
-report was prepared is passed in.
+**Patterns** (`PatternSection`) are where the report calls out to the client's leadership
+where a type of misconduct clusters and what it costs there. The same rule holds: every
+flagged unit arrives here already decided. In the client's copy each one has passed the
+small-group rules that govern a cell of the matrix, and one that failed is only counted. The
+working behind the flags, every unit assessed and not flagged, is in the working papers and
+never in the client's copy.
+
+`build_report`, `build_records` and `build_patterns` are pure functions: no I/O, no clock
+read. The date the report was prepared is passed in.
 """
 
 from __future__ import annotations
@@ -79,6 +86,25 @@ RECORDS_NOTE = (
     "the figures. It is for the engagement team. It is not the client's copy: the client's "
     "workbook is the one without the Actions and Line items sheets."
 )
+
+
+PATTERN_NOTE = (
+    "A pattern is flagged where discipline in one job at one work location was more "
+    "frequent than in the same job at the other locations: by more than chance would "
+    "explain, by enough to matter, and among enough different people that it is not the "
+    "record of a few individuals. A flag says where to look. It does not say why the rate "
+    "is higher, and it says nothing about any one person."
+)
+PATTERN_COST_NOTE = (
+    "The cost of the actions is what the records show those actions cost, and is already "
+    "part of every total in this report. The estimated excess is the number of actions "
+    "beyond what the rate elsewhere would give, at this unit's average cost per action. It "
+    "is an estimate, and it is not added to any total."
+)
+PATTERN_VIEW_LABELS = {
+    "misconduct": "By type of misconduct",
+    "overall": "Every type of misconduct together",
+}
 
 
 def client_wording(source: str) -> str:
@@ -237,6 +263,75 @@ class RecordSection:
 
 
 @dataclass(frozen=True)
+class PatternRow:
+    """One unit: a job at a work location, for one type of misconduct or for all of them."""
+
+    status: str
+    topic_label: str
+    row_label: str
+    col_label: str
+    actions: int
+    people: int
+    employee_years: Decimal
+    comparison_actions: int
+    comparison_people: int
+    comparison_employee_years: Decimal
+    expected_actions: Decimal
+    #: The unit's rate over the rate elsewhere. None when elsewhere had no such action.
+    ratio: Decimal | None
+    adjusted_chance: float
+    #: What the cost baseline shows these actions cost. An actual.
+    net: Decimal
+    #: Flagged units only. An estimate, and in no total.
+    estimated_excess_cost: Decimal | None
+    explanation: str
+    formula: str
+
+    @property
+    def name(self) -> str:
+        where = f"{self.row_label} at {self.col_label}"
+        return f"{self.topic_label} among {where}" if self.topic_label else where
+
+
+@dataclass(frozen=True)
+class PatternView:
+    """One way of looking: by type of misconduct, or every type together."""
+
+    by: str
+    label: str
+    comparisons: int
+    flagged: list[PatternRow]
+    #: Flagged, and left out of this copy to protect a small group.
+    withheld: int
+    #: The working papers only: every unit assessed, flagged or not.
+    working: list[PatternRow] = field(default_factory=list)
+    #: The working papers only: (job, location, why it could not be assessed).
+    not_assessed: list[tuple[str, str, str]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class PatternSection:
+    window_start: date | None
+    window_end: date | None
+    min_people: int
+    false_discovery_rate: Decimal
+    min_rate_ratio: Decimal
+    #: Threshold ids the owner has not reviewed. The report says so when there are any.
+    unreviewed: tuple[str, ...]
+    views: list[PatternView]
+    note: str = PATTERN_NOTE
+    cost_note: str = PATTERN_COST_NOTE
+
+    @property
+    def flagged(self) -> list[PatternRow]:
+        return [row for view in self.views for row in view.flagged]
+
+    @property
+    def withheld(self) -> int:
+        return sum(view.withheld for view in self.views)
+
+
+@dataclass(frozen=True)
 class ReportContent:
     # -- whose it is and what it covers
     branding: Branding
@@ -286,6 +381,8 @@ class ReportContent:
     title: str = REPORT_TITLE
     #: The working papers. None in the client's copy, which is aggregates only.
     records: RecordSection | None = None
+    #: Where a type of misconduct clusters. None when the report was asked for without it.
+    patterns: PatternSection | None = None
     extra: dict = field(default_factory=dict)
 
     @property
@@ -449,6 +546,73 @@ def build_records(
     return RecordSection(identifiers=identifiers, actions=action_rows, line_items=item_rows)
 
 
+def _pattern_row(found: dict) -> PatternRow:
+    ratio = found["ratio"]
+    return PatternRow(
+        status=found["status"],
+        topic_label=found["topic_label"],
+        row_label=found["row_label"],
+        col_label=found["col_label"],
+        actions=found["actions"],
+        people=found["people"],
+        employee_years=Decimal(str(found["employee_years"])),
+        comparison_actions=found["comparison_actions"],
+        comparison_people=found["comparison_people"],
+        comparison_employee_years=Decimal(str(found["comparison_employee_years"])),
+        expected_actions=Decimal(str(found["expected_actions"])),
+        ratio=None if ratio is None else Decimal(str(ratio)),
+        adjusted_chance=found["q_value"],
+        net=_money(found["net"]),
+        estimated_excess_cost=_optional_money(found["estimated_excess_cost"]),
+        explanation=found["explanation"],
+        formula=found["formula"],
+    )
+
+
+def build_patterns(views: list[dict]) -> PatternSection | None:
+    """Turn detection's findings into a report section.
+
+    Each item of `views` is what detection gave for one way of looking, **as already
+    decided for this copy**: `HotspotReport.for_totals_reader` for the client's copy,
+    `HotspotReport.as_dict` for the working papers. Nothing here chooses what may be shown;
+    it only carries what it was given, so a unit that was not flagged can reach the working
+    papers and cannot reach the client's copy.
+    """
+    if not views:
+        return None
+    first = views[0]
+    settings = first["settings"]
+    return PatternSection(
+        window_start=date.fromisoformat(first["window_start"]) if first["window_start"] else None,
+        window_end=date.fromisoformat(first["window_end"]) if first["window_end"] else None,
+        min_people=first["min_people"],
+        false_discovery_rate=Decimal(str(settings["detection_false_discovery_rate"])),
+        min_rate_ratio=Decimal(str(settings["detection_min_rate_ratio"])),
+        unreviewed=tuple(settings["unreviewed"]),
+        views=[
+            PatternView(
+                by=view["by"],
+                label=PATTERN_VIEW_LABELS[view["by"]],
+                comparisons=view["comparisons"],
+                flagged=[_pattern_row(f) for f in view["flagged"]],
+                withheld=view["withheld"],
+                working=[
+                    _pattern_row(f)
+                    for key in ("flagged", "concentrated", "not_flagged")
+                    for f in view.get(key, [])
+                ]
+                if view["detail"] == "full"
+                else [],
+                not_assessed=[
+                    (n["row_label"], n["col_label"], n["reason"])
+                    for n in view.get("not_assessed", [])
+                ],
+            )
+            for view in views
+        ],
+    )
+
+
 def build_report(
     *,
     runs: dict[str, CostRun],
@@ -473,6 +637,7 @@ def build_report(
     standing: str,
     generated_on: date,
     records: RecordSection | None = None,
+    patterns: PatternSection | None = None,
 ) -> ReportContent:
     """Assemble a deliverable's content from runs the caller is already entitled to.
 
@@ -555,4 +720,5 @@ def build_report(
         overrides=overrides,
         standing=standing,
         records=records,
+        patterns=patterns,
     )

@@ -136,6 +136,7 @@ def test_the_workbook_has_every_sheet_and_the_same_figures(demo_book, demo_summa
         "Components",
         "Low to high",
         "Cost matrix",
+        "Patterns",
         "Departments",
         "Data quality",
         "Assumptions used",
@@ -474,7 +475,7 @@ def test_a_private_engagements_report_carries_its_own_components(tmp_path):
 # ---------------------------------------------------------------------------
 REAL_ID = re.compile(r"\bE\d{5}\b")
 MASKED_ID = re.compile(r"^EMP-[0-9A-F]{8}$")
-RECORD_SHEETS = ["Actions", "Line items"]
+RECORD_SHEETS = ["Actions", "Line items", "Patterns working"]
 
 
 def working_papers(demo, who: str, **params):
@@ -530,7 +531,7 @@ def test_the_working_papers_add_up_to_the_report(analyst_papers, demo_summary):
     """Every action and every line item, summing to the cent to the figures the report
     gives. The sheets carry the engine's own amounts, not rounded copies of them."""
     book = analyst_papers
-    assert book.sheetnames[-2:] == RECORD_SHEETS
+    assert book.sheetnames[-3:] == RECORD_SHEETS
     actions = [r for r in sheet_rows(book, "Actions")[1:] if r[1]]
     items = [r for r in sheet_rows(book, "Line items")[1:] if r[1]]
     assert len(actions) == demo_summary["actions_costed"]
@@ -673,3 +674,13 @@ def test_a_clients_report_says_professional_estimate_not_whose(demo_pdf, demo_bo
     assert worded.split("accepted on", 1)[1] == sworn.split("accepted by the owner on", 1)[1]
     cited = registry.get("benefits_multiplier_civilian").source
     assert client_wording(cited) == cited
+
+
+def test_a_report_with_nothing_flagged_says_so(demo_pdf, demo_book):
+    """The committed sample is a cut for browsing and no unit in it stands out. The report
+    says that, plainly, and does not leave the section out."""
+    text = pdf_text(demo_pdf)
+    assert "Where discipline clusters" in text
+    assert "comparisons were made and nothing stood out." in text
+    rows = sheet_rows(demo_book, "Patterns")
+    assert rows[1][0] == "Nothing stood out."

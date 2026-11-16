@@ -133,14 +133,20 @@ class EngineClient:
     def export_summary(self, mode: str = "base") -> str:
         return self._request("GET", "/exports/summary.md", params={"mode": mode}).text
 
-    def report_pdf(self, mode: str = "base") -> bytes:
-        """The report for the client, carrying the firm's name and logo."""
-        return self._request("GET", "/exports/report.pdf", params={"mode": mode}).content
+    def report_pdf(self, mode: str = "base", patterns: bool = True) -> bytes:
+        """The report for the client, carrying the firm's name and logo. `patterns` says
+        whether it includes where a type of misconduct clusters."""
+        params = {"mode": mode, "patterns": "true" if patterns else "false"}
+        return self._request("GET", "/exports/report.pdf", params=params).content
 
-    def report_xlsx(self, mode: str = "base", records: bool = False) -> bytes:
+    def report_xlsx(
+        self, mode: str = "base", records: bool = False, patterns: bool = True
+    ) -> bytes:
         """The workbook that goes with the report. With `records`, the working papers:
         the same workbook plus every action and line item, for roles the server allows."""
-        params = {"mode": mode, "records": "true"} if records else {"mode": mode}
+        params = {"mode": mode, "patterns": "true" if patterns else "false"}
+        if records:
+            params["records"] = "true"
         return self._request("GET", "/exports/report.xlsx", params=params).content
 
     # -- the firm's name and logo (licensed mode) ----------------------------

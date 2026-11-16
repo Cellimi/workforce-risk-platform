@@ -192,7 +192,14 @@ def report_downloads(api: EngineClient) -> None:
         "A report to read and a workbook to work in, both from the same figures. They show "
         "what your role may see: small groups are withheld exactly as they are on screen."
     )
-    key = (st.session_state.get("engagement_id"), mode())
+    patterns = st.checkbox(
+        "Include where discipline clusters (the Patterns page)",
+        value=True,
+        key="report_patterns",
+        help="The flagged units and what they cost. What was assessed and not flagged goes "
+        "in the working papers only.",
+    )
+    key = (st.session_state.get("engagement_id"), mode(), patterns)
     prepared = st.session_state.get("report_files")
     if prepared and prepared["key"] != key:
         prepared = None
@@ -202,9 +209,13 @@ def report_downloads(api: EngineClient) -> None:
     with_records = current_role() != "executive"
     if st.button("Prepare the report"):
         try:
-            prepared = {"key": key, "pdf": api.report_pdf(mode()), "xlsx": api.report_xlsx(mode())}
+            prepared = {
+                "key": key,
+                "pdf": api.report_pdf(mode(), patterns=patterns),
+                "xlsx": api.report_xlsx(mode(), patterns=patterns),
+            }
             if with_records:
-                prepared["records"] = api.report_xlsx(mode(), records=True)
+                prepared["records"] = api.report_xlsx(mode(), records=True, patterns=patterns)
         except ApiError as exc:
             st.error(str(exc))
             return

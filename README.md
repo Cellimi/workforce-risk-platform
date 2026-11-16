@@ -130,11 +130,12 @@ Two files, both from the **Executive summary** page (`Prepare the report`), or f
 
 - **A report to read (PDF).** A cover carrying the consulting firm's name and logo, the
   headline figures, where the money goes, the low-to-high range, where the cost
-  concentrates, what the records could not support, and two appendices: the assumptions
+  concentrates, **where discipline clusters** (the flagged patterns, each with what those
+  actions cost), what the records could not support, and two appendices: the assumptions
   these figures actually used with the source of each, and the values specific to this
   client with who set them and why.
-- **A workbook to work in (Excel).** The same figures, plus every cell of the cost matrix
-  and every assumption with its bounds.
+- **A workbook to work in (Excel).** The same figures, plus every cell of the cost matrix,
+  the figures behind each flagged pattern, and every assumption with its bounds.
 
 Both are produced from one content object, so they cannot disagree. Three rules hold for
 both:
@@ -143,6 +144,11 @@ both:
   it reaches the report, with the same small-group rule and the same disclosure ledger, and
   a withheld cell carries no figure.
 - **They never name a person or a case.** Data quality is reported as counts by rule.
+- **The patterns in them are the flagged units only.** Each is released under the same
+  small-group rule as a matrix cell, whoever asks for the file, because the file is going
+  to the client. One that fails is left out and the report says one was. A flag says where
+  to look; the report says in as many words that it does not say why. The section can be
+  left out (`patterns=false`, or the tick box beside **Prepare the report**).
 - **Text a person typed stays text.** An override's reason or a client's name is never run
   as a spreadsheet formula and never read as layout markup.
 
@@ -152,8 +158,9 @@ printed as the registry has them, and the registry itself is unchanged.
 
 **The working papers are a third file, and not for the client.** The engagement lead and
 the analyst, the two roles that already have the drill-down, are also offered the same
-workbook with two more sheets: every action, and every line item with how it was worked
-out and the assumptions it used (`report.xlsx?records=true`). The sheets sum to the cent to
+workbook with three more sheets: every action, every line item with how it was worked
+out and the assumptions it used, and the working behind the patterns, every unit that was
+assessed whether flagged or not (`report.xlsx?records=true`). The sheets sum to the cent to
 the report's totals. Its file name ends `_working_papers`, its first sheet says what it is,
 and a client reader who asks for it is refused by the server. The lead's copy carries the
 client's own employee ids; the analyst's carries masked ones, including for a supervisor or
