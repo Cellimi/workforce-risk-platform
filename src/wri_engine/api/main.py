@@ -76,6 +76,12 @@ from wri_engine.api.licensing import require_within_size
 from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, write_marker
 from wri_engine.costing.assumptions import MissingAssumptionError
 from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_phrase
+from wri_engine.detection import (
+    employee_years,
+    find_hotspots,
+    load_detection_settings,
+    unit_counts,
+)
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
@@ -728,6 +734,51 @@ def action_detail(
             for aid in used
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# detection (Phase 2)
+# ---------------------------------------------------------------------------
+HOTSPOT_NOTE = (
+    "A flag says a unit's discipline rate is higher than the same job's at other locations, "
+    "by more than chance and by enough to matter. It does not say why, and it says nothing "
+    "about any one person. The estimated excess cost is an estimate and is not part of the "
+    "cost baseline."
+)
+
+
+@router.get("/detection/hotspots", tags=["detection"])
+def detection_hotspots(
+    mode: str = Query("base", pattern="^(low|base|high)$"),
+    ctx: Ctx = Depends(get_ctx),
+) -> dict:
+    """Units (a job at a work location) whose discipline rate stands out from the same job
+    elsewhere, with what the difference is estimated to cost.
+
+    For roles that see records. A client reader, who sees totals only, is refused: shown a
+    large unit beside a location total they can already see, they could subtract their way
+    to a group of two or three people. See `wri_engine.detection.hotspots`.
+
+    This reads the costing run and changes nothing in it.
+    """
+    state = ctx.state
+    _guard(ctx, Capability.VIEW_RECORDS, "/detection/hotspots")
+    _audit(ctx, "/detection/hotspots", detail={"mode": mode})
+    state.ensure_loaded()
+    run = state.run(mode=mode)
+    decided = sorted(str(ac.dimensions["decision_date"]) for ac in run.action_costs)
+    start = date.fromisoformat(decided[0]) if decided else None
+    end = date.fromisoformat(decided[-1]) if decided else None
+    exposure = employee_years(state.dataset, start, end) if decided else {}
+    report = find_hotspots(
+        unit_counts(run),
+        exposure,
+        load_detection_settings(),
+        min_people=state.min_cell_size,
+        window_start=start,
+        window_end=end,
+    )
+    return {"caption": _caption(ctx), "note": HOTSPOT_NOTE, **report.as_dict()}
 
 
 # ---------------------------------------------------------------------------

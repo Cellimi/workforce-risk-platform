@@ -92,6 +92,7 @@ the same `make ui` serves the demo and a licensed installation.
 | Load data | engagement lead | Template download, upload, column matching, code translation, preview, commit |
 | Executive summary, Cost matrix, Data quality | everyone | The results, labelled with the client's name |
 | Drill-down | lead and analyst | One action, every line item |
+| Patterns | lead and analyst | Units whose discipline rate stands out from the same job elsewhere, and what that is estimated to cost |
 | Assumptions | everyone | The registry; the lead also sets client-specific values, each with a reason |
 
 A page a role cannot use is not offered, but the server is what refuses it. Choices made on
@@ -375,12 +376,38 @@ afterwards shows (`./wri audit`).
 
 ---
 
+## Patterns (Phase 2, first step)
+
+The cost baseline says what discipline costs. The **Patterns** page says where it is more
+frequent than it should be: for each unit (a job at a work location) it compares the rate of
+discipline actions per employee-year with the same job at every other location.
+
+A unit is flagged only when the difference is unlikely to be chance after allowing for how
+many units were compared, is large enough to matter, and is not down to a few people
+disciplined many times. Each flag shows its arithmetic and an **estimated excess cost**:
+the actions beyond what the comparison rate would give, times the unit's own average cost
+per action.
+
+- **A flag is about a unit, never a person.** Nobody is scored, ranked or named.
+- **A flag does not say why.** More actions can mean more misconduct, a supervisor quicker
+  to write people up, harder conditions, or better record keeping.
+- **The estimate is not part of the baseline**, which still counts only what happened.
+- **Only the engagement lead and the analyst see it.** A client reader sees totals only, and
+  shown a large unit beside a location total could work out the two or three people in the
+  small job next to it by subtraction.
+- **The two thresholds are starting values the owner has not reviewed**
+  (`config/detection.yaml`), and the page says so.
+
+On the synthetic county it compares 32 units and flags one: the pattern the generator
+plants. The statistics are exact, written out in `src/wri_engine/detection/stats.py`, and
+checked by hand in the tests. `GET /detection/hotspots` is the endpoint.
+
 ## What it deliberately does not do
 
-Phase 1 is the cost baseline. **No pattern detection, hotspot alerting or risk scoring** —
-that is Phase 2. **No root-cause or intervention cost-benefit modelling** — that is Phase 3.
-**Nothing is probability-weighted**: a cost is counted only when the record shows the event
-happened.
+**No individual risk scoring.** **No trend detection yet** (which units are drifting): that
+is the next step of Phase 2. **No root-cause or intervention cost-benefit modelling** — that
+is Phase 3. **Nothing in the cost baseline is probability-weighted**: a cost is counted only
+when the record shows the event happened.
 
 The synthetic data contains one deliberately planted pattern — elevated attendance violations
 for Corrections Officers at the Main Detention Center. The cost baseline surfaces it as an
@@ -440,6 +467,7 @@ the signed-in user's membership.
 | `GET /costs/matrix` | The cost matrix, suppression already applied |
 | `GET /costs/summary` | Headline figures |
 | `GET /costs/actions/{id}` | Every line item with its formula (role-gated) |
+| `GET /detection/hotspots` | Units whose discipline rate stands out (role-gated, as the drill-down is) |
 | `GET /assumptions` | The registry with sources and statuses |
 | `POST /scenarios/run` | Re-run with overridden assumptions; nothing on disk changes |
 | `GET /exports/matrix.csv`, `GET /exports/summary.md` | Exports |

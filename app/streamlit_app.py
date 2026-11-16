@@ -41,6 +41,7 @@ PAGES = [
     "Executive summary",
     "Cost matrix",
     "Drill-down",
+    "Patterns",
     "Assumptions",
     "Data quality",
 ]
@@ -148,7 +149,7 @@ def display_controls() -> None:
 
 def sidebar() -> str:
     st.sidebar.markdown("### Harlow County")
-    st.sidebar.caption("Workforce Risk Intelligence - Phase 1")
+    st.sidebar.caption("Workforce Risk Intelligence")
 
     page = st.sidebar.radio("Page", PAGES, label_visibility="collapsed")
     st.sidebar.divider()
@@ -619,6 +620,88 @@ def heatmap(data: dict, metric: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# patterns (Phase 2): units whose discipline rate stands out
+# ---------------------------------------------------------------------------
+def _unit_table(rows: list[dict]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Employee type": r["row_label"],
+                "Work location": r["col_label"],
+                "Actions": r["actions"],
+                "People": r["people"],
+                "Expected": r["expected_actions"],
+                "Times the rate elsewhere": r["ratio"],
+                "Adjusted chance value": round(r["q_value"], 4),
+            }
+            for r in rows
+        ]
+    )
+
+
+def patterns_page(api: EngineClient) -> None:
+    page_header(
+        "Patterns",
+        "Where discipline is more frequent than the same job shows elsewhere.",
+    )
+    if current_role() == "executive":
+        st.warning(
+            "The executive role sees totals only, and this page is about single units. Shown "
+            "a large unit beside a location total, a small group next to it could be worked "
+            "out by subtraction. The API returns 403."
+            + ("" if licensed.is_licensed() else " Switch role in the sidebar to continue.")
+        )
+        return
+    found = api.hotspots(mode())
+    st.info(found["note"])
+    settings = found["settings"]
+    if settings["unreviewed"]:
+        st.warning(
+            "The thresholds behind this page are starting values that have not been "
+            "reviewed yet: " + ", ".join(f"`{name}`" for name in settings["unreviewed"]) + "."
+        )
+    st.caption(
+        f"{found['comparisons']} units compared (a unit is an employee type at a work "
+        f"location), over {found['window_start']} to {found['window_end']}. A flag needs an "
+        f"adjusted chance value of {settings['detection_false_discovery_rate']:g} or less, a "
+        f"rate at least {settings['detection_min_rate_ratio']:g} times the comparison, and "
+        f"at least {found['min_people']} people disciplined."
+    )
+
+    st.subheader("Flagged")
+    if not found["flagged"]:
+        st.markdown("No unit stands out.")
+    for unit in found["flagged"]:
+        with st.container(border=True):
+            st.markdown(f"**{unit['row_label']} at {unit['col_label']}**")
+            one, two, three = st.columns(3)
+            one.metric("Times the rate elsewhere", f"{unit['ratio']:.2f}" if unit["ratio"] else "-")
+            two.metric(
+                "Actions, against expected", f"{unit['actions']} / {unit['expected_actions']:g}"
+            )
+            three.metric("Estimated excess cost", money(unit["estimated_excess_cost"]))
+            with st.expander("How this was worked out"):
+                st.markdown(unit["explanation"])
+                st.markdown(f"Estimated excess cost: {unit['formula']}.")
+
+    if found["concentrated"]:
+        st.subheader("More actions than expected, among few people")
+        st.caption(
+            "These stand out on the number of actions and not on the number of people. That "
+            "is not a pattern in a unit, and they are not flagged."
+        )
+        st.dataframe(_unit_table(found["concentrated"]), hide_index=True, width="stretch")
+
+    with st.expander(f"Assessed and not flagged ({len(found['not_flagged'])})"):
+        if found["not_flagged"]:
+            st.dataframe(_unit_table(found["not_flagged"]), hide_index=True, width="stretch")
+    if found["not_assessed"]:
+        with st.expander(f"Not assessed ({len(found['not_assessed'])})"):
+            for unit in found["not_assessed"]:
+                st.markdown(f"- **{unit['row_label']} at {unit['col_label']}**: {unit['reason']}")
+
+
+# ---------------------------------------------------------------------------
 # page 3 - drill-down
 # ---------------------------------------------------------------------------
 def drill_down(api: EngineClient) -> None:
@@ -962,6 +1045,7 @@ PAGE_FUNCTIONS = {
     "Executive summary": executive_summary,
     "Cost matrix": cost_matrix,
     "Drill-down": drill_down,
+    "Patterns": patterns_page,
     "Assumptions": assumptions_page,
     "Data quality": data_quality,
     "Load data": licensed.load_data_page,

@@ -776,12 +776,14 @@ unknown action; a resolved appeal with no resolution date.
 
 ## 11. What this baseline does not do
 
-Phase 1 is the cost baseline and nothing else.
+The cost baseline is the cost baseline and nothing else.
 
-- **No pattern detection, hotspot alerting or risk scoring.** That is Phase 2. If the data
-  shows a hot cell, the matrix surfaces it as an expensive cell and a human draws the
-  conclusion. The synthetic data contains one deliberately planted pattern, documented in
+- **No pattern detection inside the baseline.** If the data shows a hot cell, the matrix
+  surfaces it as an expensive cell and a human draws the conclusion. Detection is a
+  separate step that reads the baseline and never changes it; see section 11a. The synthetic
+  data contains one deliberately planted pattern, documented in
   `src/wri_engine/generator/README.md`, precisely so nobody mistakes it for a discovery.
+- **No individual risk scoring**, in the baseline or in detection.
 - **No root-cause or intervention cost-benefit modelling.** That is Phase 3.
 - **No probability weighting.** Nothing is counted because it was likely.
 - **No claim that any figure is a measured agency cost.** The registry holds 186
@@ -791,6 +793,80 @@ Phase 1 is the cost baseline and nothing else.
   measurements. Only 22 carry a cited source, and 90 of the 186 remain low
   confidence. The Assumptions page tints the
   low-confidence rows and shows the source beside each value.
+
+---
+
+## 11a. Detection: which units stand out (Phase 2, first step)
+
+Opened by the owner on 2026-11-15. It answers one question the baseline cannot: is
+discipline more frequent in this unit than it should be?
+
+**The unit** is a job at a work location. **The comparison** is always the same job at
+every other location, because jobs are not disciplined at the same rate and comparing a
+deputy with a clerk would say nothing.
+
+**The rate** is discipline actions per employee-year. An employee-year is one person on the
+payroll for one year of the period covered; someone hired half-way through counts for half.
+
+**The test.** Suppose the unit and its comparison had the same underlying rate. Then of all
+the actions between them, each would fall in the unit with a probability equal to the unit's
+share of the employee-years. The number in the unit therefore follows a binomial
+distribution, and the chance of a count at least as large as the one seen is its upper
+tail. This is the standard exact test for two rates. It needs no approximation, so it is as
+sound for three actions as for three hundred, and a comparison built on a handful of
+actions cannot make anything look significant.
+
+**Many units at once.** Compare thirty units and one or two will look unusual by chance.
+Each result is adjusted for the number of comparisons by the Benjamini-Hochberg procedure
+(Benjamini and Hochberg, 1995), which holds the expected share of flagged units that are
+chance findings at `detection_false_discovery_rate`.
+
+**A flag needs all of:**
+
+1. an adjusted chance value at or below `detection_false_discovery_rate` (0.05);
+2. a rate at least `detection_min_rate_ratio` (1.5) times the comparison's, so that a flag
+   means a difference large enough to matter and not merely an unlikely one;
+3. at least the engagement's minimum group size of different people disciplined (5);
+4. the same result when **people** are counted instead of actions: different people
+   disciplined here against different people disciplined in the same job elsewhere. A unit
+   that stands out on actions and not on people is reported as *concentrated in few
+   people* and is not flagged. A few people disciplined many times is not a pattern in a
+   unit, and this product does not point at individuals.
+
+**The estimated excess cost** of a flagged unit is
+
+    (actions observed - actions expected at the comparison's rate)
+        x the unit's own average net cost per action
+
+It is an estimate of what the difference costs. It is labelled as one wherever it appears
+and is never added to a baseline figure.
+
+**What a flag does not say.** Why. More actions can mean more misconduct, a supervisor who
+writes people up more readily, harder working conditions, or simply better record keeping.
+Nothing here tells those apart.
+
+**Who sees it.** Roles that see records: the engagement lead and the analyst. A client
+reader, who sees totals only, does not. Most locations hold one large job and one or two
+small ones. A location's total is already visible to a client reader; add the large unit and
+the small one falls out by subtraction. The cost matrix withholds those cells for the same
+reason: on the synthetic county, 28 of its 32 job-and-location cells.
+
+**Limits.**
+
+- The roster records where a person works now, not where they were on the day of each
+  action. Someone who moved is counted wholly at their current location.
+- The period is the span of decided actions in the data. A unit that changed within it is
+  averaged over it; this does not yet say whether a unit is getting better or worse.
+- A job that exists at one location has nothing to be compared with and is not assessed.
+- Where a job exists at two locations, "higher than the other" and "the other is lower"
+  are the same fact. The test cannot say which of the two is the unusual one.
+- The two thresholds are starting values the owner has not reviewed. They are judgements
+  about how cautious a flag should be, not facts that can be looked up.
+
+On the synthetic county: 32 units compared, one flagged, corrections officers at the main
+detention center, at 2.07 times the rate of the same job at the annex (160 actions against
+77.2 expected), an estimated excess of $554,786. That is the pattern the generator plants,
+at 1.8 times the action rate; no other unit is flagged.
 
 ---
 

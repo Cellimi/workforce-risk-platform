@@ -99,6 +99,10 @@ class EngineClient:
             params["filters"] = json.dumps(filters)
         return self._request("GET", "/costs/matrix", params=params).json()
 
+    def hotspots(self, mode: str = "base") -> dict:
+        """Units whose discipline rate stands out from the same job elsewhere (Phase 2)."""
+        return self._request("GET", "/detection/hotspots", params={"mode": mode}).json()
+
     def actions(self, filters: dict | None = None, mode: str = "base", limit: int = 200) -> dict:
         params: dict[str, Any] = {"mode": mode, "limit": limit}
         if filters:

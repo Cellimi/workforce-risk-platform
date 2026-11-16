@@ -827,3 +827,82 @@ def test_a_firm_administrator_creates_an_account_with_no_password(sso_server):
     methods = dict(zip(shown["Email"], shown["Signs in with"], strict=True))
     assert methods["sam@firm.example"] == "Firm sign-in (not yet used)"
     assert methods[OWNER[0]] == "password"
+
+
+# ---------------------------------------------------------------------------
+# patterns (Phase 2) on screen
+# ---------------------------------------------------------------------------
+def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
+    """On the whole synthetic county, a role that sees records is shown the one planted
+    unit, what it is estimated to cost and how that was worked out; a role that sees totals
+    only is told why it is not shown."""
+    from wri_engine.api.state import STATE
+    from wri_engine.generator import generate
+    from wri_engine.paths import SYNTHETIC_DIR
+
+    county = tmp_path / "county"
+    generate(seed=20260917).write(county)
+    STATE.load(county)
+    app = create_app(Settings(auth_mode="demo", data_dir=tmp_path))
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    try:
+        at = open_app(f"http://127.0.0.1:{port}")
+        labelled(at.sidebar.selectbox, "Role").set_value("hr_analyst")
+        at.run()
+        at = go(at, "Patterns")
+        assert not at.exception, at.exception
+        shown = texts(at)
+        assert "Corrections Officer at Main Detention Center" in shown
+        assert "It does not say why, and it says nothing about any one person." in shown
+        assert "have not been reviewed yet" in shown
+        assert "32 units compared" in shown
+        assert metric(at, "Estimated excess cost") == "$554,786"
+        assert metric(at, "Times the rate elsewhere") == "2.07"
+        assert "160 actions among 126 people" in shown
+        assert "an estimate, not part of the cost baseline" in shown
+        # Nobody is named, on this page of all pages.
+        import re
+
+        assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
+
+        labelled(at.sidebar.selectbox, "Role").set_value("executive")
+        at.run()
+        assert not at.exception, at.exception
+        told = " ".join(w.value for w in at.warning)
+        assert "sees totals only" in told and "by subtraction" in told
+        assert "Corrections Officer at Main Detention Center" not in texts(at)
+    finally:
+        srv.should_exit = True
+        thread.join(timeout=5)
+        STATE.load(SYNTHETIC_DIR / "sample")
+
+
+def test_patterns_is_offered_to_those_who_see_records_and_nobody_else(server):
+    url, store = server
+    owner = store.get_user_by_email(OWNER[0])
+    engagement = store.create_engagement(
+        name="FY26 review",
+        client_name="Pine Valley County",
+        sector="public_sector",
+        created_by=owner.id,
+    )
+    _upload_sample(url, store, engagement.id)
+    store.set_member(engagement.id, store.get_user_by_email(LEAD[0]).id, "hr_analyst")
+    store.set_member(engagement.id, store.get_user_by_email(READER[0]).id, "executive")
+
+    at = sign_in(open_app(url), LEAD)
+    assert "Patterns" in at.sidebar.radio[0].options
+    at = go(at, "Patterns")
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert "units compared" in texts(at)
+
+    at = sign_in(open_app(url), READER)
+    assert "Patterns" not in at.sidebar.radio[0].options

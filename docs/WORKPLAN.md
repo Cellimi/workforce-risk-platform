@@ -48,14 +48,14 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | An audit log that shows when it has been edited | Claude Code session | Done, PR #17 |
 | Fixed dependency versions and a smaller image | Claude Code session | Done, PR #18 |
 | Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, PR #19 |
-| Phase 2, step 1: hotspot detection (units whose discipline rate stands out) | Claude Code session | In progress, `claude/phase2-hotspots` (built on PR #19) |
+| Phase 2, step 1: hotspot detection (units whose discipline rate stands out) | Claude Code session | Done, `claude/phase2-hotspots` (built on PR #19) |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 500 tests, 96.3% coverage.
+asserts it line item by line item. 524 tests, 96.5% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -83,8 +83,72 @@ series, state and local service occupations and public administration, bracket i
 7. **Install package.** Built: a container image with the license verification key baked
    in, an operator's script, a configuration guide and an upgrade path with a way back. See
    "Install package" below.
-8. **Phases 2 and 3** (hotspot detection; intervention cost-benefit). Out of scope until
-   Phase 1 is in use: see "Phase boundary" in `CLAUDE.md`.
+8. **Phase 2, detection.** Opened by the owner on 2026-11-15. Step 1, hotspots, is built:
+   see "Phase 2: detection" below. Next: drift over time.
+9. **Phase 3** (root cause; intervention cost-benefit). Closed. See "Phase boundary" in
+   `CLAUDE.md`.
+
+## Phase 2: detection
+
+The owner opened Phase 2 on 2026-11-15 with "begin Phase 2". The specification is in his
+project documents, which a Claude Code session cannot read, so step 1 was built from what
+this repository says Phase 2 is ("patterns, hotspots, which units are drifting") and the
+decisions below are his to confirm or change.
+
+### Step 1, built: hotspots
+
+`src/wri_engine/detection/` (`stats.py`, `exposure.py`, `hotspots.py`),
+`config/detection.yaml`, `GET /detection/hotspots`, and the **Patterns** page. The method is
+written out for a reader in `docs/cost_methodology.md` section 11a.
+
+On the full synthetic county: 32 units compared, one flagged, the planted one, at 2.07
+times the comparison rate and an estimated excess of $554,786. A test requires exactly that.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| What is assessed | A unit: a job at a work location. Never a person | A pattern in a unit is something an employer can act on. Scoring individuals is a different product with different legal exposure, and was not asked for |
+| What it is compared with | The same job at every other location | Jobs are disciplined at different rates. Comparing across jobs would flag every jail and no library |
+| The measure | Actions per employee-year | Counts alone reward size. Employee-years allow for people joining and leaving |
+| The test | Exact (binomial, given the total), then Benjamini-Hochberg across all units | No approximation to defend, sound at small counts, and checkable by hand |
+| `detection_false_discovery_rate` | 0.05, **TBD-MIKE** | A starting value. How many flags may be chance is his call |
+| `detection_min_rate_ratio` | 1.5, **TBD-MIKE** | A starting value. What difference is worth a person's attention is his call |
+| Fewest people | The engagement's minimum group size (5) | A handful of people is not a pattern in a unit |
+| A few people, many actions | Reported as "concentrated in few people", not flagged | It is a different thing, and flagging it would point at individuals |
+| Who sees it | Engagement lead and analyst. **Not the client reader** | See below |
+| Cause | Never stated or suggested | That is Phase 3, and before that a person's job |
+| Estimated excess cost | Shown for a flagged unit, labelled an estimate, never added to the baseline | Rule 9 governs the baseline |
+
+**Why the client reader does not see it.** The first version read the cost matrix after
+suppression, so it could show nothing a client reader could not already see. On the
+synthetic county it could assess 7 units and missed the planted one, because the matrix
+withholds 28 of its 32 job-and-location cells. That withholding is right: most locations
+hold one large job and one or two small ones, a location's total is visible to a client
+reader, and the large unit plus the total gives the small group by subtraction. So
+unit-level findings go to the roles that already see every record, for whom they reveal
+nothing new. **What a client reader could be shown** (a coarser view, by location or by
+department, or the consultant's own write-up) is an open question for the owner.
+
+**Found on the way, worth knowing:**
+
+- **The committed sample dataset cannot be used for rates.** It keeps mostly employees who
+  were disciplined (223 actions among 321 people, against 521 among 3,073 in the full
+  county). Detection tests generate the full county. Anyone demonstrating Patterns must run
+  `make generate` first; on the sample it flags nothing, correctly.
+- With two locations for a job, "higher than the other" and "the other is lower" are one
+  fact. The synthetic pattern is of this kind: main detention center against the annex.
+
+### Not built
+
+1. **Drift**: which units are getting worse over time. The next step.
+2. **Patterns in what people are disciplined for** (the planted unit is also heavy on
+   attendance), or by department, bargaining unit or supervisor. Supervisor-level findings
+   are findings about a named person's decisions and need the owner's ruling first.
+3. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
+   reason; the detection settings cannot yet.
+4. **Patterns in the client report.** The PDF and workbook are unchanged.
+5. **Anything about protected characteristics.** The data model carries none, by design.
 
 ## Single sign-on
 
