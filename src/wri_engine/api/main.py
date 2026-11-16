@@ -1292,6 +1292,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Read once, and loudly: an installation given a verification key that cannot be
         # read must not start up quietly unlicensed.
         runtime.license_public_key = load_public_key(settings.license_public_key)
+    if settings.sso is not None:
+        from wri_engine.sso import OidcClient
+
+        # The provider is not contacted here: an installation must still start, and its
+        # password accounts still work, while the identity provider is unreachable.
+        runtime.sso = OidcClient(settings.sso)
     set_pseudonym_salt(_installation_salt(settings))
     runtime.store = Store(settings.database_url)
     runtime.workspaces = Workspaces(settings.engagements_dir, runtime.store)

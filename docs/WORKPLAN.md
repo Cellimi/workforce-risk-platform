@@ -43,17 +43,18 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Client deliverables: branded report, PDF and spreadsheet export | Claude Code session | Done, `claude/client-deliverables` (built on `claude/split-sales-office`) |
 | Engagement license keys | Claude Code session | Done, PR #13 |
 | Record-level working papers; client wording in Appendix A; where the verification key ships | Claude Code session | Done, PR #14 |
-| Install package: container install, configuration guide, upgrade path | Claude Code session | Done, `claude/install-package` |
-| Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 (built on PR #15) |
-| An audit log that shows when it has been edited | Claude Code session | Done, PR #17 (built on PR #16) |
-| Fixed dependency versions and a smaller image | Claude Code session | Done, `claude/pinned-dependencies` (built on PR #17) |
+| Install package: container install, configuration guide, upgrade path | Claude Code session | Done, PR #15 |
+| Disclosure ledgers that survive a restart | Claude Code session | Done, PR #16 |
+| An audit log that shows when it has been edited | Claude Code session | Done, PR #17 |
+| Fixed dependency versions and a smaller image | Claude Code session | Done, PR #18 |
+| Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, `claude/single-sign-on` |
 
 ## Where things stand
 
 Reference figures on the synthetic Harlow County dataset (508 costed actions), approved
 assumption values: net $4.64M at base, $2.99M with every assumption at its low bound, $8.73M
 at the high bound. **The private-sector work did not move any of them**, and a property test
-asserts it line item by line item. 454 tests, 96.1% coverage.
+asserts it line item by line item. 500 tests, 96.3% coverage.
 
 The sworn benefits multiplier (1.75), which scales every public-safety figure, was checked
 against BLS on 2026-11-14. BLS publishes nothing for sworn staff alone; the two nearest
@@ -64,7 +65,8 @@ series, state and local service occupations and public administration, bracket i
    database, isolated engagement workspaces, per-engagement assumption overrides recorded with
    who and why. Disclosure ledgers now survive a restart (see "Disclosure ledgers" below).
    The audit log now shows when it has been edited (see "Audit log" below).
-   Remaining: single sign-on.
+   Single sign-on is built (see "Single sign-on" below). Nothing on the hardening list
+   remains.
 2. **Data intake (PR #4).** Standard intake template; a mapping saved per engagement so a
    client's file is never edited; staged upload, suggested mapping, preview, commit.
    Loading rules: a missing detail takes the lighter assumption and is reported; a cost that
@@ -82,6 +84,61 @@ series, state and local service occupations and public administration, bracket i
    "Install package" below.
 8. **Phases 2 and 3** (hotspot detection; intervention cost-benefit). Out of scope until
    Phase 1 is in use: see "Phase boundary" in `CLAUDE.md`.
+
+## Single sign-on
+
+Built in `src/wri_engine/sso/oidc.py` (the OpenID Connect client), `store/db.py` (started
+sign-ins, and which identity an account is tied to) and `api/accounts.py`
+(`/auth/sso`, `/auth/sso/start`, `/auth/sso/complete`). Generic: any provider that
+publishes a discovery document. Off unless `WRI_SSO_ISSUER` is set.
+
+**The flow.** Authorization code with PKCE. The screen asks the API to start; the API
+returns the provider's address and a one-time secret (`binding`) that the screen keeps in a
+short-lived cookie. The person signs in at the provider and is sent back to the screen with
+a code. The screen hands code, state and binding to the API, which exchanges the code
+server to server, verifies the identity token and opens the product's own session.
+
+**What is checked, each with a test that sends the forgery and requires a refusal:**
+Signature against the provider's published keys (public-key algorithms only;
+`HS256` and `none` refused whatever the header says); issuer; audience, and `azp` when
+there is more than one; expiry; nonce; that the discovery document is the configured
+issuer's; that every provider address is https; that the email is verified. The redirect
+address is fixed in settings and never taken from the caller (rule 11).
+
+**Decisions taken in the build, for the owner to confirm or change:**
+
+| Behaviour | As built | Why |
+|---|---|---|
+| Who gets an account | Only someone a firm administrator has created an account for | Switching sign-on on must not give the whole firm access. Creating accounts from the provider's directory is not built |
+| What ties a person to an account | The provider's permanent id, recorded at first sign-in | An email address can pass to a new starter; the account must not pass with it. A firm administrator can reset the link |
+| Passwords after sign-on | An account's password stops working the first time it signs in through the provider | Otherwise a leaver removed at the provider could use the old password |
+| Passwords altogether | Still accepted unless `WRI_PASSWORD_SIGN_IN=off` | A password-only administrator is the way back in if the provider is down; a firm can close that too |
+| A leaver's open session | Lasts until it expires (`WRI_SESSION_HOURS`), or until the account is deactivated here | The provider cannot reach into this product. Signing out here does not sign out there |
+| Unverified email | Refused unless `WRI_SSO_REQUIRE_VERIFIED_EMAIL=off` | Some providers never report it; the firm accepts that knowingly |
+
+**How the sign-in is tied to the browser.** Streamlit cannot set a cookie itself, so the
+screen writes it from a small embedded script and reads it back with `st.context.cookies`.
+Proven in a real browser. If Streamlit changes how embedded scripts are sandboxed, the
+symptom is that every sign-in ends "was not started from this browser"; the API side does
+not change. A replacement screen would set the cookie in the ordinary way.
+
+**What was run.** 39 tests against a stand-in provider (`tests/oidc_provider.py`), 6 screen
+tests, and a real browser against the product and the stand-in provider served on a port:
+button, provider, return, signed in; then a second browser given a pasted link, refused.
+
+**Not done, and what the owner needs to know:**
+
+1. **It has not been run against a real provider.** The stand-in follows the standard, but
+   real ones differ in what they send. The first licensee to switch it on is the first real
+   test; expect to adjust `WRI_SSO_EMAIL_CLAIM` and `WRI_SSO_REQUIRE_VERIFIED_EMAIL`.
+2. **Two new libraries**: PyJWT, to verify the provider's signatures rather than hand-roll
+   that, and httpx in the engine, to reach the provider. Both are locked.
+3. **The server now makes outbound requests**, to the identity provider only, and only when
+   sign-on is configured. The install guide says so.
+4. Not supported: a provider certificate from a private authority; a shared multi-tenant
+   issuer; sign-out at the provider; SAML.
+5. The client secret sits in `wri.env`, which the script creates readable by its owner
+   only.
 
 ## Install package
 
@@ -141,7 +198,7 @@ stand-in 0.3.1 with a higher data version; the old image pointed at the upgraded
    firm's own scheduler. The guide says so.
 8. **The version is now 0.3.0** (was 0.2.0, unchanged since before the private-sector
    model). It is read from one place and shown at `/health` and by `./wri status`.
-9. **Before each release:** refresh the base image digest, run `make lock`, run the tests,
+9. **Before each release:** refresh the base image digest, run `make lock-upgrade`, run the tests,
    then `make package`. Nothing does this on a schedule.
 
 ## Fixed versions
@@ -157,8 +214,10 @@ different libraries, and a developer's environment could differ from the image. 
 
 - **A download that does not match its fingerprint stops the install.** Tried: one changed
   character in a fingerprint and pip refuses the file.
-- **`make lock`** chooses versions again (needs `uv`). It is run on purpose: a new
-  dependency, a security fix, before a release. Then `make install`, `make test`, commit
+- **`make lock`** brings the locks in line with `pyproject.toml` and keeps every version
+  already chosen; **`make lock-upgrade`** chooses them all again (both need `uv`). The
+  second is run on purpose: a security fix, before a release. The first, after adding a
+  dependency. Either way: then `make install`, `make test`, commit
   both files. `tests/test_dependencies.py` fails if the locks and `pyproject.toml` disagree,
   if the two locks differ on a shared library, or if the environment the tests run in is
   not the locked one.

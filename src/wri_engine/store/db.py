@@ -30,6 +30,7 @@ from sqlalchemy import (
     Text,
     create_engine,
     delete,
+    func,
     inspect,
     select,
     text,
@@ -44,6 +45,12 @@ from wri_engine.store.passwords import DUMMY_HASH, hash_password, verify_passwor
 
 MAX_FAILED_LOGINS = 5
 LOCKOUT_MINUTES = 15
+#: What stands in for a password hash on an account that has none. It is not a hash, so no
+#: password can ever match it.
+NO_PASSWORD = "none"
+#: How long a single sign-on may take from start to finish, and how many may be under way.
+SSO_REQUEST_MINUTES = 10
+MAX_PENDING_SSO_REQUESTS = 2000
 #: The shape of the data this version of the product reads and writes. Raise it by one
 #: whenever a change means an OLDER product could no longer read the database safely, and
 #: add the step that brings an existing database up to it in `_upgrade_schema`.
@@ -113,6 +120,21 @@ class _User(Base):
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    #: The identity provider's own permanent id for this person, set the first time they
+    #: sign in through it. After that the account answers to that identity and no other.
+    sso_issuer: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    sso_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class _SsoRequest(Base):
+    """A single sign-on that has been started and not yet finished. Used once, then gone."""
+
+    __tablename__ = "sso_requests"
+    state_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    binding_hash: Mapped[str] = mapped_column(String(64))
+    nonce: Mapped[str] = mapped_column(String(100))
+    code_verifier: Mapped[str] = mapped_column(String(200))
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
 
 
 class _Session(Base):
@@ -207,6 +229,10 @@ class UserRecord:
     name: str
     is_firm_admin: bool
     is_active: bool
+    #: Whether the account can be signed in to with a password at all.
+    has_password: bool = True
+    #: Whether it has been tied to an identity at the firm's identity provider.
+    sso_linked: bool = False
 
 
 @dataclass(frozen=True)
@@ -232,7 +258,15 @@ class OverrideRecord:
 
 
 def _user(row: _User) -> UserRecord:
-    return UserRecord(row.id, row.email, row.name, row.is_firm_admin, row.is_active)
+    return UserRecord(
+        row.id,
+        row.email,
+        row.name,
+        row.is_firm_admin,
+        row.is_active,
+        has_password=row.password_hash != NO_PASSWORD,
+        sso_linked=bool(row.sso_subject),
+    )
 
 
 def _engagement(row: _Engagement) -> EngagementRecord:
@@ -341,16 +375,20 @@ class Store:
         installation that already holds engagements would otherwise fail on the first read.
         Each step adds one nullable column and is skipped once the column is there.
         """
-        columns = {c["name"] for c in inspect(self.engine).get_columns("engagements")}
         added = {
-            "occupation_group": "VARCHAR(40)",
-            "license_key": "TEXT",
-            "license_key_id": "VARCHAR(40)",
+            "engagements": {
+                "occupation_group": "VARCHAR(40)",
+                "license_key": "TEXT",
+                "license_key_id": "VARCHAR(40)",
+            },
+            "users": {"sso_issuer": "VARCHAR(300)", "sso_subject": "VARCHAR(255)"},
         }
-        for name, kind in added.items():
-            if name not in columns:
-                with self.engine.begin() as connection:
-                    connection.execute(text(f"ALTER TABLE engagements ADD COLUMN {name} {kind}"))
+        for table, wanted in added.items():
+            columns = {c["name"] for c in inspect(self.engine).get_columns(table)}
+            for name, kind in wanted.items():
+                if name not in columns:
+                    with self.engine.begin() as connection:
+                        connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {kind}"))
 
     def close(self) -> None:
         """Release every database connection. Called when the API shuts down."""
@@ -358,8 +396,15 @@ class Store:
 
     # -- users ---------------------------------------------------------------
     def create_user(
-        self, email: str, password: str, *, name: str = "", is_firm_admin: bool = False
+        self,
+        email: str,
+        password: str | None = None,
+        *,
+        name: str = "",
+        is_firm_admin: bool = False,
     ) -> UserRecord:
+        """Create an account. With no password it can be signed in to only through the
+        firm's identity provider."""
         email = normalize_email(email)
         with self._session.begin() as db:
             if db.scalar(select(_User).where(_User.email == email)):
@@ -367,7 +412,7 @@ class Store:
             row = _User(
                 email=email,
                 name=name.strip(),
-                password_hash=hash_password(password),
+                password_hash=hash_password(password) if password else NO_PASSWORD,
                 is_firm_admin=is_firm_admin,
             )
             db.add(row)
@@ -422,15 +467,108 @@ class Store:
                 raise failure
             row.failed_logins = 0
             row.locked_until = None
-            token = secrets.token_urlsafe(32)
+            return self._open_session(db, row, session_hours), _user(row)
+
+    def _open_session(self, db, row: _User, session_hours: int) -> str:
+        token = secrets.token_urlsafe(32)
+        db.add(
+            _Session(
+                token_hash=_hash_token(token),
+                user_id=row.id,
+                expires_at=_now() + timedelta(hours=session_hours),
+            )
+        )
+        return token
+
+    # -- single sign-on ------------------------------------------------------
+    def begin_sso(self, *, state: str, binding: str, nonce: str, code_verifier: str) -> None:
+        """Remember a sign-on that has been started. `binding` is a secret kept by the
+        browser that started it; only that browser can finish it."""
+        now = _now()
+        with self._session.begin() as db:
+            db.execute(delete(_SsoRequest).where(_SsoRequest.expires_at <= now))
+            pending = db.scalar(select(func.count()).select_from(_SsoRequest)) or 0
+            if pending >= MAX_PENDING_SSO_REQUESTS:
+                raise AuthError("too many sign-ins are under way; try again in a few minutes")
             db.add(
-                _Session(
-                    token_hash=_hash_token(token),
-                    user_id=row.id,
-                    expires_at=now + timedelta(hours=session_hours),
+                _SsoRequest(
+                    state_hash=_hash_token(state),
+                    binding_hash=_hash_token(binding),
+                    nonce=nonce,
+                    code_verifier=code_verifier,
+                    expires_at=now + timedelta(minutes=SSO_REQUEST_MINUTES),
                 )
             )
-            return token, _user(row)
+
+    def take_sso_request(self, *, state: str, binding: str) -> tuple[str, str] | None:
+        """The nonce and PKCE secret of a started sign-on, if `state` names one that is
+        still in time and `binding` is the secret of the browser that started it. The
+        request is used up either way: a second attempt with the same `state` finds nothing.
+        """
+        with self._session.begin() as db:
+            row = db.get(_SsoRequest, _hash_token(state))
+            if row is None:
+                return None
+            found = (row.nonce, row.code_verifier, row.binding_hash, row.expires_at)
+            db.delete(row)
+        nonce, verifier, binding_hash, expires_at = found
+        if expires_at <= _now():
+            return None
+        if not secrets.compare_digest(binding_hash, _hash_token(binding)):
+            return None
+        return nonce, verifier
+
+    def sign_in_sso(
+        self, *, issuer: str, subject: str, email: str, session_hours: int = 12
+    ) -> tuple[str, UserRecord]:
+        """Open a session for the account the identity provider vouches for.
+
+        An account must already exist here: a firm administrator creates it. Being known to
+        the identity provider is not enough, because that would give everyone at the firm an
+        account the moment single sign-on was switched on.
+
+        The first sign-on ties the account to the provider's permanent id for the person
+        (`subject`) and ends its password for good. From then on the account answers to that
+        id only. An email address can be handed to a new starter; when that happens the new
+        person is refused, and a firm administrator decides (`reset_sso_link`).
+        """
+        email = email.strip().lower()
+        with self._session.begin() as db:
+            row = db.scalar(
+                select(_User).where(_User.sso_issuer == issuer, _User.sso_subject == subject)
+            )
+            if row is None:
+                row = db.scalar(select(_User).where(_User.email == email))
+                if row is None:
+                    raise AuthError(
+                        f"There is no account here for {email}. Ask a firm administrator "
+                        f"to create one."
+                    )
+                if row.sso_subject:
+                    raise AuthError(
+                        f"The account for {email} belongs to a different identity at your "
+                        f"identity provider. A firm administrator can reset this."
+                    )
+                row.sso_issuer, row.sso_subject = issuer, subject
+                # From here on the identity provider decides whether this person may sign
+                # in. A password left working would outlive their removal there.
+                row.password_hash = NO_PASSWORD
+            if not row.is_active:
+                raise AuthError("This account has been deactivated.")
+            row.failed_logins = 0
+            row.locked_until = None
+            return self._open_session(db, row, session_hours), _user(row)
+
+    def reset_sso_link(self, user_id: int) -> UserRecord:
+        """Forget which identity an account is tied to, and end its sessions. The next
+        person to sign on with the account's email address is tied to it instead."""
+        with self._session.begin() as db:
+            row = db.get(_User, user_id)
+            if row is None:
+                raise KeyError(user_id)
+            row.sso_issuer = row.sso_subject = None
+            db.execute(delete(_Session).where(_Session.user_id == user_id))
+            return _user(row)
 
     def user_for_token(self, token: str) -> UserRecord | None:
         with self._session.begin() as db:

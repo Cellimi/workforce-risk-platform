@@ -162,6 +162,28 @@ class EngineClient:
         self.token = body["token"]
         return body
 
+    # -- single sign-on (licensed mode) --------------------------------------
+    def sso(self) -> dict:
+        """How people sign in here: whether the firm's identity provider is set up, what
+        to call it, and whether passwords are still accepted."""
+        return self._request("GET", "/auth/sso", scoped=False).json()
+
+    def sso_start(self) -> dict:
+        return self._request("POST", "/auth/sso/start", scoped=False).json()
+
+    def sso_complete(self, code: str, state: str, binding: str) -> dict:
+        body = self._request(
+            "POST",
+            "/auth/sso/complete",
+            scoped=False,
+            json={"code": code, "state": state, "binding": binding},
+        ).json()
+        self.token = body["token"]
+        return body
+
+    def reset_sso_link(self, user_id: int) -> dict:
+        return self._request("DELETE", f"/users/{user_id}/sso-link", scoped=False).json()
+
     def logout(self) -> None:
         if self.token:
             self._request("POST", "/auth/logout", scoped=False)
@@ -174,7 +196,7 @@ class EngineClient:
         return self._request("GET", "/users", scoped=False).json()["users"]
 
     def create_user(
-        self, email: str, password: str, name: str = "", is_firm_admin: bool = False
+        self, email: str, password: str | None, name: str = "", is_firm_admin: bool = False
     ) -> dict:
         return self._request(
             "POST",

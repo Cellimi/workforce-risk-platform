@@ -106,6 +106,9 @@ Everything the screen does is also available over the API (`/docs` lists it):
 | Create consultant and client accounts (firm administrator) | `POST /users` |
 | Open an engagement (firm administrator) | `POST /engagements` |
 | Add members as `admin`, `hr_analyst` or `executive` | `PUT /engagements/{id}/members` |
+| How people sign in here | `GET /auth/sso` |
+| Sign in through the identity provider | `POST /auth/sso/start`, then `POST /auth/sso/complete` |
+| Let an account be taken by a new identity (firm administrator) | `DELETE /users/{id}/sso-link` |
 | Whether this installation requires license keys | `GET /license` |
 | Add or replace an engagement's license key (firm administrator) | `PUT /engagements/{id}/license` |
 | Read or download the usage log (firm administrator) | `GET /license/usage`, `GET /license/usage.jsonl` |
@@ -271,9 +274,31 @@ What the install is built to guarantee:
   fixed at an exact version in `requirements.lock`, and each download is checked against a
   fingerprint recorded there; a file that does not match stops the build. The base image
   is fixed the same way. `make install` uses the same versions, so the tests run on what
-  ships. `make lock` chooses the versions again, on purpose.
+  ships. `make lock` brings the lock in line after a dependency is added, keeping every
+  version already chosen; `make lock-upgrade` chooses them all again, on purpose.
 
-Not built yet: single sign-on.
+### Single sign-on
+
+A firm can have its people sign in at its own identity provider instead of with a password
+kept here. Any provider that speaks OpenID Connect works; nothing is specific to one.
+It is off unless `WRI_SSO_ISSUER` is set. [`docs/INSTALL.md`](docs/INSTALL.md) has the
+steps.
+
+- **Nothing the provider sends is believed until it is checked**: the signature against the
+  provider's published keys, who it was issued by and for, that it has not expired, and that
+  it answers this sign-in and not an earlier one. Tokens signed with a shared secret, or not
+  signed, are refused whatever their own header claims.
+- **A sign-in belongs to the browser that started it.** A link to someone else's
+  half-finished sign-in cannot be finished anywhere else.
+- **Being known to the provider is not an account.** A firm administrator creates each
+  account, and roles still come from engagement membership.
+- **An account answers to one identity**, the provider's permanent id for the person, not
+  to whoever holds an email address this year.
+- **Signing in through the provider ends the account's password**, so removing someone at
+  the provider removes them here. `WRI_PASSWORD_SIGN_IN=off` refuses passwords altogether.
+
+It has been tested against a stand-in provider, including in a real browser. It has not yet
+been run against a real one.
 
 ---
 

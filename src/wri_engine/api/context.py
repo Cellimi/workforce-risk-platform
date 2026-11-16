@@ -23,6 +23,7 @@ from wri_engine.aggregation.suppression import DisclosureLedger
 from wri_engine.api.licensing import LicenseState, license_state, require_license
 from wri_engine.api.state import STATE, EngineState, Workspaces
 from wri_engine.settings import Settings
+from wri_engine.sso import OidcClient
 from wri_engine.store import EngagementRecord, Store, UserRecord
 
 
@@ -35,6 +36,8 @@ class Runtime:
     workspaces: Workspaces | None = None
     #: The licensor's verification key, loaded once at start-up. None means no enforcement.
     license_public_key: object | None = None
+    #: The firm's identity provider, when single sign-on is configured.
+    sso: OidcClient | None = None
 
 
 @dataclass

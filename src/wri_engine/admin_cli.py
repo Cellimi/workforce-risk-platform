@@ -93,6 +93,12 @@ def _status(settings: Settings) -> int:
         print(f"audit log           {len(found.problems)} PROBLEM(S): see wri-admin audit")
         problems.append("the audit log does not hold together. Run: wri-admin audit")
 
+    if settings.sso is None:
+        print("single sign-on      off")
+    else:
+        print(f"single sign-on      on: {settings.sso.name} ({settings.sso.issuer})")
+        print(f"passwords           {'still accepted' if settings.password_sign_in else 'off'}")
+
     if settings.auth_mode != "local":
         print("license keys        not used in the synthetic walkthrough")
     elif not settings.license_public_key.strip():
@@ -184,6 +190,11 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument(
         "--password-stdin", action="store_true", help="read the password from standard input"
     )
+    create.add_argument(
+        "--no-password",
+        action="store_true",
+        help="an account that signs in only through single sign-on, which must be set up",
+    )
 
     sub.add_parser("list-users", help="list user accounts")
     sub.add_parser("status", help="what is installed, and whether it is in order")
@@ -209,7 +220,12 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
-    settings = Settings.from_env()
+    try:
+        settings = Settings.from_env()
+    except ValueError as exc:
+        # A mistake in the settings: say which, in one line, and stop.
+        print(f"wri-admin: the settings are not usable: {exc}", file=sys.stderr)
+        return 2
 
     if args.command == "status":
         return _status(settings)
@@ -227,8 +243,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "create-user":
         try:
+            if args.no_password and settings.sso is None:
+                raise SystemExit("--no-password needs single sign-on to be set up first")
             user = store.create_user(
-                args.email, _password(args), name=args.name, is_firm_admin=args.firm_admin
+                args.email,
+                None if args.no_password else _password(args),
+                name=args.name,
+                is_firm_admin=args.firm_admin,
             )
         except ValueError as exc:
             raise SystemExit(str(exc)) from None
