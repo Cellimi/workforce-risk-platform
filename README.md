@@ -425,6 +425,31 @@ the generator plants. With every type together it makes 29 comparisons and flags
 unit. The statistics are exact, written out in `src/wri_engine/detection/stats.py`, and
 checked by hand in the tests. `GET /detection/hotspots` is the endpoint.
 
+### Rising over the period
+
+The same page asks a second question of the same units: is it getting worse? The period
+the records cover is cut in half by date, and each unit's later half is set against its
+earlier half.
+
+A unit's own rise is not enough. If the early records are thin, or a new policy raised
+attendance discipline everywhere, every unit rises and none of them is a finding. So a
+unit's change is compared with the change in **the rest of the organization for the same
+type of misconduct**. A unit is flagged as rising only when its rate rose more than the
+rest's by more than chance, its later rate is at least 1.5 times its own earlier rate, its
+rise is at least 1.5 times the rest's, and enough different people stand behind it. The
+thresholds are the same two as above.
+
+Each flag shows what the unit's actions cost in each half, from the cost baseline, and an
+estimated excess for the rise. Who sees what is the same as above. A unit that went from
+two people to twenty is withheld from a client reader, because the finding would state a
+figure about the two.
+
+On the synthetic county nothing is rising, which is right: the generator makes one unit's
+rate higher throughout and changes no rate over time. A test takes three in four of that
+unit's earlier attendance actions out, and the rise is then found and nothing else is.
+`GET /detection/drift` is the endpoint. Rising units are on the Patterns page; they are not
+in the client report yet.
+
 ## What it deliberately does not do
 
 **No individual risk scoring.** **No trend detection yet** (which units are drifting): that
@@ -491,6 +516,7 @@ the signed-in user's membership.
 | `GET /costs/summary` | Headline figures |
 | `GET /costs/actions/{id}` | Every line item with its formula (role-gated) |
 | `GET /detection/hotspots` | Where a type of misconduct clusters, with its cost (`by=misconduct` or `overall`). Flagged units for every role; the working for roles that see records |
+| `GET /detection/drift` | Where a type of misconduct is rising: the later half of the period against the earlier, set against the change in the rest of the organization. Same views and same roles |
 | `GET /assumptions` | The registry with sources and statuses |
 | `POST /scenarios/run` | Re-run with overridden assumptions; nothing on disk changes |
 | `GET /exports/matrix.csv`, `GET /exports/summary.md` | Exports |

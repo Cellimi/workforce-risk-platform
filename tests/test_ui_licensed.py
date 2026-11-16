@@ -875,6 +875,12 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         assert "70 Attendance / AWOL actions among 64 people" in shown
         assert "an estimate, not part of the cost baseline" in shown
         assert "Assessed and not flagged (133)" in expanders(at)
+        # Rising: the county plants a level and no rise, and the page says so.
+        assert "Rising over the period" in shown
+        assert "Earlier half: 2023-10-20 to 2025-04-03." in shown
+        assert "21 comparisons made" in shown
+        assert "Nothing is rising by more than the rest of the organization." in shown
+        assert any(label.startswith("Rising: assessed and not flagged") for label in expanders(at))
         # Nobody is named, on this page of all pages.
         import re
 
@@ -899,6 +905,7 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         assert metric(at, "Cost of these actions") == "$232,626"
         assert not any("not flagged" in label for label in expanders(at))
         assert "decided on the server" in shown
+        assert "Rising over the period" in shown
         assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
     finally:
         srv.should_exit = True

@@ -679,7 +679,14 @@ def patterns_page(api: EngineClient) -> None:
         "and what it costs there.",
     )
     view = st.radio("Look at", list(PATTERN_VIEWS), horizontal=True, key="patterns_view")
-    found = api.hotspots(PATTERN_VIEWS[view], mode())
+    _hotspots_section(api, PATTERN_VIEWS[view])
+    st.divider()
+    _drift_section(api, PATTERN_VIEWS[view])
+
+
+def _hotspots_section(api: EngineClient, by: str) -> None:
+    """Higher than the same job elsewhere, over the whole period."""
+    found = api.hotspots(by, mode())
     by_type = found["by"] == "misconduct"
     st.info(found["note"])
     settings = found["settings"]
@@ -755,6 +762,91 @@ def patterns_page(api: EngineClient) -> None:
             st.dataframe(_unit_table(found["not_flagged"]), hide_index=True, width="stretch")
     if found["not_assessed"]:
         with st.expander(f"Not assessed ({len(found['not_assessed'])})"):
+            for unit in found["not_assessed"]:
+                st.markdown(f"- **{unit['row_label']} at {unit['col_label']}**: {unit['reason']}")
+
+
+def _change(value) -> str:
+    return "-" if value is None else f"{value:.2f}"
+
+
+def _drift_table(rows: list[dict]) -> pd.DataFrame:
+    by_type = any(r.get("topic_label") for r in rows)
+    return pd.DataFrame(
+        [
+            {
+                **({"Type of misconduct": r["topic_label"]} if by_type else {}),
+                "Employee type": r["row_label"],
+                "Work location": r["col_label"],
+                "Actions, earlier": r["earlier_actions"],
+                "Actions, later": r["later_actions"],
+                "Times its earlier rate": r["own_change"],
+                "Times the rise elsewhere": r["ratio"],
+                "Cost, later half": money(r["later_net"]),
+                "Adjusted chance value": round(r["q_value"], 4),
+            }
+            for r in rows
+        ]
+    )
+
+
+def _drift_section(api: EngineClient, by: str) -> None:
+    """Rising: the later half of the period against the earlier half."""
+    found = api.drift(by, mode())
+    st.subheader("Rising over the period")
+    st.info(found["note"])
+    if not found["earlier_start"]:
+        st.markdown("There are no decided actions to compare.")
+        return
+    st.caption(
+        f"Earlier half: {found['earlier_start']} to {found['earlier_end']}. Later half: "
+        f"{found['later_start']} to {found['later_end']}. {found['comparisons']} "
+        f"comparisons made: every unit with at least {found['min_people']} actions in the "
+        f"period. The thresholds are the same two as above, applied to the unit's own rise "
+        f"and to its rise against the rest of the organization."
+    )
+    if not found["flagged"] and not found["withheld"]:
+        st.markdown("Nothing is rising by more than the rest of the organization.")
+    for unit in found["flagged"]:
+        with st.container(border=True):
+            st.markdown(f"**{_unit_name(unit)}**")
+            one, two, three, four = st.columns(4)
+            one.metric("Times its earlier rate", _change(unit["own_change"]))
+            two.metric(
+                "Actions, earlier then later",
+                f"{unit['earlier_actions']} then {unit['later_actions']}",
+            )
+            three.metric(
+                "Cost, earlier then later",
+                f"{money(unit['earlier_net'])} then {money(unit['later_net'])}",
+                help="From the cost baseline: what the records show the actions cost in each half.",
+            )
+            four.metric(
+                "Estimated excess cost of the rise",
+                money(unit["estimated_excess_cost"]),
+                help="An estimate, and not part of the cost baseline.",
+            )
+            with st.expander("How this was worked out"):
+                st.markdown(unit["explanation"])
+                if unit["formula"]:
+                    st.markdown(f"Estimated excess cost: {unit['formula']}.")
+    if found["withheld"]:
+        st.caption(
+            f"{found['withheld']} more flagged as rising, and withheld from this view: it "
+            "would state a figure about a small group of people, or let one be worked out "
+            "from figures already shown to you. The engagement lead can see it."
+        )
+    if found["detail"] != "full":
+        return
+
+    if found["concentrated"]:
+        st.markdown("**Rising, among few people** (not flagged)")
+        st.dataframe(_drift_table(found["concentrated"]), hide_index=True, width="stretch")
+    with st.expander(f"Rising: assessed and not flagged ({len(found['not_flagged'])})"):
+        if found["not_flagged"]:
+            st.dataframe(_drift_table(found["not_flagged"]), hide_index=True, width="stretch")
+    if found["not_assessed"]:
+        with st.expander(f"Rising: not assessed ({len(found['not_assessed'])})"):
             for unit in found["not_assessed"]:
                 st.markdown(f"- **{unit['row_label']} at {unit['col_label']}**: {unit['reason']}")
 
