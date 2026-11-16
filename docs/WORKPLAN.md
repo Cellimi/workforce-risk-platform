@@ -48,7 +48,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | An audit log that shows when it has been edited | Claude Code session | Done, PR #17 |
 | Fixed dependency versions and a smaller image | Claude Code session | Done, PR #18 |
 | Single sign-on (OpenID Connect, any provider) | Claude Code session | Done, PR #19 |
-| Phase 2, step 1: hotspot detection (units whose discipline rate stands out) | Claude Code session | Done, `claude/phase2-hotspots` (built on PR #19) |
+| Phase 2, step 1: hotspot detection (where a type of misconduct clusters, with its cost, shown to leadership) | Claude Code session | Done, PR #20 on `claude/phase2-hotspots` (built on PR #19). Reworked 2026-11-16 to the owner's program overview |
 
 ## Where things stand
 
@@ -83,52 +83,85 @@ series, state and local service occupations and public administration, bracket i
 7. **Install package.** Built: a container image with the license verification key baked
    in, an operator's script, a configuration guide and an upgrade path with a way back. See
    "Install package" below.
-8. **Phase 2, detection.** Opened by the owner on 2026-11-15. Step 1, hotspots, is built:
-   see "Phase 2: detection" below. Next: drift over time.
-9. **Phase 3** (root cause; intervention cost-benefit). Closed. See "Phase boundary" in
-   `CLAUDE.md`.
+8. **Phase 2, pattern detection and escalation.** Opened by the owner on 2026-11-15. Step
+   1, hotspots, is built: see "Phase 2: detection" below. Next: the flagged patterns in the
+   client report.
+9. **Phase 3** (root-cause investigation; intervention cost-benefit). Closed until the
+   owner opens it. See "Phase boundary" in `CLAUDE.md`. His program overview describes it
+   as an on-site investigation of a flagged unit, then candidate interventions each priced
+   and set against what the discipline costs.
 
 ## Phase 2: detection
 
-The owner opened Phase 2 on 2026-11-15 with "begin Phase 2". The specification is in his
-project documents, which a Claude Code session cannot read, so step 1 was built from what
-this repository says Phase 2 is ("patterns, hotspots, which units are drifting") and the
-decisions below are his to confirm or change.
+The owner opened Phase 2 on 2026-11-15 with "begin Phase 2". Step 1 was first built from
+what this repository said Phase 2 was, because a Claude Code session cannot read his project
+documents. On 2026-11-16 he gave the build his program overview and product plan, with
+"going forward use these plans as the guide for building this", and step 1 was reworked to
+match. (The business parts of those documents stay out of this repository, as before.)
+
+**What the program overview asks of Phase 2**, in substance: analyze the frequency and
+clustering of *types of misconduct* across the organization to surface hotspots; call the
+pattern out to management; pair it with the Phase 1 cost data, so that leadership sees not
+only that a problem exists but what it is costing at that location or unit.
+
+| The overview asks for | First build (2026-11-15) | Now |
+|---|---|---|
+| Hotspots by type of misconduct | Every type counted together | By type of misconduct is the main view; every type together is the second |
+| Called out to management | Engagement lead and analyst only; the client reader was refused | Every role that sees totals sees the flagged units. The working stays with record-level roles |
+| Paired with the Phase 1 cost at that unit | An estimated excess cost only | The baseline cost of those actions, and the estimated excess beside it |
 
 ### Step 1, built: hotspots
 
 `src/wri_engine/detection/` (`stats.py`, `exposure.py`, `hotspots.py`),
-`config/detection.yaml`, `GET /detection/hotspots`, and the **Patterns** page. The method is
-written out for a reader in `docs/cost_methodology.md` section 11a.
+`config/detection.yaml`, `GET /detection/hotspots?by=misconduct|overall`, and the
+**Patterns** page. The method is written out for a reader in `docs/cost_methodology.md`
+section 11a.
 
-On the full synthetic county: 32 units compared, one flagged, the planted one, at 2.07
-times the comparison rate and an estimated excess of $554,786. A test requires exactly that.
+On the full synthetic county, by type of misconduct: 196 comparisons, one flagged, the
+planted one (attendance among corrections officers at the main detention center), at 3.40
+times the comparison rate; those actions cost $232,626 in the baseline and the estimated
+excess is $164,168. Every type together: 29 comparisons, the same unit, 2.07 times, an
+estimated excess of $554,786. Tests require exactly that.
 
 **Decisions taken in the build, for the owner:**
 
 | Decision | As built | Why |
 |---|---|---|
-| What is assessed | A unit: a job at a work location. Never a person | A pattern in a unit is something an employer can act on. Scoring individuals is a different product with different legal exposure, and was not asked for |
-| What it is compared with | The same job at every other location | Jobs are disciplined at different rates. Comparing across jobs would flag every jail and no library |
+| What is assessed | A unit: a job at a work location, by type of misconduct or overall. Never a person | The program overview's question is about a role, location or unit. Scoring individuals is a different product with different legal exposure, and was not asked for |
+| What it is compared with | The same job (and the same type) at every other location | Jobs are disciplined at different rates. Comparing across jobs would flag every jail and no library |
 | The measure | Actions per employee-year | Counts alone reward size. Employee-years allow for people joining and leaving |
-| The test | Exact (binomial, given the total), then Benjamini-Hochberg across all units | No approximation to defend, sound at small counts, and checkable by hand |
+| The test | Exact (binomial, given the total), then Benjamini-Hochberg across all comparisons | No approximation to defend, sound at small counts, and checkable by hand |
+| What counts as a comparison | Each location of a job, for each type that job was disciplined for anywhere | A type nobody in the job was disciplined for cannot stand out. Counting it would only make every real comparison harder to pass |
 | `detection_false_discovery_rate` | 0.05, **TBD-MIKE** | A starting value. How many flags may be chance is his call |
 | `detection_min_rate_ratio` | 1.5, **TBD-MIKE** | A starting value. What difference is worth a person's attention is his call |
 | Fewest people | The engagement's minimum group size (5) | A handful of people is not a pattern in a unit |
 | A few people, many actions | Reported as "concentrated in few people", not flagged | It is a different thing, and flagging it would point at individuals |
-| Who sees it | Engagement lead and analyst. **Not the client reader** | See below |
+| Who sees the flags | Every role that sees totals, the client reader included | The overview: the pattern is called out to management. See below for how that is made safe |
+| Who sees the working | Engagement lead and analyst only | The list of units not flagged would hand over the small groups |
 | Cause | Never stated or suggested | That is Phase 3, and before that a person's job |
-| Estimated excess cost | Shown for a flagged unit, labelled an estimate, never added to the baseline | Rule 9 governs the baseline |
+| Cost beside a flag | The baseline's net cost of those actions (an actual), and an estimated excess (labelled an estimate, never added to the baseline) | The overview pairs the pattern with the Phase 1 cost. Rule 9 governs the baseline |
 
-**Why the client reader does not see it.** The first version read the cost matrix after
-suppression, so it could show nothing a client reader could not already see. On the
-synthetic county it could assess 7 units and missed the planted one, because the matrix
-withholds 28 of its 32 job-and-location cells. That withholding is right: most locations
-hold one large job and one or two small ones, a location's total is visible to a client
-reader, and the large unit plus the total gives the small group by subtraction. So
-unit-level findings go to the roles that already see every record, for whom they reveal
-nothing new. **What a client reader could be shown** (a coarser view, by location or by
-department, or the consultant's own write-up) is an open question for the owner.
+**How the client reader's view is made safe.** A flagged unit is a figure about a group of
+people, like a cell of the cost matrix, so it goes through the same two rules
+(`release_together` in `aggregation/suppression.py`): the group is at least the minimum
+size, and with what this reader has already been shown it does not let a smaller group be
+worked out by subtraction. A finding gives figures for three groups (the unit, its
+comparison, the two together) and all three must pass. A finding that fails is withheld and
+the reader is told one was. What is released is recorded in the reader's ledger, so a later
+request for the cost matrix is checked against it too.
+
+On the synthetic county a client reader is shown the by-type finding even after going
+through the cost matrix five ways. The every-type-together finding is shown to a reader who
+has seen nothing, and withheld from one who has been through the matrix first. Both are
+tested.
+
+The first build read the cost matrix after suppression instead, so that it could show
+nothing a client reader could not already see. It could assess 7 units and missed the
+planted one, because the matrix withholds 28 of its 32 job-and-location cells. Detection
+therefore runs on the full records and the *release* of each finding is what is checked.
+
+**For the owner to confirm:** that the client reader should see flagged units on screen
+under these rules. It follows the overview, and it replaces the first build's refusal.
 
 **Found on the way, worth knowing:**
 
@@ -139,15 +172,20 @@ department, or the consultant's own write-up) is an open question for the owner.
 - With two locations for a job, "higher than the other" and "the other is lower" are one
   fact. The synthetic pattern is of this kind: main detention center against the annex.
 
+- **By type there are about seven times as many comparisons**, so a difference has to be
+  clearer to be flagged. Across nine seeded counties nothing but the planted unit was ever
+  flagged; the overall view found it in eight and the by-type view in seven.
+
 ### Not built
 
-1. **Drift**: which units are getting worse over time. The next step.
-2. **Patterns in what people are disciplined for** (the planted unit is also heavy on
-   attendance), or by department, bargaining unit or supervisor. Supervisor-level findings
-   are findings about a named person's decisions and need the owner's ruling first.
-3. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
+1. **The flagged patterns in the client report.** The overview's "escalation": the PDF and
+   workbook do not carry them yet. The next step.
+2. **Drift**: which units are getting worse over time.
+3. **Other ways of grouping**: by department, bargaining unit or supervisor.
+   Supervisor-level findings are findings about a named person's decisions and need the
+   owner's ruling first.
+4. **Client-specific thresholds.** The cost registry can be overridden per engagement with a
    reason; the detection settings cannot yet.
-4. **Patterns in the client report.** The PDF and workbook are unchanged.
 5. **Anything about protected characteristics.** The data model carries none, by design.
 
 ## Single sign-on

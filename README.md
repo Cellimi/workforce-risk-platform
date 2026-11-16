@@ -92,7 +92,7 @@ the same `make ui` serves the demo and a licensed installation.
 | Load data | engagement lead | Template download, upload, column matching, code translation, preview, commit |
 | Executive summary, Cost matrix, Data quality | everyone | The results, labelled with the client's name |
 | Drill-down | lead and analyst | One action, every line item |
-| Patterns | lead and analyst | Units whose discipline rate stands out from the same job elsewhere, and what that is estimated to cost |
+| Patterns | everyone (the working: lead and analyst) | Where a type of misconduct is more frequent than the same job shows elsewhere, and what it costs there |
 | Assumptions | everyone | The registry; the lead also sets client-specific values, each with a reason |
 
 A page a role cannot use is not offered, but the server is what refuses it. Choices made on
@@ -378,28 +378,43 @@ afterwards shows (`./wri audit`).
 
 ## Patterns (Phase 2, first step)
 
-The cost baseline says what discipline costs. The **Patterns** page says where it is more
-frequent than it should be: for each unit (a job at a work location) it compares the rate of
-discipline actions per employee-year with the same job at every other location.
+The cost baseline says what discipline costs, by employee type and by type of misconduct.
+The **Patterns** page says where a type of misconduct clusters, and what it costs there:
+"attendance among corrections officers at the main detention center". For each job at each
+work location it compares the rate of actions of one type, per employee-year, with the same
+job at every other location. A second view counts every type together.
 
 A unit is flagged only when the difference is unlikely to be chance after allowing for how
-many units were compared, is large enough to matter, and is not down to a few people
-disciplined many times. Each flag shows its arithmetic and an **estimated excess cost**:
-the actions beyond what the comparison rate would give, times the unit's own average cost
-per action.
+many comparisons were made, is large enough to matter, and is not down to a few people
+disciplined many times. Each flag shows its arithmetic and two costs:
+
+- **the cost of those actions**, straight from the cost baseline: what the records show
+  they cost, the same figure the cost matrix gives;
+- an **estimated excess cost**: the actions beyond what the comparison rate would give,
+  times the unit's own average cost per action.
+
+What holds:
 
 - **A flag is about a unit, never a person.** Nobody is scored, ranked or named.
 - **A flag does not say why.** More actions can mean more misconduct, a supervisor quicker
   to write people up, harder conditions, or better record keeping.
 - **The estimate is not part of the baseline**, which still counts only what happened.
-- **Only the engagement lead and the analyst see it.** A client reader sees totals only, and
-  shown a large unit beside a location total could work out the two or three people in the
-  small job next to it by subtraction.
+- **Everyone who sees totals sees the flags.** A flag exists to be put in front of the
+  people who run the organization. A client reader gets the flagged units, each released
+  under the same small-group rules as a cell of the cost matrix; one that would let a small
+  group be worked out from what that reader has already seen is withheld, and the page says
+  one was.
+- **Only the engagement lead and the analyst see the working**: what was assessed and not
+  flagged, and what could not be assessed. That list would give away the two or three
+  people in the small job beside each large one.
 - **The two thresholds are starting values the owner has not reviewed**
   (`config/detection.yaml`), and the page says so.
 
-On the synthetic county it compares 32 units and flags one: the pattern the generator
-plants. The statistics are exact, written out in `src/wri_engine/detection/stats.py`, and
+On the synthetic county, by type of misconduct, it makes 196 comparisons and flags one:
+attendance among corrections officers at the main detention center, 70 actions where the
+same job elsewhere would give 20.6, costing $232,626 in the baseline. That is the pattern
+the generator plants. With every type together it makes 29 comparisons and flags the same
+unit. The statistics are exact, written out in `src/wri_engine/detection/stats.py`, and
 checked by hand in the tests. `GET /detection/hotspots` is the endpoint.
 
 ## What it deliberately does not do
@@ -467,7 +482,7 @@ the signed-in user's membership.
 | `GET /costs/matrix` | The cost matrix, suppression already applied |
 | `GET /costs/summary` | Headline figures |
 | `GET /costs/actions/{id}` | Every line item with its formula (role-gated) |
-| `GET /detection/hotspots` | Units whose discipline rate stands out (role-gated, as the drill-down is) |
+| `GET /detection/hotspots` | Where a type of misconduct clusters, with its cost (`by=misconduct` or `overall`). Flagged units for every role; the working for roles that see records |
 | `GET /assumptions` | The registry with sources and statuses |
 | `POST /scenarios/run` | Re-run with overridden assumptions; nothing on disk changes |
 | `GET /exports/matrix.csv`, `GET /exports/summary.md` | Exports |

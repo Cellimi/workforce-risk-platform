@@ -77,6 +77,8 @@ from wri_engine.api.state import ADAPTERS, NoDataset, Workspaces, make_adapter, 
 from wri_engine.costing.assumptions import MissingAssumptionError
 from wri_engine.costing.rates import DECIDING_OFFICIAL, SUPERVISOR, colleague_phrase
 from wri_engine.detection import (
+    BY_MISCONDUCT,
+    OVERALL,
     employee_years,
     find_hotspots,
     load_detection_settings,
@@ -742,28 +744,38 @@ def action_detail(
 HOTSPOT_NOTE = (
     "A flag says a unit's discipline rate is higher than the same job's at other locations, "
     "by more than chance and by enough to matter. It does not say why, and it says nothing "
-    "about any one person. The estimated excess cost is an estimate and is not part of the "
-    "cost baseline."
+    "about any one person. The cost of the unit's actions comes from the cost baseline. "
+    "The estimated excess cost is an estimate and is not part of the cost baseline."
 )
 
 
 @router.get("/detection/hotspots", tags=["detection"])
 def detection_hotspots(
+    by: str = Query(BY_MISCONDUCT, pattern=f"^({BY_MISCONDUCT}|{OVERALL})$"),
     mode: str = Query("base", pattern="^(low|base|high)$"),
     ctx: Ctx = Depends(get_ctx),
 ) -> dict:
-    """Units (a job at a work location) whose discipline rate stands out from the same job
-    elsewhere, with what the difference is estimated to cost.
+    """Where discipline clusters: a type of misconduct, in a job, at a work location, whose
+    rate stands out from the same job elsewhere, with what those actions cost in the
+    baseline and what the difference is estimated to cost. `by=overall` counts every type
+    of misconduct together.
 
-    For roles that see records. A client reader, who sees totals only, is refused: shown a
-    large unit beside a location total they can already see, they could subtract their way
-    to a group of two or three people. See `wri_engine.detection.hotspots`.
+    Every role that sees totals sees the flagged units. A role that sees records also gets
+    the working: what was assessed and not flagged, and what could not be assessed. A
+    totals-only reader's flagged units pass the same small-group rules as a cell of the
+    cost matrix, and one that fails is withheld and counted. See
+    `wri_engine.detection.hotspots`, "Who sees what".
 
     This reads the costing run and changes nothing in it.
     """
     state = ctx.state
-    _guard(ctx, Capability.VIEW_RECORDS, "/detection/hotspots")
-    _audit(ctx, "/detection/hotspots", detail={"mode": mode})
+    _guard(ctx, Capability.VIEW_AGGREGATES, "/detection/hotspots")
+    full = allows(ctx.role, Capability.VIEW_RECORDS)
+    _audit(
+        ctx,
+        "/detection/hotspots",
+        detail={"by": by, "mode": mode, "detail": "full" if full else "flagged_only"},
+    )
     state.ensure_loaded()
     run = state.run(mode=mode)
     decided = sorted(str(ac.dimensions["decision_date"]) for ac in run.action_costs)
@@ -771,14 +783,16 @@ def detection_hotspots(
     end = date.fromisoformat(decided[-1]) if decided else None
     exposure = employee_years(state.dataset, start, end) if decided else {}
     report = find_hotspots(
-        unit_counts(run),
+        unit_counts(run, by),
         exposure,
         load_detection_settings(),
+        by=by,
         min_people=state.min_cell_size,
         window_start=start,
         window_end=end,
     )
-    return {"caption": _caption(ctx), "note": HOTSPOT_NOTE, **report.as_dict()}
+    body = report.as_dict() if full else report.for_totals_reader(ctx.ledger())
+    return {"caption": _caption(ctx), "note": HOTSPOT_NOTE, **body}
 
 
 # ---------------------------------------------------------------------------

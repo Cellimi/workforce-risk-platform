@@ -229,9 +229,9 @@ def sign_in_page(api_url: str) -> None:
 def pages() -> list[str]:
     if not engagement():
         return ["Engagement"]
-    out = ["Executive summary", "Cost matrix"]
+    out = ["Executive summary", "Cost matrix", "Patterns"]
     if can("view_records"):
-        out += ["Drill-down", "Patterns"]
+        out.append("Drill-down")
     out += ["Assumptions", "Data quality"]
     if can("manage_data"):
         out.append("Load data")

@@ -143,6 +143,10 @@ def texts(at) -> str:
     return "\n".join(str(p) for p in parts)
 
 
+def expanders(at) -> list[str]:
+    return [e.label for e in at.expander]
+
+
 def sign_in(at, who):
     labelled(at.text_input, "Email").input(who[0])
     labelled(at.text_input, "Password").input(who[1])
@@ -834,8 +838,9 @@ def test_a_firm_administrator_creates_an_account_with_no_password(sso_server):
 # ---------------------------------------------------------------------------
 def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
     """On the whole synthetic county, a role that sees records is shown the one planted
-    unit, what it is estimated to cost and how that was worked out; a role that sees totals
-    only is told why it is not shown."""
+    unit by type of misconduct, what those actions cost, what the difference is estimated
+    to cost and how that was worked out, and can look at every type together. A role that
+    sees totals only is shown the flagged unit with its cost, and not the working."""
     from wri_engine.api.state import STATE
     from wri_engine.generator import generate
     from wri_engine.paths import SYNTHETIC_DIR
@@ -859,32 +864,49 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         at = go(at, "Patterns")
         assert not at.exception, at.exception
         shown = texts(at)
-        assert "Corrections Officer at Main Detention Center" in shown
+        hot = "Attendance / AWOL among Corrections Officer at Main Detention Center"
+        assert hot in shown
         assert "It does not say why, and it says nothing about any one person." in shown
         assert "have not been reviewed yet" in shown
-        assert "32 units compared" in shown
-        assert metric(at, "Estimated excess cost") == "$554,786"
-        assert metric(at, "Times the rate elsewhere") == "2.07"
-        assert "160 actions among 126 people" in shown
+        assert "196 comparisons made" in shown
+        assert metric(at, "Cost of these actions") == "$232,626"
+        assert metric(at, "Estimated excess cost") == "$164,168"
+        assert metric(at, "Times the rate elsewhere") == "3.40"
+        assert "70 Attendance / AWOL actions among 64 people" in shown
         assert "an estimate, not part of the cost baseline" in shown
+        assert "Assessed and not flagged (133)" in expanders(at)
         # Nobody is named, on this page of all pages.
         import re
 
         assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
 
+        labelled(at.radio, "Look at").set_value("All types together")
+        at.run()
+        assert not at.exception, at.exception
+        shown = texts(at)
+        assert "29 comparisons made" in shown
+        assert metric(at, "Estimated excess cost") == "$554,786"
+        assert metric(at, "Times the rate elsewhere") == "2.07"
+        assert "160 actions among 126 people" in shown
+
+        # Leadership sees the flag and what it costs, and not the working behind it.
+        labelled(at.radio, "Look at").set_value("By type of misconduct")
         labelled(at.sidebar.selectbox, "Role").set_value("executive")
         at.run()
         assert not at.exception, at.exception
-        told = " ".join(w.value for w in at.warning)
-        assert "sees totals only" in told and "by subtraction" in told
-        assert "Corrections Officer at Main Detention Center" not in texts(at)
+        shown = texts(at)
+        assert hot in shown
+        assert metric(at, "Cost of these actions") == "$232,626"
+        assert not any("not flagged" in label for label in expanders(at))
+        assert "decided on the server" in shown
+        assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", shown)
     finally:
         srv.should_exit = True
         thread.join(timeout=5)
         STATE.load(SYNTHETIC_DIR / "sample")
 
 
-def test_patterns_is_offered_to_those_who_see_records_and_nobody_else(server):
+def test_patterns_is_offered_to_everyone_and_the_working_only_to_record_roles(server):
     url, store = server
     owner = store.get_user_by_email(OWNER[0])
     engagement = store.create_engagement(
@@ -902,7 +924,14 @@ def test_patterns_is_offered_to_those_who_see_records_and_nobody_else(server):
     at = go(at, "Patterns")
     assert not at.exception, at.exception
     assert not at.error, [e.value for e in at.error]
-    assert "units compared" in texts(at)
+    assert "comparisons made" in texts(at)
+    assert any("Assessed and not flagged" in label for label in expanders(at))
 
     at = sign_in(open_app(url), READER)
-    assert "Patterns" not in at.sidebar.radio[0].options
+    assert "Patterns" in at.sidebar.radio[0].options
+    assert "Drill-down" not in at.sidebar.radio[0].options
+    at = go(at, "Patterns")
+    assert not at.exception, at.exception
+    assert not at.error, [e.value for e in at.error]
+    assert "comparisons made" in texts(at)
+    assert not any("not flagged" in label for label in expanders(at))

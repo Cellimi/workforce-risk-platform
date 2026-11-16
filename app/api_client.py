@@ -99,9 +99,12 @@ class EngineClient:
             params["filters"] = json.dumps(filters)
         return self._request("GET", "/costs/matrix", params=params).json()
 
-    def hotspots(self, mode: str = "base") -> dict:
-        """Units whose discipline rate stands out from the same job elsewhere (Phase 2)."""
-        return self._request("GET", "/detection/hotspots", params={"mode": mode}).json()
+    def hotspots(self, by: str = "misconduct", mode: str = "base") -> dict:
+        """Where discipline clusters: a type of misconduct in a job at a location whose rate
+        stands out from the same job elsewhere (Phase 2). `by="overall"` counts every type
+        together."""
+        params = {"by": by, "mode": mode}
+        return self._request("GET", "/detection/hotspots", params=params).json()
 
     def actions(self, filters: dict | None = None, mode: str = "base", limit: int = 200) -> dict:
         params: dict[str, Any] = {"mode": mode, "limit": limit}

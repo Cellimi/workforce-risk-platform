@@ -109,12 +109,18 @@ make package LICENSE_PUBLIC_KEY=...   # the install package (needs Docker)
 **Phase 1, the cost baseline, is built. The owner opened Phase 2, detection, on
 2026-11-15.** Phase 3 (root cause, intervention cost-benefit) is closed: do not start it.
 
+The owner's program overview (given to the build on 2026-11-16) defines Phase 2 as finding
+where **types of misconduct** cluster, calling the pattern out to management, and pairing
+it with what Phase 1 says it costs at that location or unit. Build to that.
+
 What holds inside Phase 2:
 
 - **Detection reads the baseline and never changes it.** It lives in
   `src/wri_engine/detection/`. The cost matrix still shows an expensive cell and nothing
   more; a flag appears only on the Patterns page and its endpoint.
-- **A flag is about a unit, never a person.** No individual is scored, ranked or named.
+- **A flag is about a unit, never a person.** A unit is a job at a work location, looked at
+  by type of misconduct (the main view) or with every type together. No individual is
+  scored, ranked or named.
   Do not build individual risk scores without the owner asking for exactly that.
 - **A flag says a rate stands out. It does not say why**, and the code and the screen must
   not suggest a cause.
@@ -122,8 +128,12 @@ What holds inside Phase 2:
   arithmetic and the setting ids it used.
 - **Thresholds live in `config/detection.yaml`**, fetched by id, never written into Python.
   An unreviewed one is `TBD-MIKE` and the screen says so.
-- **Unit-level findings go only to roles that see records.** Shown to a totals-only role
-  they expose the small groups beside a large unit by subtraction. See the module
-  docstring of `detection/hotspots.py` before changing who may see what.
-- An estimated excess cost is an estimate, is labelled as one, and is never added to a
-  baseline figure (rule 9 still governs the baseline).
+- **Leadership sees the flags; only record-level roles see the working.** A totals-only
+  role gets the flagged units, each released under the same small-group rules as a cell of
+  the cost matrix (`release_together` in `aggregation/suppression.py`); one that fails is
+  withheld and counted. The list of units assessed and *not* flagged stays with roles that
+  see records, because it would hand over the small groups. See "Who sees what" in
+  `detection/hotspots.py` before changing any of this.
+- **A flag is paired with its cost.** Each finding carries what the baseline says those
+  actions cost (an actual). An estimated excess cost is an estimate, is labelled as one,
+  and is never added to a baseline figure (rule 9 still governs the baseline).

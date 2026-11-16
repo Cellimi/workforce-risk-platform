@@ -796,14 +796,22 @@ The cost baseline is the cost baseline and nothing else.
 
 ---
 
-## 11a. Detection: which units stand out (Phase 2, first step)
+## 11a. Detection: where a type of misconduct clusters (Phase 2, first step)
 
-Opened by the owner on 2026-11-15. It answers one question the baseline cannot: is
-discipline more frequent in this unit than it should be?
+Opened by the owner on 2026-11-15. It answers one question the baseline cannot: is a type
+of misconduct more frequent in this unit than it should be, and what is that costing there?
 
-**The unit** is a job at a work location. **The comparison** is always the same job at
-every other location, because jobs are not disciplined at the same rate and comparing a
-deputy with a clerk would say nothing.
+**The unit** is a job at a work location. It is looked at in two ways: **by type of
+misconduct** (attendance among corrections officers at the main detention center), which is
+the main view, and **overall**, with every type counted together. **The comparison** is
+always the same job at every other location, and by type it is the same type as well. Jobs
+are not disciplined at the same rate, and comparing a deputy with a clerk would say nothing.
+
+**What is compared.** For each job, and for each type of misconduct that job was
+disciplined for at least once anywhere, every location where the roster shows people in
+that job. A location with no action of that type is a comparison too, because "none here,
+some elsewhere" is a result. A type nobody in the job was ever disciplined for cannot stand
+out anywhere and is not counted.
 
 **The rate** is discipline actions per employee-year. An employee-year is one person on the
 payroll for one year of the period covered; someone hired half-way through counts for half.
@@ -816,10 +824,13 @@ tail. This is the standard exact test for two rates. It needs no approximation, 
 sound for three actions as for three hundred, and a comparison built on a handful of
 actions cannot make anything look significant.
 
-**Many units at once.** Compare thirty units and one or two will look unusual by chance.
-Each result is adjusted for the number of comparisons by the Benjamini-Hochberg procedure
-(Benjamini and Hochberg, 1995), which holds the expected share of flagged units that are
-chance findings at `detection_false_discovery_rate`.
+**Many comparisons at once.** Make two hundred comparisons and several will look unusual
+by chance. Each result is adjusted for the number of comparisons by the Benjamini-Hochberg
+procedure (Benjamini and Hochberg, 1995), which holds the expected share of flagged units
+that are chance findings at `detection_false_discovery_rate`. Looking by type of misconduct
+means several times as many comparisons as looking overall, so a difference has to be
+clearer to be flagged by type. That is the price of being specific, and it is why both
+views are offered.
 
 **A flag needs all of:**
 
@@ -828,10 +839,16 @@ chance findings at `detection_false_discovery_rate`.
    means a difference large enough to matter and not merely an unlikely one;
 3. at least the engagement's minimum group size of different people disciplined (5);
 4. the same result when **people** are counted instead of actions: different people
-   disciplined here against different people disciplined in the same job elsewhere. A unit
-   that stands out on actions and not on people is reported as *concentrated in few
-   people* and is not flagged. A few people disciplined many times is not a pattern in a
-   unit, and this product does not point at individuals.
+   disciplined here against different people disciplined in the same job elsewhere. This
+   confirms the units that passed the first three, so it is adjusted for how many of those
+   there are and not for every comparison made. A unit that stands out on actions and not
+   on people is reported as *concentrated in few people* and is not flagged. A few people
+   disciplined many times is not a pattern in a unit, and this product does not point at
+   individuals.
+
+**The cost beside a flag** is the net cost of the unit's actions from the baseline: the sum
+of the same line items the cost matrix adds up for that job, location and type. It is an
+actual.
 
 **The estimated excess cost** of a flagged unit is
 
@@ -845,11 +862,20 @@ and is never added to a baseline figure.
 writes people up more readily, harder working conditions, or simply better record keeping.
 Nothing here tells those apart.
 
-**Who sees it.** Roles that see records: the engagement lead and the analyst. A client
-reader, who sees totals only, does not. Most locations hold one large job and one or two
-small ones. A location's total is already visible to a client reader; add the large unit and
-the small one falls out by subtraction. The cost matrix withholds those cells for the same
-reason: on the synthetic county, 28 of its 32 job-and-location cells.
+**Who sees what.** A flag is for the people who run the organization, so every role that
+sees totals sees the flagged units. A client reader's flagged unit is released under the
+two rules that govern a cell of the cost matrix (section on suppression): the group must be
+at least the engagement's minimum size, and with what that reader has already been shown it
+must not let a smaller group be worked out by subtraction. Both are asked of the three
+groups a finding gives figures for: the people disciplined in the unit, those in the
+comparison, and the two together. A finding that fails is withheld, and the reader is told
+one was.
+
+The working behind the flags (every unit assessed and not flagged, and those that could not
+be assessed) goes only to roles that see records: the engagement lead and the analyst. Most
+locations hold one large job and one or two small ones, and that list would hand over the
+small ones. The cost matrix withholds those cells for the same reason: on the synthetic
+county, 28 of its 32 job-and-location cells.
 
 **Limits.**
 
@@ -863,10 +889,19 @@ reason: on the synthetic county, 28 of its 32 job-and-location cells.
 - The two thresholds are starting values the owner has not reviewed. They are judgements
   about how cautious a flag should be, not facts that can be looked up.
 
-On the synthetic county: 32 units compared, one flagged, corrections officers at the main
-detention center, at 2.07 times the rate of the same job at the annex (160 actions against
-77.2 expected), an estimated excess of $554,786. That is the pattern the generator plants,
-at 1.8 times the action rate; no other unit is flagged.
+On the synthetic county, by type of misconduct: 196 comparisons, one flagged, attendance
+among corrections officers at the main detention center, at 3.40 times the rate of the same
+job at the annex (70 actions against 20.6 expected). Those 70 actions cost $232,626 in the
+baseline; the estimated excess is $164,168. With every type together: 29 comparisons, the
+same unit flagged at 2.07 times (160 actions against 77.2 expected, costing $1,072,052 in
+the baseline, an estimated excess of $554,786). That is the pattern the generator plants,
+at 1.8 times the action rate and shifted toward attendance; nothing else is flagged in
+either view.
+
+Across nine differently seeded synthetic counties, nothing but the planted unit was ever
+flagged in either view. The overall view found it in eight and the by-type view in seven:
+where the planted difference happened to come out smaller, two hundred comparisons asked
+more of it than thirty did.
 
 ---
 

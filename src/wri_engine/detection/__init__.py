@@ -5,6 +5,8 @@ Detection reads the cost baseline and never changes it. Nothing here scores a pe
 
 from wri_engine.detection.exposure import Exposure, employee_years
 from wri_engine.detection.hotspots import (
+    BY_MISCONDUCT,
+    OVERALL,
     HotspotReport,
     NotAssessed,
     UnitCount,
@@ -15,6 +17,8 @@ from wri_engine.detection.hotspots import (
 )
 
 __all__ = [
+    "BY_MISCONDUCT",
+    "OVERALL",
     "Exposure",
     "HotspotReport",
     "NotAssessed",

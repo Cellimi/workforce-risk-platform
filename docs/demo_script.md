@@ -84,11 +84,13 @@ Then be careful, because this is the honest bit and it lands well:
 > Phase 2 and Phase 3. Phase 1 earns the right to have that conversation by getting the
 > arithmetic right first."
 
-*(Since 2026-11-15 the first step of Phase 2 is built. Switch the role to `hr_analyst` and
-open **Patterns**: it says corrections officers at the main detention center are disciplined
-at about twice the rate of the same job at the annex, shows the arithmetic, and estimates
-what the difference costs. It still does not say why, and it names nobody. The cost matrix
-is unchanged: an expensive cell, no label.)*
+*(Since 2026-11-15 the first step of Phase 2 is built. Open **Patterns**, in any role: it
+says attendance actions among corrections officers at the main detention center run at
+about three and a half times the rate of the same job at the annex, shows what those
+actions cost in the baseline, and estimates what the difference costs. Switch to
+`hr_analyst` to see the working: everything that was assessed and not flagged. It still
+does not say why, and it names nobody. The cost matrix is unchanged: an expensive cell, no
+label. Run `make generate` first; the small committed sample is not the whole county.)*
 
 **Point out the suppressed cells (`···`).** Don't skip this — an operating CEO will be asked
 about it by counsel within a week of any real deployment:
