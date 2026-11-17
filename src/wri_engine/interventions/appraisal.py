@@ -16,8 +16,10 @@ each person covered, any other yearly cost, and how many years to look ahead.
 
 **How well it works is the consultant's judgement, and it is entered three times**: a low,
 an expected and a high share of the actions it would prevent, with the basis for those
-figures in words. This product supplies no figure for how well anything works. It has no
-evidence of its own on that, and a made-up default would be read as one.
+figures in words. An appraisal has no default for them. The product has no evidence of its
+own on how well anything works: the only figures it offers are the library's (`library.py`),
+which a person must choose, and which are placeholders until the owner has researched them
+and are marked as such wherever an appraisal that keeps one is shown.
 
 **Z is then arithmetic**, done three times:
 
@@ -193,6 +195,13 @@ class Intervention:
     reduction_high: Decimal
     #: Where those three figures come from, in the consultant's words.
     basis: str
+    #: A one-time cost for each person covered, beside the lump sum above.
+    one_time_cost_per_person: Decimal = ZERO
+    #: The library entry the form was started from, if any, and which figures still stand
+    #: as that entry gave them. Set by the server, never taken from a caller: see
+    #: `library.py`. They change no arithmetic; they decide what is said beside the result.
+    library_id: str = ""
+    library_fields: tuple[str, ...] = ()
 
     def problems(self) -> list[str]:
         found = []
@@ -200,6 +209,7 @@ class Intervention:
             found.append("give the intervention a name")
         for label, amount in (
             ("the one-time cost", self.one_time_cost),
+            ("the one-time cost per person", self.one_time_cost_per_person),
             ("the yearly cost per person", self.annual_cost_per_person),
             ("the other yearly cost", self.other_annual_cost),
         ):
@@ -219,7 +229,7 @@ class Intervention:
         if not self.basis.strip():
             found.append(
                 "say what the shares of actions prevented are based on: this product has no "
-                "figure of its own for how well an intervention works"
+                "evidence of its own for how well an intervention works"
             )
         return found
 
@@ -228,13 +238,23 @@ class Intervention:
         return self.annual_cost_per_person * self.people_covered + self.other_annual_cost
 
     @property
+    def one_time_total(self) -> Decimal:
+        return self.one_time_cost + self.one_time_cost_per_person * self.people_covered
+
+    @property
     def total_cost(self) -> Decimal:
-        return self.one_time_cost + self.annual_cost * self.years
+        return self.one_time_total + self.annual_cost * self.years
 
     @property
     def cost_formula(self) -> str:
+        once = f"{_money(self.one_time_cost)} one-time"
+        if self.one_time_cost_per_person:
+            once += (
+                f" + {_money(self.one_time_cost_per_person)} x {self.people_covered} people "
+                f"one-time"
+            )
         return (
-            f"{_money(self.one_time_cost)} one-time + ({_money(self.annual_cost_per_person)} "
+            f"{once} + ({_money(self.annual_cost_per_person)} "
             f"x {self.people_covered} people + {_money(self.other_annual_cost)} other) a "
             f"year x {self.years} years"
         )
@@ -243,6 +263,7 @@ class Intervention:
         return {
             "name": self.name.strip(),
             "one_time_cost": str(self.one_time_cost.quantize(CENT)),
+            "one_time_cost_per_person": str(self.one_time_cost_per_person.quantize(CENT)),
             "annual_cost_per_person": str(self.annual_cost_per_person.quantize(CENT)),
             "people_covered": self.people_covered,
             "other_annual_cost": str(self.other_annual_cost.quantize(CENT)),
@@ -251,6 +272,8 @@ class Intervention:
             "total_cost": str(self.total_cost.quantize(CENT)),
             "cost_formula": self.cost_formula,
             "basis": self.basis.strip(),
+            "library_id": self.library_id,
+            "library_fields": list(self.library_fields),
         }
 
 

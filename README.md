@@ -476,7 +476,7 @@ someone goes there, finds out what is going on, and proposes to do something abo
   cost for each person covered, any other yearly cost, and how many years to look ahead.
 - **How well it works** is the consultant's judgement, entered as a low, an expected and a
   high share of the actions it would prevent, with the basis for those figures in words.
-  The product has no figure of its own for this and will not proceed without the basis.
+  The product has no evidence of its own for this and will not proceed without the basis.
 
 It then shows the net saving three ways, and one figure that needs no judgement: the share
 of actions the intervention must prevent to pay for itself.
@@ -490,6 +490,28 @@ What holds:
   average, nothing is discounted, and only the cost of discipline counts as a benefit.
 - **For the lead and the analyst.** It works on any unit, whatever its size.
 `POST /interventions/appraise` is the endpoint.
+
+### Starting from the library
+
+`config/intervention_library.yaml` holds starting figures for the four interventions the
+program overview names: a transit subsidy, a childcare subsidy, targeted training, and
+flexible start and end times. Each has a one-time cost per person, a yearly cost per
+person, and a low, expected and high share of actions prevented. On the Interventions page
+a consultant may fill the form from one and then change any figure to the client's own.
+
+**Every figure in it is a placeholder.** The owner asked for placeholders on 2026-11-16 and
+will research the values himself. None is researched or sourced; each is marked unreviewed
+in the file. Until he has reviewed them:
+
+- the page says so when an entry is chosen;
+- an appraisal that still carries any library figure says which ones, on screen, in the kept
+  list, and **in the client's report and workbook**: "Placeholder figures: ... not yet
+  researched, sourced or reviewed, and not this client's own";
+- changing a figure to the client's own takes it out of that sentence, and nothing else
+  does. Which figures still stand is worked out on the server from the figures themselves.
+
+Choosing an entry is a convenience. It suggests nothing about what is causing a pattern.
+`GET /interventions/library` is the endpoint.
 
 ### Keeping an appraisal, with what was found
 
@@ -559,8 +581,9 @@ ever kept, what "Other" was said to be, and what was withdrawn and by whom.
 ## What it deliberately does not do
 
 **No individual risk scoring.** **No finding of causes**: a person does that on site, and
-nothing in the product suggests one. **No figure for how well an intervention works**: that
-is the consultant's judgement, entered with its basis. **Nothing in the cost baseline is
+nothing in the product suggests one. **No evidence on how well an intervention works**: that
+is the consultant's judgement, entered with its basis, and the library's starting figures
+are placeholders marked as such. **Nothing in the cost baseline is
 probability-weighted**: a cost is counted only when the record shows the event happened,
 and a projected saving is never added to it.
 

@@ -506,6 +506,7 @@ def _interventions(book: Workbook, content: ReportContent) -> None:
             "Net saving: high",
             "Pays for itself when",
             "How the costs were worked out",
+            "Placeholder figures",
         ],
     )
     row = 2
@@ -534,6 +535,8 @@ def _interventions(book: Workbook, content: ReportContent) -> None:
             _put(sheet, row, 16, found.break_even_note)
             worked = f"{found.baseline_formula}. {found.cost_formula}"
         _put(sheet, row, 17, worked)
+        if found.placeholder_note:
+            _put(sheet, row, 18, found.placeholder_note, font=WARNING)
         row += 1
     if not section.current:
         _put(sheet, row, 1, "Nothing shown.")
@@ -590,7 +593,7 @@ def _interventions(book: Workbook, content: ReportContent) -> None:
         row += 1
     _put(sheet, row, 1, section.note, font=MUTED)
     _put(sheet, row + 1, 1, "A saving assumes: " + " ".join(section.assumes), font=MUTED)
-    _widths(sheet, [52, 38, 34, 12, 34, 50, 8, 22, 26, 16, 20, 16, 18, 22, 18, 70, 110])
+    _widths(sheet, [52, 38, 34, 12, 34, 50, 8, 22, 26, 16, 20, 16, 18, 22, 18, 70, 110, 90])
 
 
 def _interventions_working(book: Workbook, content: ReportContent) -> None:

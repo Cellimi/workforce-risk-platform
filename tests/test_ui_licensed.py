@@ -991,7 +991,7 @@ def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tm
 
         fill("")
         assert "This cannot be worked out yet:" in texts(at)
-        assert "this product has no figure of its own for how well an intervention works" in (
+        assert "this product has no evidence of its own for how well an intervention works" in (
             texts(at)
         )
         assert not at.metric
@@ -1080,6 +1080,85 @@ def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tm
         told = " ".join(w.value for w in at.warning)
         assert "for the roles that see records" in told
         assert not at.metric
+    finally:
+        srv.should_exit = True
+        thread.join(timeout=5)
+        STATE.load(SYNTHETIC_DIR / "sample")
+        STATE._appraisals = None
+
+
+def test_starting_from_the_library_fills_the_form_and_marks_the_placeholders(tmp_path):
+    """Choosing a library entry fills in its starting figures and warns that they are
+    placeholders. The result says which figures are still placeholders, and changing one
+    to the client's own takes that figure out of the warning."""
+    from wri_engine.api.state import STATE
+    from wri_engine.paths import SYNTHETIC_DIR
+
+    STATE.load(SYNTHETIC_DIR / "sample")
+    app = create_app(Settings(auth_mode="demo", data_dir=tmp_path))
+    port = _free_port()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    for _ in range(200):
+        if srv.started:
+            break
+        time.sleep(0.02)
+    try:
+        at = open_app(f"http://127.0.0.1:{port}")
+        labelled(at.sidebar.selectbox, "Role").set_value("hr_analyst")
+        at.run()
+        at = go(at, "Interventions")
+        assert not at.exception, at.exception
+        entry = labelled(at.selectbox, "Library entry")
+        assert entry.options == [
+            "Transit subsidy",
+            "Childcare subsidy",
+            "Targeted training",
+            "Flexible start and end times",
+        ]
+        entry.set_value("Targeted training")
+        at.run()
+        told = " ".join(w.value for w in at.warning)
+        assert "Every one of these figures is a placeholder" in told
+        assert "It is not a suggestion of what is causing anything." in texts(at)
+
+        labelled(at.button, "Fill in its starting figures").click()
+        at.run()
+        assert not at.exception, at.exception
+        assert at.text_input(key="iv_name").value == "Targeted training"
+        assert at.number_input(key="iv_once_each").value == 400.0
+        assert at.number_input(key="iv_each").value == 100.0
+        assert [at.number_input(key=k).value for k in ("iv_low", "iv_exp", "iv_high")] == [
+            10.0,
+            20.0,
+            35.0,
+        ]
+        # The basis is never filled in: it is the consultant's to give.
+        assert at.text_area(key="iv_basis").value == ""
+
+        at.number_input(key="iv_people").set_value(20)
+        at.number_input(key="iv_years").set_value(2)
+        at.text_area(key="iv_basis").set_value("What the site visit found.")
+        labelled(at.button, "Work it out").click()
+        at.run()
+        assert not at.exception, at.exception
+        # 400 x 20 once, and 100 x 20 a year for two years.
+        assert metric(at, "The intervention costs, over 2 years") == "$12,000"
+        told = " ".join(w.value for w in at.warning)
+        assert (
+            "Placeholder figures: The one-time cost per person, the yearly cost per person" in told
+        )
+        assert "not this client's own" in told
+
+        # The client's own yearly cost: that figure leaves the warning, the others stay.
+        at.number_input(key="iv_each").set_value(85.0)
+        labelled(at.button, "Work it out").click()
+        at.run()
+        assert not at.exception, at.exception
+        told = " ".join(w.value for w in at.warning)
+        assert "Placeholder figures: The one-time cost per person and the share of" in told
+        assert "the yearly cost per person" not in told
     finally:
         srv.should_exit = True
         thread.join(timeout=5)

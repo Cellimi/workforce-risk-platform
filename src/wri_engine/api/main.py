@@ -106,6 +106,11 @@ from wri_engine.interventions import (
     unit_baseline,
 )
 from wri_engine.interventions.appraisal import ASSUMES as APPRAISAL_ASSUMES
+from wri_engine.interventions.library import (
+    fields_from_library,
+    load_library,
+    placeholder_note,
+)
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
@@ -895,7 +900,11 @@ class AppraisalRequest(BaseModel):
     misconduct_category: str = Field("", description="Empty for every type together")
     name: str
     one_time_cost: Decimal = Decimal(0)
+    one_time_cost_per_person: Decimal = Decimal(0)
     annual_cost_per_person: Decimal = Decimal(0)
+    library_id: str = Field(
+        "", description="The library entry the figures were started from, if any"
+    )
     people_covered: int = 0
     other_annual_cost: Decimal = Decimal(0)
     years: int = Field(..., description="How many years to look ahead")
@@ -942,7 +951,7 @@ def appraise_intervention(body: AppraisalRequest, ctx: Ctx = Depends(get_ctx)) -
         "caption": _caption(ctx),
         "note": APPRAISAL_NOTE,
         "mode": body.mode,
-        **result.as_dict(),
+        **_appraisal_view(result),
     }
 
 
@@ -955,7 +964,7 @@ def _unit_of(body: AppraisalRequest) -> dict:
 
 
 def _proposal_of(body: AppraisalRequest) -> Intervention:
-    return Intervention(
+    proposal = Intervention(
         name=body.name,
         one_time_cost=body.one_time_cost,
         annual_cost_per_person=body.annual_cost_per_person,
@@ -966,7 +975,37 @@ def _proposal_of(body: AppraisalRequest) -> Intervention:
         reduction_expected=body.reduction_expected,
         reduction_high=body.reduction_high,
         basis=body.basis,
+        one_time_cost_per_person=body.one_time_cost_per_person,
     )
+    # Which figures still stand as the library gave them is read off the figures, here,
+    # and never taken from the caller: changing one to the client's own unmarks it, and
+    # nothing a caller sends can unmark a figure that was not changed.
+    library = load_library()
+    fields = fields_from_library(proposal, body.library_id, library)
+    if not fields:
+        return proposal
+    return dataclasses.replace(proposal, library_id=body.library_id, library_fields=fields)
+
+
+def _appraisal_view(result: Appraisal) -> dict:
+    """An appraisal as it is shown, with what must be said about any placeholder in it."""
+    return {
+        **result.as_dict(),
+        "placeholder_note": placeholder_note(result.intervention, load_library()),
+    }
+
+
+@router.get("/interventions/library", tags=["interventions"])
+def intervention_library(ctx: Ctx = Depends(get_ctx)) -> dict:
+    """Starting figures for common interventions, to begin an appraisal from. Each says
+    which of its figures the owner has not yet reviewed: until he has, they are
+    placeholders. See `wri_engine.interventions.library`."""
+    _guard(ctx, Capability.VIEW_RECORDS, "/interventions/library")
+    entries = [entry.as_dict() for entry in load_library().values()]
+    return {
+        "entries": entries,
+        "unreviewed": sum(len(entry["unreviewed"]) for entry in entries),
+    }
 
 
 class KeepRequest(AppraisalRequest):
@@ -1014,8 +1053,13 @@ def _kept_view(kept: KeptAppraisal, run, with_money: bool = True) -> dict:
     if baseline is None or not with_money:
         # A corrected file can leave a unit with no actions. The finding stands; there is
         # nothing to set the intervention against.
-        return {**view, "appraisal": None, "intervention": kept.intervention.as_dict()}
-    return {**view, "appraisal": appraise(baseline, kept.intervention).as_dict()}
+        return {
+            **view,
+            "appraisal": None,
+            "intervention": kept.intervention.as_dict(),
+            "placeholder_note": placeholder_note(kept.intervention, load_library()),
+        }
+    return {**view, "appraisal": _appraisal_view(appraise(baseline, kept.intervention))}
 
 
 @router.get("/interventions/causes", tags=["interventions"])

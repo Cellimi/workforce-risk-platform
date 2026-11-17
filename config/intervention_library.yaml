@@ -1,0 +1,196 @@
+# Intervention library -- WRI Phase 3.
+#
+# Starting figures for the interventions the owner's program overview names. A consultant
+# may start an appraisal from one of these on the Interventions page, then change any
+# figure to the client's own. Nothing here is used unless a person chooses it.
+#
+# EVERY VALUE BELOW IS A PLACEHOLDER. On 2026-11-16 the owner asked the build to "go with
+# your placeholder assumptions" and said he will research them himself. None is researched
+# and none is sourced: each is a round figure chosen only so the arithmetic can be tried.
+# Each is TBD-MIKE until he has researched, cited and reviewed it (CLAUDE.md rule 7), and
+# while any figure an appraisal started from is TBD-MIKE, the screen and the client report
+# say so beside it.
+#
+# The shape of an entry is the cost registry's, and the rules are the same: fetched by id,
+# a missing id is a hard error, and low <= value <= high. For the share of actions
+# prevented, low, value and high are the appraisal's low, expected and high readings.
+
+library:
+  - id: transit_subsidy
+    label: "Transit subsidy"
+    description: "A subsidy toward each covered employee's public transit to work."
+    answers: [commuting]
+    one_time_cost_per_person: intervention_transit_subsidy_one_time_cost_per_person
+    annual_cost_per_person: intervention_transit_subsidy_annual_cost_per_person
+    reduction: intervention_transit_subsidy_reduction
+  - id: childcare_subsidy
+    label: "Childcare subsidy"
+    description: "A subsidy toward childcare for each covered employee with children."
+    answers: [childcare]
+    one_time_cost_per_person: intervention_childcare_subsidy_one_time_cost_per_person
+    annual_cost_per_person: intervention_childcare_subsidy_annual_cost_per_person
+    reduction: intervention_childcare_subsidy_reduction
+  - id: targeted_training
+    label: "Targeted training"
+    description: "Training on what people in the unit are being disciplined for, with a yearly refresher."
+    answers: [training]
+    one_time_cost_per_person: intervention_targeted_training_one_time_cost_per_person
+    annual_cost_per_person: intervention_targeted_training_annual_cost_per_person
+    reduction: intervention_targeted_training_reduction
+  - id: flexible_hours
+    label: "Flexible start and end times"
+    description: "Letting covered employees vary their start and end times within set limits."
+    answers: [scheduling]
+    one_time_cost_per_person: intervention_flexible_hours_one_time_cost_per_person
+    annual_cost_per_person: intervention_flexible_hours_annual_cost_per_person
+    reduction: intervention_flexible_hours_reduction
+
+assumptions:
+# ---------------------------------------------------------------- transit subsidy
+- id: intervention_transit_subsidy_one_time_cost_per_person
+  value: 0
+  low: 0
+  high: 50
+  unit: USD per person covered
+  applies_to: {intervention: transit_subsidy}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Setting up the subsidy for one person, if there is a cost to it.
+- id: intervention_transit_subsidy_annual_cost_per_person
+  value: 1200
+  low: 600
+  high: 2400
+  unit: USD per person covered per year
+  applies_to: {intervention: transit_subsidy}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: What the employer pays toward one person's transit in a year.
+- id: intervention_transit_subsidy_reduction
+  value: 0.15
+  low: 0.05
+  high: 0.30
+  unit: share of the unit's actions prevented
+  applies_to: {intervention: transit_subsidy}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Low, expected and high share of the unit's actions of that type the subsidy prevents. No evidence stands behind these figures yet.
+# ---------------------------------------------------------------- childcare subsidy
+- id: intervention_childcare_subsidy_one_time_cost_per_person
+  value: 0
+  low: 0
+  high: 200
+  unit: USD per person covered
+  applies_to: {intervention: childcare_subsidy}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Setting up the subsidy for one person, if there is a cost to it.
+- id: intervention_childcare_subsidy_annual_cost_per_person
+  value: 3000
+  low: 1500
+  high: 6000
+  unit: USD per person covered per year
+  applies_to: {intervention: childcare_subsidy}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: What the employer pays toward one person's childcare in a year.
+- id: intervention_childcare_subsidy_reduction
+  value: 0.15
+  low: 0.05
+  high: 0.30
+  unit: share of the unit's actions prevented
+  applies_to: {intervention: childcare_subsidy}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Low, expected and high share of the unit's actions of that type the subsidy prevents. No evidence stands behind these figures yet.
+# ---------------------------------------------------------------- targeted training
+- id: intervention_targeted_training_one_time_cost_per_person
+  value: 400
+  low: 200
+  high: 800
+  unit: USD per person covered
+  applies_to: {intervention: targeted_training}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Training one person once, including the time they spend in it.
+- id: intervention_targeted_training_annual_cost_per_person
+  value: 100
+  low: 0
+  high: 300
+  unit: USD per person covered per year
+  applies_to: {intervention: targeted_training}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: A yearly refresher for one person.
+- id: intervention_targeted_training_reduction
+  value: 0.20
+  low: 0.10
+  high: 0.35
+  unit: share of the unit's actions prevented
+  applies_to: {intervention: targeted_training}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Low, expected and high share of the unit's actions of that type the training prevents. No evidence stands behind these figures yet.
+# ---------------------------------------------------------------- flexible start and end times
+- id: intervention_flexible_hours_one_time_cost_per_person
+  value: 50
+  low: 0
+  high: 150
+  unit: USD per person covered
+  applies_to: {intervention: flexible_hours}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Setting up one person's schedule and the rules around it.
+- id: intervention_flexible_hours_annual_cost_per_person
+  value: 0
+  low: 0
+  high: 100
+  unit: USD per person covered per year
+  applies_to: {intervention: flexible_hours}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Any yearly cost of running flexible hours for one person, such as extra cover.
+- id: intervention_flexible_hours_reduction
+  value: 0.15
+  low: 0.05
+  high: 0.30
+  unit: share of the unit's actions prevented
+  applies_to: {intervention: flexible_hours}
+  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  confidence: low
+  owner: Michael V. Celli
+  status: TBD-MIKE
+  last_reviewed: '2026-11-16'
+  notes: Low, expected and high share of the unit's actions of that type flexible hours prevent. No evidence stands behind these figures yet.

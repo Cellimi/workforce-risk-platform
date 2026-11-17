@@ -184,6 +184,9 @@ class KeptAppraisal:
                 "reduction_expected": str(i.reduction_expected),
                 "reduction_high": str(i.reduction_high),
                 "basis": i.basis,
+                "one_time_cost_per_person": str(i.one_time_cost_per_person),
+                "library_id": i.library_id,
+                "library_fields": list(i.library_fields),
             },
         }
 
@@ -210,6 +213,10 @@ class KeptAppraisal:
                 reduction_expected=Decimal(i["reduction_expected"]),
                 reduction_high=Decimal(i["reduction_high"]),
                 basis=i["basis"],
+                # Lines written before the library existed carry none of these.
+                one_time_cost_per_person=Decimal(i.get("one_time_cost_per_person", "0")),
+                library_id=i.get("library_id", ""),
+                library_fields=tuple(i.get("library_fields", ())),
             ),
         )
 
