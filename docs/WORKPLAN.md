@@ -32,6 +32,12 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 5. **Ask the owner** before anything that cannot be undone, anything that changes a published
    figure's meaning, and any new or changed assumption value. Research values with citations
    and mark them `researched`, never `confirmed`, until the owner has reviewed them.
+6. **Research is done in the chat session and kept in Google Drive** (the owner's
+   arrangement, 2026-11-17). When a build needs researched figures, the Claude Code session
+   says what is needed and the owner has the chat session research it and save the result
+   as a Google Doc. The Claude Code session then reads it through the Google Drive connector
+   and records the figures with their citations, as `researched`. Links to the owner's
+   Drive are not copied into this public repository: cite the published sources themselves.
 
 | Item | Claimed by | Status |
 |---|---|---|
@@ -59,7 +65,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 3, step 4: several interventions for one unit, side by side | Claude Code session | Done, PR #28 |
 | Phase 2, step 4: rising units in the client report | Claude Code session | Done, PR #29 |
 | Show as much of a finding as can safely be shown | Claude Code session | Done, PR #30 |
-| Phase 3, step 5: a library of starting figures for common interventions (placeholders) | Claude Code session | Done, `claude/intervention-library` (built on PR #30) |
+| Phase 3, step 5: a library of starting figures for common interventions (placeholders) | Claude Code session | Done, PR #31 |
+| Phase 3, step 6: the owner's research in the library; interventions aimed at chosen types of misconduct | Claude Code session | Done, `claude/library-research` |
 
 ## Where things stand
 
@@ -403,22 +410,8 @@ placeholder assumptions".
 `GET /interventions/library`, and **Start from the library** on the Interventions page.
 `Intervention` gains a one-time cost per person.
 
-**The twelve figures awaiting the owner's research.** None is researched, none has a
-source, and each was chosen only so that the arithmetic can be tried. The checklist is
-`LIBRARY_AWAITING_OWNER_RESEARCH` in `tests/test_intervention_library.py`.
-
-| Intervention | One-time, per person | Yearly, per person | Actions prevented: low, expected, high |
-|---|---|---|---|
-| Transit subsidy | $0 | $1,200 | 5%, 15%, 30% |
-| Childcare subsidy | $0 | $3,000 | 5%, 15%, 30% |
-| Targeted training | $400 | $100 | 10%, 20%, 35% |
-| Flexible start and end times | $50 | $0 | 5%, 15%, 30% |
-
-**To record his research**, for each figure in `config/intervention_library.yaml`: set
-`value`, `low` and `high`; put the citation in `source`; set `confidence`; set `status` to
-`researched` (or `confirmed` once he has reviewed it) and `last_reviewed`; then delete its
-id from `LIBRARY_AWAITING_OWNER_RESEARCH`. Rule 5 above still holds: research with a
-citation, and `researched` is not `confirmed` until he says so.
+**The twelve figures as they stood on 2026-11-16** were all placeholders. Step 6 below
+records the owner's research.
 
 **Decisions taken in the build, for the owner:**
 
@@ -432,14 +425,58 @@ citation, and `researched` is not `confirmed` until he says so.
 | The shares' meaning | An assumption's low, value and high are the appraisal's low, expected and high | One entry, one source, three readings |
 | Which interventions | The four the program overview names | Lengthen the file to add more |
 
+### Step 6, built: the owner's research in the library, and interventions aimed at chosen types
+
+**The owner's research, 2026-11-17**, in a Google Doc made by the chat session ("WRI
+Intervention Library: Researched Figures"). It set values, ranges and citations, and found
+one issue to fix first: for three of the four interventions the evidence measured absences
+and lateness, not discipline.
+
+| Intervention | One-time, per person | Yearly, per person | Actions prevented: low, expected, high |
+|---|---|---|---|
+| Transit subsidy | $0 *placeholder* | $1,200 *placeholder* (range to $4,080, the 2026 tax-free limit) | 2%, 8%, 15% *researched* |
+| Childcare subsidy | $0 *placeholder* | $3,000 *researched* ($2,400 to $6,000) | 5%, 15%, 30% *researched* |
+| Targeted training | $400 *placeholder* ($330 to $660 derived) | $165 *researched* | 0%, 15%, 25% *researched* |
+| Flexible start and end times | $50 *placeholder* | $0 *placeholder* | 0%, 20%, 25% *researched* |
+
+**Recorded as `researched`, not `confirmed`.** The owner's document lists six figures "to
+mark reviewed". Setting them `confirmed` was refused in this session: CLAUDE.md says a
+session never marks a library figure reviewed itself. They await his confirmation in his own
+words. The checklists are `RESEARCHED_AWAITING_CONFIRMATION` and `PLACEHOLDERS` in
+`tests/test_intervention_library.py`.
+
+**One figure for the owner to settle.** The training one-time cost per person ($400, range
+$330 to $660 derived from ATD's cost per learning hour) is listed in his document both "to
+mark reviewed" and among "all four one-time costs" to keep as placeholders; the count in its
+first paragraph (six sourced, six not) agrees with the second. It is kept a placeholder.
+
+**The fix his research asked for first.** `Intervention.targets`: the types of misconduct an
+intervention is aimed at. X is then the cost of the unit's actions of those types alone
+(`UnitBaseline.aimed`). The transit, childcare and flexible-hours entries are aimed at
+Attendance / AWOL and Tardiness (`aims_at`); training at every type. Kept but aimed wider
+than its evidence, a library share says so. In the client's copy, the aimed-at group must
+pass the small-group rules as well as the unit; if not, the money is withheld and the
+finding stays. Appraisals kept before this read as aimed at every type, as they were.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| Which way to follow his recommendation | Count only the aimed-at actions (his first option), rather than scale the share by the attendance share of actions (his second) | Exact rather than an average: a unit's attendance actions may cost more or less than its others |
+| Time & Attendance falsification | Not among what the three are aimed at | It is dishonesty about time, not absence or lateness; the studies did not measure it |
+| Childcare "people covered" | The entry says to count only parents | His note: the 15% holds for attendance actions among parents only |
+| Training | Aimed at every type; its description says in-person only | His note: the evidence holds for in-person training only |
+
 ### Not built, in the order proposed
 
-1. **Researching the library's twelve figures.** The owner's, in his own time.
-2. **Checking afterwards whether it worked**: the unit's rate after an intervention began
+1. **The owner's confirmation of the six researched figures**, and his ruling on the
+   training one-time cost. His, in his own words.
+2. **The six placeholder costs.** No published benchmark; a client's own figures replace them.
+3. **Checking afterwards whether it worked**: the unit's rate after an intervention began
    against before. Drift already has the arithmetic. **Not to be built for now: the owner
    said on 2026-11-17 "I dont need to build the intervention piece at this time".** Do not
    start it until he asks.
-3. **Interventions used together.** What two would save in combination is not the sum,
+4. **Interventions used together.** What two would save in combination is not the sum,
    and nothing here estimates it.
 
 ## Single sign-on

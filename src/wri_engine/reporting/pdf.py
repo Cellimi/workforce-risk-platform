@@ -588,6 +588,13 @@ def _interventions(content: ReportContent, styles) -> list:
                 styles["body"],
             ),
         ]
+        if row.aimed_at:
+            story.append(
+                Paragraph(
+                    _text(f"Aimed at {row.aimed_at}. The figures below count those actions only."),
+                    styles["body"],
+                )
+            )
         if row.annual_net is None:
             story.append(
                 Paragraph(
@@ -603,7 +610,9 @@ def _interventions(content: ReportContent, styles) -> list:
                 Spacer(1, 3),
                 _table(
                     [
-                        "The discipline costs, a year",
+                        "The discipline it is aimed at costs, a year"
+                        if row.aimed_at
+                        else "The discipline costs, a year",
                         f"The intervention costs, {row.years} years",
                         *(
                             f"Net saving if it prevents {_share(s.reduction)} ({s.label.lower()})"

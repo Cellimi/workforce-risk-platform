@@ -480,6 +480,9 @@ class InterventionRow:
     #: What must be said when a figure is the product's unreviewed placeholder and not the
     #: client's own. Empty when none is. Carried in every copy, the client's included.
     placeholder_note: str = ""
+    #: The types of misconduct it is aimed at, by label. Empty: every type. When set, the
+    #: yearly cost above and every saving are for those actions only.
+    aimed_at: str = ""
     #: The working papers only.
     withdrawn_by: str = ""
     withdrawn_on: str = ""
@@ -914,7 +917,11 @@ def _intervention_row(entry: dict, working: bool) -> InterventionRow:
         years=proposal["years"],
         total_cost=_money(proposal["total_cost"]),
         cost_formula=proposal["cost_formula"],
-        annual_net=_money(appraisal["unit"]["annual_net"]) if appraisal else None,
+        annual_net=(
+            _money((appraisal.get("aimed_at") or appraisal["unit"])["annual_net"])
+            if appraisal
+            else None
+        ),
         baseline_formula=appraisal["unit"]["formula"] if appraisal else "",
         savings=tuple(
             SavingRow(
@@ -927,6 +934,7 @@ def _intervention_row(entry: dict, working: bool) -> InterventionRow:
         ),
         break_even_note=appraisal["break_even_note"] if appraisal else "",
         placeholder_note=(appraisal or entry).get("placeholder_note", ""),
+        aimed_at=entry.get("aimed_at_label", ""),
         withdrawn_by=entry.get("withdrawn_by", "") if working else "",
         withdrawn_on=entry.get("withdrawn_at", "")[:10] if working else "",
     )

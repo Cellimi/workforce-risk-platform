@@ -187,6 +187,7 @@ class KeptAppraisal:
                 "one_time_cost_per_person": str(i.one_time_cost_per_person),
                 "library_id": i.library_id,
                 "library_fields": list(i.library_fields),
+                "targets": list(i.targets),
             },
         }
 
@@ -217,6 +218,7 @@ class KeptAppraisal:
                 one_time_cost_per_person=Decimal(i.get("one_time_cost_per_person", "0")),
                 library_id=i.get("library_id", ""),
                 library_fields=tuple(i.get("library_fields", ())),
+                targets=tuple(i.get("targets", ())),
             ),
         )
 

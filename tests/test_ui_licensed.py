@@ -1088,9 +1088,9 @@ def test_the_interventions_page_sets_a_proposal_against_what_discipline_costs(tm
 
 
 def test_starting_from_the_library_fills_the_form_and_marks_the_placeholders(tmp_path):
-    """Choosing a library entry fills in its starting figures and warns that they are
-    placeholders. The result says which figures are still placeholders, and changing one
-    to the client's own takes that figure out of the warning."""
+    """Choosing a library entry fills in its starting figures and what it is aimed at, and
+    says which figures are placeholders and which are researched but unconfirmed. The
+    result says the same, and changing a figure to the client's own takes it out."""
     from wri_engine.api.state import STATE
     from wri_engine.paths import SYNTHETIC_DIR
 
@@ -1117,23 +1117,27 @@ def test_starting_from_the_library_fills_the_form_and_marks_the_placeholders(tmp
             "Targeted training",
             "Flexible start and end times",
         ]
-        entry.set_value("Targeted training")
+        entry.set_value("Transit subsidy")
         at.run()
         told = " ".join(w.value for w in at.warning)
-        assert "Every one of these figures is a placeholder" in told
+        assert (
+            "The one-time cost per person and the yearly cost per person are placeholders" in told
+        )
+        assert "The share of actions prevented is researched and sourced" in told
+        assert "Aimed at attendance and tardiness actions only" in texts(at)
         assert "It is not a suggestion of what is causing anything." in texts(at)
 
         labelled(at.button, "Fill in its starting figures").click()
         at.run()
         assert not at.exception, at.exception
-        assert at.text_input(key="iv_name").value == "Targeted training"
-        assert at.number_input(key="iv_once_each").value == 400.0
-        assert at.number_input(key="iv_each").value == 100.0
+        assert at.text_input(key="iv_name").value == "Transit subsidy"
+        assert at.number_input(key="iv_each").value == 1200.0
         assert [at.number_input(key=k).value for k in ("iv_low", "iv_exp", "iv_high")] == [
-            10.0,
-            20.0,
-            35.0,
+            2.0,
+            8.0,
+            15.0,
         ]
+        assert at.multiselect(key="iv_aims").value == ["Attendance / AWOL", "Tardiness"]
         # The basis is never filled in: it is the consultant's to give.
         assert at.text_area(key="iv_basis").value == ""
 
@@ -1143,22 +1147,22 @@ def test_starting_from_the_library_fills_the_form_and_marks_the_placeholders(tmp
         labelled(at.button, "Work it out").click()
         at.run()
         assert not at.exception, at.exception
-        # 400 x 20 once, and 100 x 20 a year for two years.
-        assert metric(at, "The intervention costs, over 2 years") == "$12,000"
+        # 1,200 x 20 a year for two years.
+        assert metric(at, "The intervention costs, over 2 years") == "$48,000"
+        assert metric(at, "The discipline it is aimed at costs, a year").startswith("$")
+        assert "Aimed at Attendance / AWOL and Tardiness" in texts(at)
         told = " ".join(w.value for w in at.warning)
-        assert (
-            "Placeholder figures: The one-time cost per person, the yearly cost per person" in told
-        )
-        assert "not this client's own" in told
+        assert "Placeholder figures: The one-time cost per person and the yearly cost" in told
+        assert "Researched figures: The share of actions prevented is" in told
 
         # The client's own yearly cost: that figure leaves the warning, the others stay.
-        at.number_input(key="iv_each").set_value(85.0)
+        at.number_input(key="iv_each").set_value(900.0)
         labelled(at.button, "Work it out").click()
         at.run()
         assert not at.exception, at.exception
-        told = " ".join(w.value for w in at.warning)
-        assert "Placeholder figures: The one-time cost per person and the share of" in told
-        assert "the yearly cost per person" not in told
+        (result,) = [w.value for w in at.warning if w.value.startswith("Placeholder figures")]
+        assert result.startswith("Placeholder figures: The one-time cost per person is")
+        assert "the yearly cost per person" not in result
     finally:
         srv.should_exit = True
         thread.join(timeout=5)

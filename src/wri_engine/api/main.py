@@ -111,6 +111,7 @@ from wri_engine.interventions.library import (
     load_library,
     placeholder_note,
 )
+from wri_engine.orgconfig import default_org_config
 from wri_engine.paths import SYNTHETIC_DIR
 from wri_engine.reporting import (
     Branding,
@@ -905,6 +906,10 @@ class AppraisalRequest(BaseModel):
     library_id: str = Field(
         "", description="The library entry the figures were started from, if any"
     )
+    targets: list[str] = Field(
+        default_factory=list,
+        description="Types of misconduct it is aimed at. Empty: every type the unit has",
+    )
     people_covered: int = 0
     other_annual_cost: Decimal = Decimal(0)
     years: int = Field(..., description="How many years to look ahead")
@@ -943,8 +948,12 @@ def appraise_intervention(body: AppraisalRequest, ctx: Ctx = Depends(get_ctx)) -
     )
     if baseline is None:
         raise HTTPException(404, "the records show no discipline action for that unit")
+    proposal = _proposal_of(body)
+    problems = proposal.problems() + _aim_problems(state, body.targets)
+    if problems:
+        raise HTTPException(422, {"problems": problems})
     try:
-        result = appraise(baseline, _proposal_of(body))
+        result = appraise(baseline, proposal)
     except InvalidIntervention as exc:
         raise HTTPException(422, {"problems": exc.problems}) from None
     return {
@@ -976,6 +985,7 @@ def _proposal_of(body: AppraisalRequest) -> Intervention:
         reduction_high=body.reduction_high,
         basis=body.basis,
         one_time_cost_per_person=body.one_time_cost_per_person,
+        targets=tuple(dict.fromkeys(body.targets)),
     )
     # Which figures still stand as the library gave them is read off the figures, here,
     # and never taken from the caller: changing one to the client's own unmarks it, and
@@ -985,6 +995,19 @@ def _proposal_of(body: AppraisalRequest) -> Intervention:
     if not fields:
         return proposal
     return dataclasses.replace(proposal, library_id=body.library_id, library_fields=fields)
+
+
+def _misconduct_types(state) -> list[dict]:
+    """The types of misconduct an intervention may be aimed at: the engagement's own list."""
+    return [{"id": c.id, "label": c.label} for c in state.org.misconduct_categories.values()]
+
+
+def _aim_problems(state, targets: list[str]) -> list[str]:
+    known = {c["id"] for c in _misconduct_types(state)}
+    unknown = sorted(set(targets) - known)
+    if unknown:
+        return [f"{', '.join(unknown)} is not a type of misconduct in this engagement"]
+    return []
 
 
 def _appraisal_view(result: Appraisal) -> dict:
@@ -1001,10 +1024,19 @@ def intervention_library(ctx: Ctx = Depends(get_ctx)) -> dict:
     which of its figures the owner has not yet reviewed: until he has, they are
     placeholders. See `wri_engine.interventions.library`."""
     _guard(ctx, Capability.VIEW_RECORDS, "/interventions/library")
-    entries = [entry.as_dict() for entry in load_library().values()]
+    ctx.state.ensure_loaded()
+    types = _misconduct_types(ctx.state)
+    labels = {t["id"]: t["label"] for t in types}
+    entries = [
+        {**entry.as_dict(), "aims_at_labels": [labels.get(t, t) for t in entry.aims_at]}
+        for entry in load_library().values()
+    ]
     return {
         "entries": entries,
         "unreviewed": sum(len(entry["unreviewed"]) for entry in entries),
+        "placeholders": sum(len(entry["placeholder_fields"]) for entry in entries),
+        # What an intervention may be aimed at: chosen on the form, filled in from an entry.
+        "misconduct_types": types,
     }
 
 
@@ -1029,6 +1061,15 @@ def _entered_by(ctx: Ctx) -> str:
     return f"{ctx.user.name} ({ctx.user.email})" if ctx.user.name else ctx.user.email
 
 
+def _aim_label(targets: tuple[str, ...]) -> str:
+    """The types an intervention is aimed at, by label. Empty when aimed at every type."""
+    labels = {c.id: c.label for c in default_org_config().misconduct_categories.values()}
+    names = [labels.get(t, t) for t in targets]
+    if not names:
+        return ""
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
 def _kept_view(kept: KeptAppraisal, run, with_money: bool = True) -> dict:
     """A kept appraisal as it is shown: the finding as entered, and the saving as the cost
     baseline now gives it. `with_money=False` leaves out everything that rests on what the
@@ -1039,6 +1080,7 @@ def _kept_view(kept: KeptAppraisal, run, with_money: bool = True) -> dict:
         "role_family": kept.row,
         "work_location": kept.col,
         "misconduct_category": kept.topic,
+        "aimed_at_label": _aim_label(kept.intervention.targets),
         "finding": {
             "causes": [
                 {"id": c, "label": allowed.get(c).label if allowed.get(c) else c}
@@ -1128,7 +1170,11 @@ def keep_intervention(body: KeepRequest, ctx: Ctx = Depends(get_ctx)) -> dict:
     if baseline is None:
         raise HTTPException(404, "the records show no discipline action for that unit")
     proposal = _proposal_of(body)
-    problems = proposal.problems() + finding_problems(body.causes, body.other_cause, load_causes())
+    problems = (
+        proposal.problems()
+        + _aim_problems(state, body.targets)
+        + finding_problems(body.causes, body.other_cause, load_causes())
+    )
     if problems:
         _audit(ctx, "/interventions", outcome="refused", detail=_unit_of(body))
         raise HTTPException(422, {"problems": problems})
@@ -1525,7 +1571,12 @@ def _report_interventions(ctx: Ctx, run, records: bool) -> InterventionSection |
         elif baseline is None or baseline.people < minimum:
             not_shown += 1
         else:
-            releasable = release_together(ctx.ledger(), [baseline.cohort], minimum)
+            # The unit's cost, and the cost of the part of it the intervention is aimed at:
+            # both are figures about groups of people, and both must pass.
+            groups = [baseline.cohort]
+            if kept.intervention.targets:
+                groups.append(baseline.aimed(kept.intervention.targets)[2])
+            releasable = release_together(ctx.ledger(), groups, minimum)
             entries.append({**_kept_view(kept, run, with_money=releasable), **extra})
             if releasable:
                 with_money.append(kept)

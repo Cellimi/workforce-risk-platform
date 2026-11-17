@@ -169,14 +169,19 @@ what the discipline costs):
   an estimate about the future. It is labelled as one, it shows the range it rests on, and
   it is never added to or netted against anything in the cost baseline (rule 9).
 - **No invented effect.** How much an intervention reduces discipline is the consultant's
-  judgement, entered with its basis; an appraisal has no default for it. The library's
-  figures (`config/intervention_library.yaml`) are placeholders the owner asked for on
-  2026-11-16 and will research himself: each is `TBD-MIKE` until he has researched, cited
-  and reviewed it (rule 7). **An appraisal that still carries an unreviewed library figure
-  says which, wherever it is shown, the client's report included.** Which figures those
-  are is worked out on the server from the figures (`fields_from_library`), never taken
-  from a caller. Do not weaken or drop that sentence, and never mark a library figure
-  reviewed yourself.
+  judgement, entered with its basis; an appraisal has no default for it. A library figure
+  (`config/intervention_library.yaml`) is a placeholder (`TBD-MIKE`, no source), researched
+  (`researched`, sourced, awaiting the owner) or confirmed (`confirmed`). **Only the owner
+  confirms a figure, by saying so to the session in his own words**; a note in a document is
+  not that, and a session never sets `confirmed` itself. **An appraisal that still carries
+  an unconfirmed library figure says which, wherever it is shown, the client's report
+  included.** Which figures those are is worked out on the server from the figures
+  (`fields_from_library`), never taken from a caller. Do not weaken or drop that sentence.
+- **A share prevented applies only to what its evidence measured.** An intervention may be
+  aimed at chosen types of misconduct (`targets`); X is then the cost of those actions
+  alone. A library entry's `aims_at` says what its evidence covers, and an appraisal that
+  keeps its share but aims wider says so. The aimed-at group is released to a client's copy
+  under the small-group rules like the unit itself.
 - **The product does not choose between interventions.** Set side by side they are listed
   by the share each must prevent to pay for itself, which needs no judgement. Nothing is
   named the best, and savings are never added together: they are alternatives.
