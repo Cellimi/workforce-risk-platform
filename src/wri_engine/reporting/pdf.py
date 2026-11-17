@@ -625,6 +625,8 @@ def _interventions(content: ReportContent, styles) -> list:
                 Paragraph(_text(row.break_even_note), styles["small"]),
             ]
         story.append(Paragraph(_text(f"Based on: {row.basis}"), styles["small"]))
+        if row.placeholder_note:
+            story.append(Paragraph(f"<b>{_text(row.placeholder_note)}</b>", styles["small"]))
     for table in section.side_by_side:
         story += [
             Spacer(1, 8),

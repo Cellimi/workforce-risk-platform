@@ -477,6 +477,9 @@ class InterventionRow:
     baseline_formula: str
     savings: tuple[SavingRow, ...]
     break_even_note: str
+    #: What must be said when a figure is the product's unreviewed placeholder and not the
+    #: client's own. Empty when none is. Carried in every copy, the client's included.
+    placeholder_note: str = ""
     #: The working papers only.
     withdrawn_by: str = ""
     withdrawn_on: str = ""
@@ -923,6 +926,7 @@ def _intervention_row(entry: dict, working: bool) -> InterventionRow:
             for s in (appraisal["scenarios"] if appraisal else [])
         ),
         break_even_note=appraisal["break_even_note"] if appraisal else "",
+        placeholder_note=(appraisal or entry).get("placeholder_note", ""),
         withdrawn_by=entry.get("withdrawn_by", "") if working else "",
         withdrawn_on=entry.get("withdrawn_at", "")[:10] if working else "",
     )

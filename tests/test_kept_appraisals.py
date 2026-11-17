@@ -290,7 +290,7 @@ def test_a_finding_that_cannot_stand_is_refused_with_every_reason(client):
     assert refused.status_code == 422
     assert refused.json()["detail"]["problems"] == [
         "look ahead between 1 and 10 years",
-        "say what the shares of actions prevented are based on: this product has no figure "
+        "say what the shares of actions prevented are based on: this product has no evidence "
         "of its own for how well an intervention works",
         "say what the investigation found: choose at least one cause. An appraisal is kept "
         "as the record of a finding, and this product does not suggest one",

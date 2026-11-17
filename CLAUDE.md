@@ -73,7 +73,7 @@ which branch a pull request targets, and which session has claimed which item.
 
 | Path | What lives there |
 |---|---|
-| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `interventions.yaml` (the causes an investigation may record), `org_county.yaml` (departments, grades, taxonomies) |
+| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `interventions.yaml` (the causes an investigation may record), `intervention_library.yaml` (starting figures for common interventions: placeholders until the owner has researched them), `org_county.yaml` (departments, grades, taxonomies) |
 | `src/wri_engine/schema/` | Canonical Pydantic models. Source formats never appear here. |
 | `src/wri_engine/adapters/` | One module per source system. Each returns a `CanonicalDataset`. |
 | `src/wri_engine/generator/` | Synthetic data generator, emits *source-format* CSV |
@@ -84,7 +84,7 @@ which branch a pull request targets, and which session has claimed which item.
 | `src/wri_engine/reporting/` | Client deliverables. `content.py` says what a report holds; `pdf.py` and `xlsx.py` only lay it out. The client's copy is aggregates only: of the patterns it holds the flagged units only, and of a finding the cause labels only, never the words typed for "Other"; the record-level working papers are a separate, role-gated file |
 | `src/wri_engine/licensing/` | License keys (issue, verify), the usage-log chain, and the licensor's `wri-license` tool. What a key allows per request is decided in `api/licensing.py` |
 | `src/wri_engine/detection/` | Phase 2. `hotspots.py`: which units' discipline rate stands out from the same job elsewhere. `drift.py`: which are rising, and rising more than the rest of the organization. Exact statistics checkable by hand (`stats.py`). Settings in `config/detection.yaml` |
-| `src/wri_engine/interventions/` | Phase 3. `appraisal.py`: what an intervention would cost, set against what a unit's discipline costs in the baseline. The consultant supplies the costs and how well it works; the product supplies no effect size. `findings.py`: the appraisals kept with an engagement and the causes found on site, in the engagement's own folder. `comparison.py`: several kept for one unit, side by side on yearly terms |
+| `src/wri_engine/interventions/` | Phase 3. `appraisal.py`: what an intervention would cost, set against what a unit's discipline costs in the baseline. The consultant supplies the costs and how well it works. `library.py`: starting figures a consultant may fill the form from, and what is said beside an appraisal that still carries an unreviewed one. `findings.py`: the appraisals kept with an engagement and the causes found on site, in the engagement's own folder. `comparison.py`: several kept for one unit, side by side on yearly terms |
 | `src/wri_engine/sso/` | Single sign-on: the OpenID Connect client that starts a sign-in at the firm's identity provider and checks what comes back |
 | `src/wri_engine/api/` | FastAPI app |
 | `app/` | Streamlit UI (HTTP client only) |
@@ -137,9 +137,9 @@ What holds inside Phase 2:
   the cost matrix (`release_together` in `aggregation/suppression.py`). Where only the
   comparison fails, the unit's own figures are shown, the comparison's are marked withheld,
   and the finding says why; where the unit itself fails, the finding is withheld and
-  counted (the owner's "most transparent way", 2026-11-16). The list of units assessed and *not* flagged stays with roles that
-  see records, because it would hand over the small groups. See "Who sees what" in
-  `detection/hotspots.py` before changing any of this.
+  counted (the owner's "most transparent way", 2026-11-16). The list of units assessed and
+  *not* flagged stays with roles that see records, because it would hand over the small
+  groups. See "Who sees what" in `detection/hotspots.py` before changing any of this.
 - **The client report carries the flags, never the working.** `_report_patterns` in
   `api/main.py` builds the client's copy with `for_totals_reader` whoever is asking, because
   that file leaves the building, for hotspots and for rising units alike. Units assessed and
@@ -169,8 +169,14 @@ what the discipline costs):
   an estimate about the future. It is labelled as one, it shows the range it rests on, and
   it is never added to or netted against anything in the cost baseline (rule 9).
 - **No invented effect.** How much an intervention reduces discipline is the consultant's
-  judgement, entered with its basis. A default the product supplies must be researched,
-  cited and reviewed by the owner like any other assumption (rule 7).
+  judgement, entered with its basis; an appraisal has no default for it. The library's
+  figures (`config/intervention_library.yaml`) are placeholders the owner asked for on
+  2026-11-16 and will research himself: each is `TBD-MIKE` until he has researched, cited
+  and reviewed it (rule 7). **An appraisal that still carries an unreviewed library figure
+  says which, wherever it is shown, the client's report included.** Which figures those
+  are is worked out on the server from the figures (`fields_from_library`), never taken
+  from a caller. Do not weaken or drop that sentence, and never mark a library figure
+  reviewed yourself.
 - **The product does not choose between interventions.** Set side by side they are listed
   by the share each must prevent to pay for itself, which needs no judgement. Nothing is
   named the best, and savings are never added together: they are alternatives.

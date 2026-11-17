@@ -148,8 +148,10 @@ def test_where_discipline_has_no_net_cost_there_is_nothing_to_save():
 # ---------------------------------------------------------------------------
 # what may be entered
 # ---------------------------------------------------------------------------
-def test_the_product_supplies_no_figure_for_how_well_anything_works():
-    """The three shares have no default, and their basis has to be given in words."""
+def test_an_appraisal_has_no_default_for_how_well_anything_works():
+    """The three shares have no default, and their basis has to be given in words. The
+    only figures the product offers are the library's, which a person must choose and
+    which are marked as placeholders (see test_intervention_library.py)."""
     with pytest.raises(TypeError):
         Intervention(
             name="x",
@@ -163,7 +165,7 @@ def test_the_product_supplies_no_figure_for_how_well_anything_works():
     with pytest.raises(InvalidIntervention) as refused:
         appraise(baseline(), proposal(basis="   "))
     assert refused.value.problems == [
-        "say what the shares of actions prevented are based on: this product has no figure "
+        "say what the shares of actions prevented are based on: this product has no evidence "
         "of its own for how well an intervention works"
     ]
     # And none is written into the code: no percentage or share appears there as a number.
@@ -330,7 +332,7 @@ def test_what_cannot_be_appraised_is_refused_by_the_endpoint(client):
     assert refused.status_code == 422
     assert refused.json()["detail"]["problems"] == [
         "look ahead between 1 and 10 years",
-        "say what the shares of actions prevented are based on: this product has no figure "
+        "say what the shares of actions prevented are based on: this product has no evidence "
         "of its own for how well an intervention works",
     ]
     # No default for how well it works: leaving a share out is refused before any arithmetic.

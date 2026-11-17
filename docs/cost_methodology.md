@@ -1007,9 +1007,21 @@ summary's annual figure uses). Nothing about it is estimated here.
 
 **How well it works** is entered by the consultant three times, as the share of the unit's
 actions the intervention would prevent: low, expected and high, with the basis for those
-figures in words. The product supplies none of the three and has no default. It holds no
-evidence of its own on what any intervention achieves, and a figure it made up would be
-read as one.
+figures in words. An appraisal has no default for them, and the product holds no evidence
+of its own on what any intervention achieves.
+
+**The library.** `config/intervention_library.yaml` offers starting figures for four common
+interventions (a transit subsidy, a childcare subsidy, targeted training, flexible start
+and end times): a one-time cost per person, a yearly cost per person, and the three shares.
+A consultant may fill the form from one and change any figure. As of 2026-11-16 **every
+figure in the library is a placeholder**, proposed by the build at the owner's request and
+awaiting his research: none has a source. An appraisal that still carries a library figure
+the owner has not reviewed says which, wherever it is shown, the client's report included.
+
+With a one-time cost per person, Y becomes
+
+    Y = one-time cost + one-time cost per person x people covered
+        + (yearly cost per person x people covered + other yearly cost) x years
 
 **Z**, for each of the three:
 

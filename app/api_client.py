@@ -135,6 +135,10 @@ class EngineClient:
         body = {**unit, **proposal, "mode": mode}
         return self._request("POST", "/interventions/appraise", json=body).json()
 
+    def intervention_library(self) -> dict:
+        """Starting figures for common interventions. Placeholders until reviewed."""
+        return self._request("GET", "/interventions/library").json()
+
     def intervention_causes(self) -> dict:
         """The causes an investigation may record: a short fixed list, and "Other"."""
         return self._request("GET", "/interventions/causes").json()

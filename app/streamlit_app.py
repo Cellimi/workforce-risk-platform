@@ -927,6 +927,7 @@ def interventions_page(api: EngineClient) -> None:
     unit = dict(choices)[picked]
     allowed = api.intervention_causes()
     cause_ids = {c["label"]: c["id"] for c in allowed["causes"]}
+    _library_starter(api)
 
     with st.form("intervention"):
         name = st.text_input("What is proposed", key="iv_name")
@@ -936,6 +937,9 @@ def interventions_page(api: EngineClient) -> None:
             "Yearly cost per person covered ($)", min_value=0.0, step=10.0, key="iv_each"
         )
         people = three.number_input("People covered", min_value=0, step=1, key="iv_people")
+        once_each = st.number_input(
+            "One-time cost per person covered ($)", min_value=0.0, step=10.0, key="iv_once_each"
+        )
         four, five = st.columns(2)
         other = four.number_input(
             "Other yearly cost ($)", min_value=0.0, step=1000.0, key="iv_other"
@@ -945,7 +949,8 @@ def interventions_page(api: EngineClient) -> None:
         )
         st.markdown(
             "**How much of this discipline would it prevent?** Your judgement, three ways. "
-            "The product has no figure of its own for this."
+            "The product has no evidence of its own for this: a library entry's figures are "
+            "placeholders."
         )
         low, expected, high = st.columns(3)
         r_low = low.number_input("Low (%)", min_value=0.0, max_value=100.0, key="iv_low")
@@ -981,6 +986,8 @@ def interventions_page(api: EngineClient) -> None:
     proposal = {
         "name": name,
         "one_time_cost": str(one_time),
+        "one_time_cost_per_person": str(once_each),
+        "library_id": st.session_state.get("iv_library_id", ""),
         "annual_cost_per_person": str(per_person),
         "people_covered": int(people),
         "other_annual_cost": str(other),
@@ -1037,6 +1044,9 @@ def _kept_section(api: EngineClient) -> None:
                 f"The finding of {finding['entered_by']}, entered "
                 f"{finding['entered_at'][:10]}. Not found or checked by this product."
             )
+            placeholder = (appraisal or kept).get("placeholder_note")
+            if placeholder:
+                st.warning(placeholder)
             if appraisal:
                 expected = appraisal["scenarios"][1]
                 st.markdown(
@@ -1103,10 +1113,54 @@ def _break_even(row: dict) -> str:
     return f"{(Decimal(row['break_even']) * 100).normalize():f}% prevented"
 
 
+def _fill_from_library(entry: dict) -> None:
+    """Put a library entry's starting figures into the form. Runs before the page redraws,
+    which is the only moment a form's fields may be set."""
+    st.session_state["iv_library_id"] = entry["id"]
+    st.session_state["iv_name"] = entry["label"]
+    st.session_state["iv_once_each"] = float(entry["one_time_cost_per_person"])
+    st.session_state["iv_each"] = float(entry["annual_cost_per_person"])
+    st.session_state["iv_low"] = float(Decimal(entry["reduction_low"]) * 100)
+    st.session_state["iv_exp"] = float(Decimal(entry["reduction_expected"]) * 100)
+    st.session_state["iv_high"] = float(Decimal(entry["reduction_high"]) * 100)
+
+
+def _library_starter(api: EngineClient) -> None:
+    """Offer the library's starting figures. A convenience, and never a suggestion of what
+    is wrong in the unit or what to do about it."""
+    library = api.intervention_library()["entries"]
+    with st.expander("Start from the library (optional)"):
+        st.caption(
+            "Starting figures for common interventions. Choosing one fills in the form "
+            "below; change any figure to the client's own. It is not a suggestion of what is "
+            "causing anything."
+        )
+        by_label = {entry["label"]: entry for entry in library}
+        picked = st.selectbox("Library entry", list(by_label), key="iv_library_pick")
+        entry = by_label[picked]
+        st.markdown(
+            f"{entry['description']} One-time, per person: "
+            f"{money(entry['one_time_cost_per_person'])}. Yearly, per person: "
+            f"{money(entry['annual_cost_per_person'])}. Prevents: "
+            f"{Decimal(entry['reduction_low']) * 100:g}%, "
+            f"{Decimal(entry['reduction_expected']) * 100:g}% or "
+            f"{Decimal(entry['reduction_high']) * 100:g}% (low, expected, high)."
+        )
+        if entry["unreviewed"]:
+            st.warning(
+                "Every one of these figures is a placeholder: not yet researched, sourced or "
+                "reviewed. An appraisal that keeps any of them says so wherever it is shown, "
+                "the client's report included."
+            )
+        st.button("Fill in its starting figures", on_click=_fill_from_library, args=(entry,))
+
+
 def _show_appraisal(result: dict) -> None:
     unit, proposal = result["unit"], result["intervention"]
     expected = result["scenarios"][1]
     st.subheader(f"{proposal['name']}: {unit['name']}")
+    if result.get("placeholder_note"):
+        st.warning(result["placeholder_note"])
     one, two, three = st.columns(3)
     one.metric(
         "The discipline costs, a year",

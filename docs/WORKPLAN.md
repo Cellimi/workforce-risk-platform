@@ -58,7 +58,8 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 3, step 3: the cost-benefit in the client report | Claude Code session | Done, PR #27 |
 | Phase 3, step 4: several interventions for one unit, side by side | Claude Code session | Done, PR #28 |
 | Phase 2, step 4: rising units in the client report | Claude Code session | Done, PR #29 |
-| Show as much of a finding as can safely be shown | Claude Code session | Done, `claude/partial-release` |
+| Show as much of a finding as can safely be shown | Claude Code session | Done, PR #30 |
+| Phase 3, step 5: a library of starting figures for common interventions (placeholders) | Claude Code session | Done, `claude/intervention-library` (built on PR #30) |
 
 ## Where things stand
 
@@ -393,13 +394,51 @@ table on the Interventions page, and the same table in the report and the workbo
 | Adding savings | Never. The page and the report say they are alternatives | Two interventions aimed at the same actions do not prevent the sum of what each prevents alone |
 | In the client's copy | Only appraisals shown with their money are compared | A comparison gives each cost against the unit's, so it may carry no more than the entries do |
 
+### Step 5, built: a library of starting figures, all placeholders
+
+**The owner's instruction, 2026-11-16**: "i will do research later in chat, go with your
+placeholder assumptions".
+
+`config/intervention_library.yaml`, `src/wri_engine/interventions/library.py`,
+`GET /interventions/library`, and **Start from the library** on the Interventions page.
+`Intervention` gains a one-time cost per person.
+
+**The twelve figures awaiting the owner's research.** None is researched, none has a
+source, and each was chosen only so that the arithmetic can be tried. The checklist is
+`LIBRARY_AWAITING_OWNER_RESEARCH` in `tests/test_intervention_library.py`.
+
+| Intervention | One-time, per person | Yearly, per person | Actions prevented: low, expected, high |
+|---|---|---|---|
+| Transit subsidy | $0 | $1,200 | 5%, 15%, 30% |
+| Childcare subsidy | $0 | $3,000 | 5%, 15%, 30% |
+| Targeted training | $400 | $100 | 10%, 20%, 35% |
+| Flexible start and end times | $50 | $0 | 5%, 15%, 30% |
+
+**To record his research**, for each figure in `config/intervention_library.yaml`: set
+`value`, `low` and `high`; put the citation in `source`; set `confidence`; set `status` to
+`researched` (or `confirmed` once he has reviewed it) and `last_reviewed`; then delete its
+id from `LIBRARY_AWAITING_OWNER_RESEARCH`. Rule 5 above still holds: research with a
+citation, and `researched` is not `confirmed` until he says so.
+
+**Decisions taken in the build, for the owner:**
+
+| Decision | As built | Why |
+|---|---|---|
+| Is a library figure ever used on its own | No. A person picks an entry and fills the form from it | Nothing here should read as the product recommending anything |
+| What an appraisal says while it carries a placeholder | Which figures, in a sentence, on screen, in the kept list and in the client's report and workbook | A client must not be handed a placeholder as if it were a figure |
+| How a figure stops being marked | By being changed to the client's own. Worked out on the server from the figures | A caller cannot unmark a figure by saying so |
+| After his review | A reviewed figure, unchanged, needs no sentence. An appraisal still carrying the old value keeps it | The old value was never reviewed |
+| The basis | Never filled in | It is the consultant's to give, placeholder or not |
+| The shares' meaning | An assumption's low, value and high are the appraisal's low, expected and high | One entry, one source, three readings |
+| Which interventions | The four the program overview names | Lengthen the file to add more |
+
 ### Not built, in the order proposed
 
-1. **Typical costs and effects of common interventions** (transit, childcare, training,
-   flexible hours), researched and cited. Every such figure is an assumption: researched,
-   marked as such, and reviewed by the owner before any report uses it.
+1. **Researching the library's twelve figures.** The owner's, in his own time.
 2. **Checking afterwards whether it worked**: the unit's rate after an intervention began
-   against before. Drift already has the arithmetic.
+   against before. Drift already has the arithmetic. **Not to be built for now: the owner
+   said on 2026-11-17 "I dont need to build the intervention piece at this time".** Do not
+   start it until he asks.
 3. **Interventions used together.** What two would save in combination is not the sum,
    and nothing here estimates it.
 
