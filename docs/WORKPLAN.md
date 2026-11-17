@@ -66,7 +66,7 @@ Two sessions work on the engine: a chat session and a Claude Code session.
 | Phase 2, step 4: rising units in the client report | Claude Code session | Done, PR #29 |
 | Show as much of a finding as can safely be shown | Claude Code session | Done, PR #30 |
 | Phase 3, step 5: a library of starting figures for common interventions (placeholders) | Claude Code session | Done, PR #31 |
-| Phase 3, step 6: the owner's research in the library; interventions aimed at chosen types of misconduct | Claude Code session | Done, `claude/library-research` |
+| Phase 3, step 6: the owner's research in the library, confirmed by him; interventions aimed at chosen types of misconduct | Claude Code session | Done, `claude/library-research` |
 
 ## Where things stand
 
@@ -434,21 +434,20 @@ and lateness, not discipline.
 
 | Intervention | One-time, per person | Yearly, per person | Actions prevented: low, expected, high |
 |---|---|---|---|
-| Transit subsidy | $0 *placeholder* | $1,200 *placeholder* (range to $4,080, the 2026 tax-free limit) | 2%, 8%, 15% *researched* |
-| Childcare subsidy | $0 *placeholder* | $3,000 *researched* ($2,400 to $6,000) | 5%, 15%, 30% *researched* |
-| Targeted training | $400 *placeholder* ($330 to $660 derived) | $165 *researched* | 0%, 15%, 25% *researched* |
-| Flexible start and end times | $50 *placeholder* | $0 *placeholder* | 0%, 20%, 25% *researched* |
+| Transit subsidy | $0 *placeholder* | $1,200 *placeholder* (range to $4,080, the 2026 tax-free limit) | 2%, 8%, 15% *confirmed* |
+| Childcare subsidy | $0 *placeholder* | $3,000 *confirmed* ($2,400 to $6,000) | 5%, 15%, 30% *confirmed* |
+| Targeted training | $400 *confirmed* ($330 to $660) | $165 *confirmed* | 0%, 15%, 25% *confirmed* |
+| Flexible start and end times | $50 *placeholder* | $0 *placeholder* | 0%, 20%, 25% *confirmed* |
 
-**Recorded as `researched`, not `confirmed`.** The owner's document lists six figures "to
-mark reviewed". Setting them `confirmed` was refused in this session: CLAUDE.md says a
-session never marks a library figure reviewed itself. They await his confirmation in his own
-words. The checklists are `RESEARCHED_AWAITING_CONFIRMATION` and `PLACEHOLDERS` in
-`tests/test_intervention_library.py`.
-
-**One figure for the owner to settle.** The training one-time cost per person ($400, range
-$330 to $660 derived from ATD's cost per learning hour) is listed in his document both "to
-mark reviewed" and among "all four one-time costs" to keep as placeholders; the count in its
-first paragraph (six sourced, six not) agrees with the second. It is kept a placeholder.
+**Confirmed by the owner, 2026-11-17.** The research was first recorded as `researched`:
+setting the figures `confirmed` on the strength of his document alone was refused, since
+CLAUDE.md says a session never marks a library figure reviewed itself. He then confirmed
+them in his own words: "it's all reviewed". So the seven figures his document lists "to mark
+reviewed" are `confirmed`. That settles the training one-time cost per person ($400, range
+$330 to $660 derived from ATD's cost per learning hour), which his document listed both to
+mark reviewed and among the one-time costs to keep, as reviewed. The five costs his
+document says have no published benchmark keep their placeholder warning, as it says. The
+checklists are `CONFIRMED` and `PLACEHOLDERS` in `tests/test_intervention_library.py`.
 
 **The fix his research asked for first.** `Intervention.targets`: the types of misconduct an
 intervention is aimed at. X is then the cost of the unit's actions of those types alone
@@ -469,9 +468,9 @@ finding stays. Appraisals kept before this read as aimed at every type, as they 
 
 ### Not built, in the order proposed
 
-1. **The owner's confirmation of the six researched figures**, and his ruling on the
-   training one-time cost. His, in his own words.
-2. **The six placeholder costs.** No published benchmark; a client's own figures replace them.
+1. ~~**The owner's confirmation of the researched figures.**~~ Done 2026-11-17.
+2. **The five placeholder costs.** No published benchmark; a client's own figures replace
+   them. If the owner wants any of them treated as reviewed anyway, he says so.
 3. **Checking afterwards whether it worked**: the unit's rate after an intervention began
    against before. Drift already has the arithmetic. **Not to be built for now: the owner
    said on 2026-11-17 "I dont need to build the intervention piece at this time".** Do not

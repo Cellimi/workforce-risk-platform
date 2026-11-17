@@ -1,9 +1,9 @@
 """Phase 3: the library of starting figures for common interventions, and what an
 intervention is aimed at.
 
-On 2026-11-16 the owner asked for placeholders; on 2026-11-17 his research sourced six of
-the twelve figures. What is held here: that every figure is an assumption in a file and
-nowhere in the code; that none is confirmed until the owner confirms it; that an appraisal
+On 2026-11-16 the owner asked for placeholders; on 2026-11-17 his research sourced seven of
+the twelve figures and he confirmed them. What is held here: that every figure is an
+assumption in a file and nowhere in the code; that each has the standing he gave it; that an appraisal
 says, wherever it is shown, which of its figures are placeholders and which are researched
 but unconfirmed; that a library share of actions prevented is aimed at what its evidence
 measured, and says so when aimed wider; that an aimed intervention counts only the actions
@@ -48,21 +48,19 @@ def ids(entry: str, *figures: str) -> set[str]:
     return {f"intervention_{entry}_{figure}" for figure in figures}
 
 
-#: Costs with no published benchmark. They stay placeholders: a client's own figures should
-#: come from payroll or the benefits administrator.
+#: Costs with no published benchmark. They stay placeholders, as the owner's research said:
+#: a client's own figures should come from payroll or the benefits administrator.
 PLACEHOLDERS = (
     ids("transit_subsidy", "one_time_cost_per_person", "annual_cost_per_person")
     | ids("childcare_subsidy", "one_time_cost_per_person")
-    | ids("targeted_training", "one_time_cost_per_person")
     | ids("flexible_hours", "one_time_cost_per_person", "annual_cost_per_person")
 )
-#: Sourced by the owner's research of 2026-11-17 and awaiting his confirmation. This is the
-#: list to read and then delete from: when he confirms a figure, in his own words, its
-#: status becomes `confirmed` and it leaves this set.
-RESEARCHED_AWAITING_CONFIRMATION = (
+#: Sourced by the owner's research of 2026-11-17 and confirmed by him the same day, in his
+#: own words: "it's all reviewed".
+CONFIRMED = (
     ids("transit_subsidy", "reduction")
     | ids("childcare_subsidy", "annual_cost_per_person", "reduction")
-    | ids("targeted_training", "annual_cost_per_person", "reduction")
+    | ids("targeted_training", "one_time_cost_per_person", "annual_cost_per_person", "reduction")
     | ids("flexible_hours", "reduction")
 )
 
@@ -83,21 +81,17 @@ def test_each_figure_has_the_standing_the_owners_research_gave_it():
     assert len(figures) == 12
     standing = {
         status: {i for i, a in figures.items() if a["status"] == status}
-        for status in (
-            "TBD-MIKE",
-            "researched",
-            "confirmed",
-        )
+        for status in ("TBD-MIKE", "researched", "confirmed")
     }
     assert standing["TBD-MIKE"] == PLACEHOLDERS, "a placeholder changed standing"
-    assert standing["researched"] == RESEARCHED_AWAITING_CONFIRMATION, (
-        "a researched figure changed standing: update RESEARCHED_AWAITING_CONFIRMATION"
+    assert standing["confirmed"] == CONFIRMED, (
+        "a figure changed standing: only the owner confirms one, in his own words"
     )
-    assert standing["confirmed"] == set(), "only the owner confirms a library figure"
-    for i in RESEARCHED_AWAITING_CONFIRMATION:
+    assert standing["researched"] == set()
+    for i in CONFIRMED:
         source = figures[i]["source"]
         assert "Placeholder" not in source and re.search(r"\b(19|20)\d\d\b", source), i
-        assert "awaiting his confirmation" in source
+        assert "confirmed by him" in source, i
     for i in PLACEHOLDERS:
         assert "placeholder" in figures[i]["source"].lower(), i
         assert figures[i]["confidence"] == "low"
@@ -173,15 +167,20 @@ def test_a_missing_library_figure_is_an_error_not_a_default(tmp_path):
         load_library(tmp_path / "library.yaml")
 
 
-def test_the_library_says_which_figures_are_placeholders_and_which_researched():
-    assert LIBRARY["targeted_training"].placeholder_fields == ("one_time_cost_per_person",)
-    assert LIBRARY["targeted_training"].researched_fields == ("annual_cost_per_person", "reduction")
-    assert LIBRARY["targeted_training"].note == (
-        "The one-time cost per person is a placeholder: no published source. Replace it with "
-        "the client's own. The yearly cost per person and the share of actions prevented are "
-        "researched and sourced, not yet confirmed by the owner."
+def test_the_library_says_which_figures_are_placeholders():
+    assert LIBRARY["transit_subsidy"].placeholder_fields == (
+        "one_time_cost_per_person",
+        "annual_cost_per_person",
     )
-    assert LIBRARY["transit_subsidy"].researched_fields == ("reduction",)
+    assert LIBRARY["transit_subsidy"].researched_fields == ()
+    assert LIBRARY["transit_subsidy"].note == (
+        "The one-time cost per person and the yearly cost per person are placeholders: no "
+        "published source. Replace them with the client's own."
+    )
+    assert LIBRARY["childcare_subsidy"].placeholder_fields == ("one_time_cost_per_person",)
+    # Every training figure is confirmed: nothing to say.
+    assert LIBRARY["targeted_training"].unreviewed == ()
+    assert LIBRARY["targeted_training"].note == ""
 
 
 # ---------------------------------------------------------------------------
@@ -224,24 +223,40 @@ def test_a_figure_is_marked_while_it_stands_and_unmarked_by_changing_it():
     assert fields_from_library(from_library(), "transit_subsidy", LIBRARY) == ()
 
 
-def test_what_is_said_beside_an_appraisal_that_keeps_library_figures():
-    assert placeholder_note(marked(), LIBRARY) == (
-        "Placeholder figures: The one-time cost per person is the product's starting figure "
-        'for "Targeted training", with no published source and not reviewed, and not this '
-        "client's own. The client's own figures, from payroll or the benefits administrator, "
-        "should replace it. Researched figures: The yearly cost per person and the share of "
-        'actions prevented are the product\'s starting figures for "Targeted training", '
-        "sourced but not yet confirmed by the owner, and not this client's own."
+def test_what_is_said_beside_an_appraisal_that_keeps_library_figures(tmp_path):
+    assert placeholder_note(marked("transit_subsidy"), LIBRARY) == (
+        "Placeholder figures: The one-time cost per person and the yearly cost per person "
+        'are the product\'s starting figures for "Transit subsidy", with no published source '
+        "and not reviewed, and not this client's own. The client's own figures, from payroll "
+        "or the benefits administrator, should replace them."
     )
-    only_share = marked(
-        one_time_cost_per_person=Decimal("350"), annual_cost_per_person=Decimal("90")
+    # The client's own costs: only confirmed figures are left, and nothing is said.
+    own = marked(
+        "transit_subsidy",
+        one_time_cost_per_person=Decimal("10"),
+        annual_cost_per_person=Decimal("900"),
     )
-    assert placeholder_note(only_share, LIBRARY) == (
+    assert own.library_fields == ("reduction",) and placeholder_note(own, LIBRARY) == ""
+    assert placeholder_note(marked(), LIBRARY) == "", "every training figure is confirmed"
+    assert placeholder_note(proposal(), LIBRARY) == ""
+
+    # A figure researched but not confirmed is said to be so.
+    text = LIBRARY_FILE.read_text()
+    start = text.index("- id: intervention_targeted_training_reduction")
+    end = text.index("# ---", start)
+    researched = tmp_path / "researched.yaml"
+    researched.write_text(
+        text[:start]
+        + text[start:end].replace("status: confirmed", "status: researched")
+        + text[end:]
+    )
+    library = load_library(researched)
+    assert library["targeted_training"].researched_fields == ("reduction",)
+    assert placeholder_note(marked(library=library), library) == (
         "Researched figures: The share of actions prevented is the product's starting figure "
         'for "Targeted training", sourced but not yet confirmed by the owner, and not this '
         "client's own."
     )
-    assert placeholder_note(proposal(), LIBRARY) == ""
 
 
 def test_a_share_aimed_wider_than_its_evidence_says_so():
@@ -255,9 +270,12 @@ def test_a_share_aimed_wider_than_its_evidence_says_so():
     narrow = marked("transit_subsidy", **own_costs)
     assert narrow.targets == ATTENDANCE
     assert "studies of" not in placeholder_note(narrow, LIBRARY)
-    assert placeholder_note(
-        marked("transit_subsidy", targets=("attendance_awol",), **own_costs), LIBRARY
-    ).startswith("Researched")
+    assert (
+        placeholder_note(
+            marked("transit_subsidy", targets=("attendance_awol",), **own_costs), LIBRARY
+        )
+        == ""
+    )
     wider = (
         'The share of actions prevented is the library\'s figure for "Transit subsidy", which '
         "comes from studies of absences and lateness. Here it is applied to discipline those "
@@ -277,38 +295,16 @@ def test_a_share_aimed_wider_than_its_evidence_says_so():
 
 
 def test_the_note_goes_once_the_owner_has_confirmed_and_not_before(tmp_path):
-    """Confirm every training figure, unchanged: an appraisal resting on them needs no
-    sentence. Confirm one with a new value: an appraisal still carrying the old one is told
+    """Every training figure is confirmed and unchanged: an appraisal resting on them needs
+    no sentence. Change one in the file: an appraisal still carrying the old value is told
     it carries a figure that was never confirmed."""
-    text = LIBRARY_FILE.read_text()
-    head, tail = text.split(
-        "# ---------------------------------------------------------------- targeted training"
-    )
-    block, rest = tail.split(
-        "# ---------------------------------------------------------------- flexible", 1
-    )
-    block = block.replace("status: TBD-MIKE", "status: confirmed").replace(
-        "status: researched", "status: confirmed"
-    )
-    confirmed = tmp_path / "confirmed.yaml"
-    confirmed.write_text(
-        head
-        + "# ---------------------------------------------------------------- targeted training"
-        + block
-        + "# ---------------------------------------------------------------- flexible"
-        + rest
-    )
-    library = load_library(confirmed)
-    assert library["targeted_training"].unreviewed == () and library["targeted_training"].note == ""
-    assert placeholder_note(marked(library=library), library) == ""
-    assert placeholder_note(marked("transit_subsidy", library=library), library) != ""
-
+    assert placeholder_note(marked(), LIBRARY) == ""
+    assert placeholder_note(marked("transit_subsidy"), LIBRARY) != ""
     changed = tmp_path / "changed.yaml"
-    changed.write_text(confirmed.read_text().replace("  value: 165\n", "  value: 170\n"))
+    changed.write_text(LIBRARY_FILE.read_text().replace("  value: 165\n", "  value: 170\n"))
     new = load_library(changed)
     assert new["targeted_training"].annual_cost_per_person == 170
-    old_appraisal = dataclasses.replace(marked(library=library), library_id="targeted_training")
-    assert placeholder_note(old_appraisal, new).startswith(
+    assert placeholder_note(marked(), new).startswith(
         "Placeholder figures: The yearly cost per person is"
     )
 
@@ -490,11 +486,12 @@ def body_from_library(entry_id: str = "targeted_training", **changes) -> dict:
 def test_the_library_is_served_with_what_each_entry_is_aimed_at(client):
     served = client.get("/interventions/library", headers=role("hr_analyst")).json()
     assert [e["id"] for e in served["entries"]] == list(LIBRARY)
-    assert (served["unreviewed"], served["placeholders"]) == (12, 6)
+    assert (served["unreviewed"], served["placeholders"]) == (5, 5)
     transit = served["entries"][0]
     assert transit["aims_at_labels"] == ["Attendance / AWOL", "Tardiness"]
-    assert transit["researched_fields"] == ["reduction"]
-    assert any("IRS" in s for s in transit["sources"])
+    assert transit["placeholder_fields"] == ["one_time_cost_per_person", "annual_cost_per_person"]
+    assert transit["researched_fields"] == []
+    assert any("IRS" in source for source in transit["sources"])
     types = {t["id"] for t in served["misconduct_types"]}
     assert set(ATTENDANCE) <= types and "insubordination" in types
     assert client.get("/interventions/library", headers=role("executive")).status_code == 403
@@ -502,21 +499,23 @@ def test_the_library_is_served_with_what_each_entry_is_aimed_at(client):
 
 def test_an_appraisal_says_what_it_rests_on_and_what_it_is_aimed_at(client):
     admin = role("admin")
-    result = client.post("/interventions/appraise", json=body_from_library(), headers=admin).json()
-    assert result["intervention"]["library_fields"] == list(FIELDS)
-    assert result["placeholder_note"].startswith("Placeholder figures: The one-time cost per")
-    assert (
-        "Researched figures: The yearly cost per person and the share" in result["placeholder_note"]
-    )
+    training = client.post(
+        "/interventions/appraise", json=body_from_library(), headers=admin
+    ).json()
+    assert training["intervention"]["library_fields"] == list(FIELDS)
+    assert training["placeholder_note"] == "", "every training figure is confirmed"
     # 400 x 25 once, and 165 x 25 a year for three years.
-    assert result["intervention"]["total_cost"] == "22375.00"
-    assert result["aimed_at"] is None
+    assert training["intervention"]["total_cost"] == "22375.00"
+    assert training["aimed_at"] is None
 
     transit = client.post(
         "/interventions/appraise", json=body_from_library("transit_subsidy"), headers=admin
     ).json()
     assert transit["aimed_at"]["label"] == "Attendance / AWOL and Tardiness"
     assert Decimal(transit["aimed_at"]["annual_net"]) < Decimal(transit["unit"]["annual_net"])
+    assert transit["placeholder_note"].startswith(
+        "Placeholder figures: The one-time cost per person and the yearly cost per person"
+    )
     assert "studies of" not in transit["placeholder_note"]
     wide = client.post(
         "/interventions/appraise",
@@ -528,7 +527,7 @@ def test_an_appraisal_says_what_it_rests_on_and_what_it_is_aimed_at(client):
         "Here it is applied to discipline those studies did not measure."
     )
 
-    claimed = {**body_from_library(), "library_fields": []}
+    claimed = {**body_from_library("transit_subsidy"), "library_fields": []}
     result = client.post("/interventions/appraise", json=claimed, headers=admin).json()
     assert result["intervention"]["library_fields"] == list(FIELDS), "worked out on the server"
     unknown = client.post(
@@ -547,7 +546,7 @@ def test_the_clients_report_says_what_the_appraisal_rests_on_and_is_aimed_at(cli
     assert made.status_code == 200, made.text
     note = made.json()["appraisal"]["placeholder_note"]
     assert note.startswith("Placeholder figures: The one-time cost per person is")
-    assert "Researched figures: The share of actions prevented is" in note
+    assert "Researched figures" not in note
     assert made.json()["aimed_at_label"] == "Attendance / AWOL and Tardiness"
 
     reader = role("executive", "library-reader")
@@ -561,9 +560,8 @@ def test_the_clients_report_says_what_the_appraisal_rests_on_and_is_aimed_at(cli
     header, *rows = sheet_rows(book, "Interventions")
     row = next(dict(zip(header, r, strict=True)) for r in rows if r[4] == "Transit subsidy")
     assert row["Placeholder figures"] == note
-    assert (
-        row["Aimed at (the costs and savings count these only)"]
-        == "Attendance / AWOL and Tardiness"
+    assert row["Aimed at (the costs and savings count these only)"] == (
+        "Attendance / AWOL and Tardiness"
     )
 
 

@@ -1014,10 +1014,9 @@ of its own on what any intervention achieves.
 interventions (a transit subsidy, a childcare subsidy, targeted training, flexible start
 and end times): a one-time cost per person, a yearly cost per person, and the three shares.
 A consultant may fill the form from one and change any figure. After the owner's research
-of 2026-11-17, six figures are *researched* (sourced, awaiting his confirmation) and six
-are *placeholders* (costs with no published benchmark). An appraisal that still carries a
-library figure the owner has not confirmed says which, wherever it is shown, the client's
-report included.
+of 2026-11-17, seven figures are *confirmed* (sourced, and confirmed by him the same day)
+and five are *placeholders* (costs with no published benchmark). An appraisal that still
+carries a placeholder says which, wherever it is shown, the client's report included.
 
 **Aimed at some types of misconduct.** An intervention may be aimed at chosen types only.
 Then X is the net cost of the unit's actions of those types alone:

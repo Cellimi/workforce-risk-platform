@@ -12,10 +12,11 @@ missing id is an error. A figure is one of three things:
 * **researched** (`researched`): sourced, and not yet confirmed by the owner;
 * **confirmed** (`confirmed`): the owner has said so, in his own words, to a session.
 
-On 2026-11-17 the owner's research sourced six of the twelve, now `researched`; the other
-six are costs with no published benchmark and stay placeholders. Until a figure is
-confirmed, an appraisal that carries it says so wherever it is shown, the client report
-included. Only the owner confirms a figure; a session never does it on its own reading.
+On 2026-11-17 the owner's research sourced seven of the twelve, and he confirmed them the
+same day; the other five are costs with no published benchmark and stay placeholders.
+While an appraisal carries a figure that is not confirmed, it says so wherever it is
+shown, the client report included. Only the owner confirms a figure; a session never does
+it on its own reading.
 
 **What the evidence measured.** For three of the four entries the studies behind the share
 of actions prevented measured absences and lateness, not discipline. Each entry therefore

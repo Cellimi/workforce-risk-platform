@@ -499,14 +499,14 @@ flexible start and end times. Each has a one-time cost per person, a yearly cost
 person, and a low, expected and high share of actions prevented. On the Interventions page
 a consultant may fill the form from one and then change any figure to the client's own.
 
-**What stands behind each figure.** The owner's research of 2026-11-17 sourced six of the
-twelve; they are marked *researched*, with their citations in the file, and await his
-confirmation. The other six are costs with no published benchmark and stay
-*placeholders*: a client's real figures should come from payroll or the benefits
-administrator. Until the owner confirms a figure:
+**What stands behind each figure.** The owner's research of 2026-11-17 sourced seven of the
+twelve, and he confirmed them the same day; their citations are in the file. The other five
+are costs with no published benchmark and stay *placeholders*: a client's real figures
+should come from payroll or the benefits administrator. While an appraisal carries a
+placeholder:
 
-- the page says, for the chosen entry, which figures are placeholders and which are
-  researched, and lists the sources;
+- the page says, for the chosen entry, which figures are placeholders, and lists the
+  sources;
 - an appraisal that still carries any library figure says which, on screen, in the kept
   list, and **in the client's report and workbook**;
 - changing a figure to the client's own takes it out of that sentence, and nothing else

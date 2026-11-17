@@ -1123,7 +1123,7 @@ def test_starting_from_the_library_fills_the_form_and_marks_the_placeholders(tmp
         assert (
             "The one-time cost per person and the yearly cost per person are placeholders" in told
         )
-        assert "The share of actions prevented is researched and sourced" in told
+        assert "researched" not in told, "its share prevented is confirmed"
         assert "Aimed at attendance and tardiness actions only" in texts(at)
         assert "It is not a suggestion of what is causing anything." in texts(at)
 
@@ -1153,7 +1153,7 @@ def test_starting_from_the_library_fills_the_form_and_marks_the_placeholders(tmp
         assert "Aimed at Attendance / AWOL and Tardiness" in texts(at)
         told = " ".join(w.value for w in at.warning)
         assert "Placeholder figures: The one-time cost per person and the yearly cost" in told
-        assert "Researched figures: The share of actions prevented is" in told
+        assert "Researched figures" not in told
 
         # The client's own yearly cost: that figure leaves the warning, the others stay.
         at.number_input(key="iv_each").set_value(900.0)

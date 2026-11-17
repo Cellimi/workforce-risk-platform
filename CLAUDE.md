@@ -73,7 +73,7 @@ which branch a pull request targets, and which session has claimed which item.
 
 | Path | What lives there |
 |---|---|
-| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `interventions.yaml` (the causes an investigation may record), `intervention_library.yaml` (starting figures for common interventions: placeholders until the owner has researched them), `org_county.yaml` (departments, grades, taxonomies) |
+| `config/` | `assumptions.yaml` (cost coefficients + sources), `detection.yaml` (Phase 2 thresholds), `interventions.yaml` (the causes an investigation may record), `intervention_library.yaml` (starting figures for common interventions: seven sourced and confirmed by the owner, five placeholders), `org_county.yaml` (departments, grades, taxonomies) |
 | `src/wri_engine/schema/` | Canonical Pydantic models. Source formats never appear here. |
 | `src/wri_engine/adapters/` | One module per source system. Each returns a `CanonicalDataset`. |
 | `src/wri_engine/generator/` | Synthetic data generator, emits *source-format* CSV |

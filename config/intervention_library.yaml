@@ -5,11 +5,13 @@
 # figure to the client's own. Nothing here is used unless a person chooses it.
 #
 # History. On 2026-11-16 the owner asked the build for placeholders and said he would
-# research the values himself. On 2026-11-17 he did. Six figures are now sourced and are
-# marked researched: sourced, and awaiting his confirmation. The other six are costs with
-# no published benchmark and stay placeholders (TBD-MIKE). Until he confirms a figure, an
-# appraisal that carries it says so, on screen and in the client report. Only the owner
-# confirms a figure (status confirmed), by saying so to a session in his own words.
+# research the values himself. On 2026-11-17 he did, and the same day he confirmed the
+# seven figures his research sourced ("it's all reviewed"): status confirmed. The other
+# five are costs with no published benchmark; his research said to keep their placeholder
+# warning (TBD-MIKE), because a client's real figures should come from payroll or the
+# benefits administrator. While an appraisal carries a placeholder, it says so, on screen
+# and in the client report. Only the owner confirms a figure, by saying so to a session in
+# his own words.
 #
 # What the evidence measured. For the transit subsidy, the childcare subsidy and flexible
 # hours, the studies behind the share of actions prevented measured absences and lateness,
@@ -91,10 +93,10 @@ assumptions:
   high: 0.15
   unit: share of the unit's actions prevented
   applies_to: {intervention: transit_subsidy}
-  source: 'Voy, "The ROI of Investing in Commute" (2018): a transportation-as-a-benefit pilot in South Bend reduced absences and tardiness by 8%. A vendor publication, not peer-reviewed, so the expected value is 8% and the range is kept wide. A controlled study at Vancouver hotels found subsidies changed commuting mode but did not measure attendance. Researched by the owner 2026-11-17; awaiting his confirmation.'
+  source: 'Voy, "The ROI of Investing in Commute" (2018): a transportation-as-a-benefit pilot in South Bend reduced absences and tardiness by 8%. A vendor publication, not peer-reviewed, so the expected value is 8% and the range is kept wide. A controlled study at Vancouver hotels found subsidies changed commuting mode but did not measure attendance. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: low
   owner: Michael V. Celli
-  status: researched
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'Low, expected and high share of the unit''s attendance and tardiness actions prevented. The evidence measured absences and lateness, not discipline.'
 # ---------------------------------------------------------------- childcare subsidy
@@ -116,10 +118,10 @@ assumptions:
   high: 6000
   unit: USD per person covered per year
   applies_to: {intervention: childcare_subsidy}
-  source: 'Range from a federal child care subsidy schedule: USDA APHIS pays 50% of costs up to $500 a month for families earning under $39,000, and 20% up to $200 a month at $51,000 to $59,999, which is $2,400 to $6,000 a year (APHIS Directive 4080.2; 5 CFR Part 792). For context, the national average annual price of child care in 2025 was $13,184 (Child Care Aware of America, Child Care in America: 2025 Price & Supply). Researched by the owner 2026-11-17; awaiting his confirmation.'
+  source: 'Range from a federal child care subsidy schedule: USDA APHIS pays 50% of costs up to $500 a month for families earning under $39,000, and 20% up to $200 a month at $51,000 to $59,999, which is $2,400 to $6,000 a year (APHIS Directive 4080.2; 5 CFR Part 792). For context, the national average annual price of child care in 2025 was $13,184 (Child Care Aware of America, Child Care in America: 2025 Price & Supply). Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: medium
   owner: Michael V. Celli
-  status: researched
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'What the employer pays toward one parent''s childcare in a year.'
 - id: intervention_childcare_subsidy_reduction
@@ -128,10 +130,10 @@ assumptions:
   high: 0.30
   unit: share of the unit's actions prevented
   applies_to: {intervention: childcare_subsidy}
-  source: 'BCG and Moms First, The Employee Benefit That Pays for Itself (March 2024): at UPS, employee absences fell 16% by the end of a three-month trial; across five case studies, workers with child care options avoided 11 to 16 absences a year. Industry-commissioned and the trial was short, so the wide range is kept. Researched by the owner 2026-11-17; awaiting his confirmation.'
+  source: 'BCG and Moms First, The Employee Benefit That Pays for Itself (March 2024): at UPS, employee absences fell 16% by the end of a three-month trial; across five case studies, workers with child care options avoided 11 to 16 absences a year. Industry-commissioned and the trial was short, so the wide range is kept. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: medium
   owner: Michael V. Celli
-  status: researched
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'Low, expected and high share of the unit''s attendance and tardiness actions prevented, among parents only. The evidence measured absences, not discipline.'
 # ---------------------------------------------------------------- targeted training
@@ -141,10 +143,10 @@ assumptions:
   high: 660
   unit: USD per person covered
   applies_to: {intervention: targeted_training}
-  source: 'Range derived from the average cost per learning hour, $165 in 2024 (ATD, 2025 State of the Industry): a 2- to 4-hour course is $330 to $660. Average direct learning spend was $846 per employee in 2025 (ATD, 2026 State of the Industry), a ceiling. The middle value of $400 is not itself sourced. Researched by the owner 2026-11-17. His notes list this figure both to mark reviewed and among the one-time costs to keep as placeholders, so it is kept a placeholder until he says which.'
-  confidence: low
+  source: 'Range derived from the average cost per learning hour, $165 in 2024 (ATD, 2025 State of the Industry): a 2- to 4-hour course is $330 to $660. Average direct learning spend was $846 per employee in 2025 (ATD, 2026 State of the Industry), a ceiling. The middle value of $400 lies within that range. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
+  confidence: medium
   owner: Michael V. Celli
-  status: TBD-MIKE
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'Training one person once, including the time they spend in it.'
 - id: intervention_targeted_training_annual_cost_per_person
@@ -153,10 +155,10 @@ assumptions:
   high: 330
   unit: USD per person covered per year
   applies_to: {intervention: targeted_training}
-  source: 'A one-hour refresher at the average cost per learning hour, $165 in 2024 (ATD, 2025 State of the Industry). Researched by the owner 2026-11-17; awaiting his confirmation.'
+  source: 'A one-hour refresher at the average cost per learning hour, $165 in 2024 (ATD, 2025 State of the Industry). Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: medium
   owner: Michael V. Celli
-  status: researched
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'A yearly refresher for one person.'
 - id: intervention_targeted_training_reduction
@@ -165,10 +167,10 @@ assumptions:
   high: 0.25
   unit: share of the unit's actions prevented
   applies_to: {intervention: targeted_training}
-  source: 'High end: finance professionals who passed an ethics-focused exam were about one-fourth less likely to commit misconduct (Kowaleski et al., University of Notre Dame Mendoza College of Business); Park (2020, Harvard Business School dissertation) found in-person compliance training changed behavior and found no evidence for video training. Low end: a meta-analysis found no beneficial effect of ethics instruction on ethical behavior, though only two studies measured behavior (Waples et al., 2009, Journal of Business Ethics). Researched by the owner 2026-11-17; awaiting his confirmation.'
+  source: 'High end: finance professionals who passed an ethics-focused exam were about one-fourth less likely to commit misconduct (Kowaleski et al., University of Notre Dame Mendoza College of Business); Park (2020, Harvard Business School dissertation) found in-person compliance training changed behavior and found no evidence for video training. Low end: a meta-analysis found no beneficial effect of ethics instruction on ethical behavior, though only two studies measured behavior (Waples et al., 2009, Journal of Business Ethics). Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: low
   owner: Michael V. Celli
-  status: researched
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'Low, expected and high share of the unit''s actions prevented. Holds for in-person training only.'
 # ---------------------------------------------------------------- flexible start and end times
@@ -202,9 +204,9 @@ assumptions:
   high: 0.25
   unit: share of the unit's actions prevented
   applies_to: {intervention: flexible_hours}
-  source: 'Expected and high: in a field experiment at a public utility, the flexible-schedule unit cut absences by more than 20%, and the gap disappeared when standard schedules returned (Dalton and Mesch, 1990, Administrative Science Quarterly 35:370-387; White House Council of Economic Advisers, Work-Life Balance and the Economics of Workplace Flexibility, 2010). Low: Baltes et al. (1999), Journal of Applied Psychology 84:496-513, found highly flexible programs less effective than less flexible ones, with benefits fading over time, and other studies found no relationship. Researched by the owner 2026-11-17; awaiting his confirmation.'
+  source: 'Expected and high: in a field experiment at a public utility, the flexible-schedule unit cut absences by more than 20%, and the gap disappeared when standard schedules returned (Dalton and Mesch, 1990, Administrative Science Quarterly 35:370-387; White House Council of Economic Advisers, Work-Life Balance and the Economics of Workplace Flexibility, 2010). Low: Baltes et al. (1999), Journal of Applied Psychology 84:496-513, found highly flexible programs less effective than less flexible ones, with benefits fading over time, and other studies found no relationship. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: medium
   owner: Michael V. Celli
-  status: researched
+  status: confirmed
   last_reviewed: '2026-11-17'
   notes: 'Low, expected and high share of the unit''s attendance and tardiness actions prevented. The evidence measured absences, not discipline.'
