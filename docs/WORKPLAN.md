@@ -436,7 +436,9 @@ citation, and `researched` is not `confirmed` until he says so.
 
 1. **Researching the library's twelve figures.** The owner's, in his own time.
 2. **Checking afterwards whether it worked**: the unit's rate after an intervention began
-   against before. Drift already has the arithmetic.
+   against before. Drift already has the arithmetic. **Not to be built for now: the owner
+   said on 2026-11-17 "I dont need to build the intervention piece at this time".** Do not
+   start it until he asks.
 3. **Interventions used together.** What two would save in combination is not the sum,
    and nothing here estimates it.
 
