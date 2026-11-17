@@ -727,9 +727,16 @@ def _hotspots_section(api: EngineClient, by: str) -> None:
         with st.container(border=True):
             st.markdown(f"**{_unit_name(unit)}**")
             one, two, three, four = st.columns(4)
-            one.metric("Times the rate elsewhere", f"{unit['ratio']:.2f}" if unit["ratio"] else "-")
+            withheld = unit.get("comparison_withheld")
+            one.metric(
+                "Times the rate elsewhere",
+                "withheld" if withheld else (f"{unit['ratio']:.2f}" if unit["ratio"] else "-"),
+            )
             two.metric(
-                "Actions, against expected", f"{unit['actions']} / {unit['expected_actions']:g}"
+                "Actions, against expected",
+                f"{unit['actions']}"
+                if withheld
+                else f"{unit['actions']} / {unit['expected_actions']:g}",
             )
             three.metric(
                 "Cost of these actions",
@@ -743,7 +750,8 @@ def _hotspots_section(api: EngineClient, by: str) -> None:
             )
             with st.expander("How this was worked out"):
                 st.markdown(unit["explanation"])
-                st.markdown(f"Estimated excess cost: {unit['formula']}.")
+                if unit["formula"]:
+                    st.markdown(f"Estimated excess cost: {unit['formula']}.")
     if found["withheld"]:
         st.caption(
             f"{found['withheld']} more flagged, and withheld from this view: together with "
@@ -833,7 +841,9 @@ def _drift_section(api: EngineClient, by: str) -> None:
             )
             four.metric(
                 "Estimated excess cost of the rise",
-                money(unit["estimated_excess_cost"]),
+                "withheld"
+                if unit.get("comparison_withheld")
+                else money(unit["estimated_excess_cost"]),
                 help="An estimate, and not part of the cost baseline.",
             )
             with st.expander("How this was worked out"):

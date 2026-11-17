@@ -250,14 +250,20 @@ def _pattern_rows(sheet, start: int, label: str, rows) -> int:
         _put(sheet, row, 6, found.actions)
         _put(sheet, row, 7, found.people)
         _put(sheet, row, 8, found.employee_years)
-        _put(sheet, row, 9, found.comparison_actions)
-        _put(sheet, row, 10, found.comparison_people)
-        _put(sheet, row, 11, found.comparison_employee_years)
-        _put(sheet, row, 12, found.expected_actions)
-        _put(sheet, row, 13, found.ratio if found.ratio is not None else "n/a")
-        _put(sheet, row, 14, found.adjusted_chance, number_format="0.0000")
+        if found.comparison_withheld:
+            for column in range(9, 15):
+                _put(sheet, row, column, "withheld")
+        else:
+            _put(sheet, row, 9, found.comparison_actions)
+            _put(sheet, row, 10, found.comparison_people)
+            _put(sheet, row, 11, found.comparison_employee_years)
+            _put(sheet, row, 12, found.expected_actions)
+            _put(sheet, row, 13, found.ratio if found.ratio is not None else "n/a")
+            _put(sheet, row, 14, found.adjusted_chance, number_format="0.0000")
         _put(sheet, row, 15, found.net, number_format=MONEY)
-        if found.estimated_excess_cost is not None:
+        if found.comparison_withheld:
+            _put(sheet, row, 16, "withheld")
+        elif found.estimated_excess_cost is not None:
             _put(sheet, row, 16, found.estimated_excess_cost, number_format=MONEY)
         worked = found.explanation
         if found.formula:
@@ -362,15 +368,21 @@ def _rising_rows(sheet, start: int, label: str, rows) -> int:
         _put(sheet, row, 8, found.later_actions)
         _put(sheet, row, 9, found.later_people)
         _put(sheet, row, 10, found.own_change if found.own_change is not None else "n/a")
-        _put(sheet, row, 11, found.elsewhere_earlier_actions)
-        _put(sheet, row, 12, found.elsewhere_later_actions)
-        elsewhere = found.elsewhere_change
-        _put(sheet, row, 13, elsewhere if elsewhere is not None else "n/a")
-        _put(sheet, row, 14, found.ratio if found.ratio is not None else "n/a")
-        _put(sheet, row, 15, found.adjusted_chance, number_format="0.0000")
+        if found.comparison_withheld:
+            for column in range(11, 16):
+                _put(sheet, row, column, "withheld")
+        else:
+            _put(sheet, row, 11, found.elsewhere_earlier_actions)
+            _put(sheet, row, 12, found.elsewhere_later_actions)
+            elsewhere = found.elsewhere_change
+            _put(sheet, row, 13, elsewhere if elsewhere is not None else "n/a")
+            _put(sheet, row, 14, found.ratio if found.ratio is not None else "n/a")
+            _put(sheet, row, 15, found.adjusted_chance, number_format="0.0000")
         _put(sheet, row, 16, found.earlier_net, number_format=MONEY)
         _put(sheet, row, 17, found.later_net, number_format=MONEY)
-        if found.estimated_excess_cost is not None:
+        if found.comparison_withheld:
+            _put(sheet, row, 18, "withheld")
+        elif found.estimated_excess_cost is not None:
             _put(sheet, row, 18, found.estimated_excess_cost, number_format=MONEY)
         worked = found.explanation
         if found.formula:

@@ -342,12 +342,45 @@ def test_a_totals_reader_gets_the_flagged_units_and_nothing_else():
     assert full["detail"] == "full" and len(full["not_flagged"]) == 2
 
 
-def test_a_finding_that_would_give_away_a_small_group_is_withheld_and_counted():
-    # The comparison is two people: the finding would give their count away.
+def test_a_unit_is_shown_without_a_comparison_that_would_give_away_a_small_group():
+    """The comparison is two people, so its figures would give them away. The unit's own
+    figures are about ten, so they are shown, the comparison's are not, and the finding
+    says why. Only the unit's group is recorded as released."""
     report = find_hotspots(counts(A=(12, 10), B=(2, 2)), years(A=100, B=100), SETTINGS)
     assert len(report.flagged) == 1
-    shown = report.for_totals_reader(DisclosureLedger(min_cell_size=5))
-    assert shown["flagged"] == [] and shown["withheld"] == 1
+    ledger = DisclosureLedger(min_cell_size=5)
+    shown = report.for_totals_reader(ledger)
+    assert shown["withheld"] == 0
+    (unit,) = shown["flagged"]
+    assert unit["comparison_withheld"] is True
+    assert (unit["actions"], unit["people"], unit["net"]) == (12, 10, "12000")
+    for name in (
+        "comparison_actions",
+        "comparison_people",
+        "comparison_employee_years",
+        "expected_actions",
+        "ratio",
+        "p_value",
+        "q_value",
+        "q_value_people",
+        "excess_actions",
+        "estimated_excess_cost",
+    ):
+        assert unit[name] is None, name
+    assert unit["formula"] == ""
+    assert "at least 1.5 times it" in unit["explanation"]
+    assert (
+        "The figures for the same job at its other locations are not shown here"
+        in (unit["explanation"])
+    )
+    assert not re.search(r"\b2 (actions|people)\b", unit["explanation"])
+    assert ledger.released == [report.flagged[0].cohort]
+    # A record-level role still gets all of it.
+    assert report.as_dict()["flagged"][0]["comparison_withheld"] is False
+    assert report.as_dict()["flagged"][0]["comparison_actions"] == 2
+
+
+def test_a_finding_whose_own_unit_would_give_away_a_small_group_is_withheld_and_counted():
 
     # The groups are big enough, but this reader has already been shown the unit less
     # three of its people: the two figures together give those three away.

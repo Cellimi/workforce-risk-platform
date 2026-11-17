@@ -57,8 +57,10 @@ As for hotspots (see "Who sees what" in `hotspots.py`): every role that sees tot
 the flagged units; the working stays with roles that see records. A totals reader's finding
 is released only if every group it gives figures for passes the small-group rules: the
 people disciplined in the unit in the earlier half, in the later half, across both, and the
-comparison's in each half. A unit that went from two people to twenty is therefore withheld
-from a totals reader, because the finding would state a figure about the two.
+comparison's in each half. Where the unit's three pass and the rest's two do not, the
+reader gets the unit's own figures with the rest's left out (`REST_FIELDS`) and a sentence
+saying so. A unit that went from two people to twenty is withheld outright, because the
+finding would state a figure about the two.
 
 Limits, stated plainly
 ----------------------
@@ -94,6 +96,7 @@ from wri_engine.detection.hotspots import (
     BY_MISCONDUCT,
     CENT,
     COLS,
+    COMPARISON_WITHHELD,
     CONCENTRATED,
     FDR,
     FLAGGED,
@@ -275,7 +278,23 @@ class DriftFinding:
             "explanation": self.explanation,
             "formula": self.formula,
             "setting_ids": list(self.setting_ids),
+            "comparison_withheld": False,
         }
+
+
+#: What a finding says about the rest of the organization. Left out together when those
+#: groups may not be released to the reader.
+REST_FIELDS = (
+    "elsewhere_earlier_actions",
+    "elsewhere_later_actions",
+    "elsewhere_change",
+    "ratio",
+    "expected_later_actions",
+    "p_value",
+    "q_value",
+    "q_value_people",
+    "estimated_excess_cost",
+)
 
 
 @dataclass(frozen=True)
@@ -334,11 +353,44 @@ class DriftReport:
         shown: list[dict] = []
         withheld = 0
         for finding in self.flagged:
-            if release_together(ledger, list(finding.cohorts), self.min_people):
+            unit, rest = list(finding.cohorts[:3]), list(finding.cohorts[3:])
+            if release_together(ledger, unit + rest, self.min_people):
                 shown.append(finding.as_dict())
+            elif release_together(ledger, unit, self.min_people):
+                # The unit may be shown; the rest of the organization's halves may not.
+                shown.append(self._unit_only(finding))
             else:
                 withheld += 1
         return {**self._heading(), "detail": "flagged_only", "withheld": withheld, "flagged": shown}
+
+    def _unit_only(self, finding: DriftFinding) -> dict:
+        """A rising unit with its own figures and none of the rest of the organization's."""
+        what = f"{finding.topic_label} actions" if finding.topic_label else "actions"
+        own = (
+            "There was none in the earlier half."
+            if finding.own_change is None
+            else f"That is {finding.own_change:.2f} times the unit's earlier rate."
+        )
+        explanation = (
+            f"Earlier half: {finding.earlier_actions} {what} among {finding.earlier_people} "
+            f"people over {finding.earlier_employee_years:,.1f} employee-years. Later half: "
+            f"{finding.later_actions} among {finding.later_people} people over "
+            f"{finding.later_employee_years:,.1f}. {own} It rose by at least "
+            f"{self.min_rate_ratio:g} times as much as the same type did in the rest of the "
+            f"organization, by more than chance would explain after allowing for the "
+            f"{self.comparisons} comparisons made, and among enough different people that it "
+            f"is not the record of a few. "
+            + COMPARISON_WITHHELD.format(
+                where="the rest of the organization", min_people=self.min_people
+            )
+        )
+        return {
+            **finding.as_dict(),
+            **dict.fromkeys(REST_FIELDS),
+            "formula": "",
+            "explanation": explanation,
+            "comparison_withheld": True,
+        }
 
 
 def _rate_change(earlier: int, later: int, years_earlier: float, years_later: float):

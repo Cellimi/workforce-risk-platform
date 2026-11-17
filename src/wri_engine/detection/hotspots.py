@@ -66,10 +66,13 @@ sees totals sees the flagged units. What differs is the working behind them.
   size, and with what this person has already been shown it must not let a smaller group
   be worked out by subtraction. That is asked of three groups at once, because a finding
   gives figures for all three: the people disciplined in the unit, those in the comparison,
-  and the two together. A finding that fails is withheld and the reader is told that one
-  was. The list of units that were *not* flagged stays with the record-level roles: most
-  locations hold one large job and one or two small ones, and that list would hand over the
-  small ones.
+  and the two together. If the unit passes and the comparison does not, the reader gets
+  the unit's own figures with the comparison's left out (`COMPARISON_FIELDS`) and a
+  sentence saying so; the finding is still about a unit that stands out, and the reader is
+  told everything that can be told. If the unit itself fails, the finding is withheld and
+  the reader is told that one was. The list of units that were *not* flagged stays with the
+  record-level roles: most locations hold one large job and one or two small ones, and that
+  list would hand over the small ones.
 
 A unit where fewer people were disciplined than the engagement's minimum group size is
 never flagged, whoever is looking: a handful of people is not a pattern in a unit. No person
@@ -249,7 +252,28 @@ class UnitFinding:
             "explanation": self.explanation,
             "formula": self.formula,
             "setting_ids": list(self.setting_ids),
+            "comparison_withheld": False,
         }
+
+
+#: What a finding says about its comparison group. Left out together when that group may not
+#: be released to the reader; everything else in the finding is about the unit itself.
+COMPARISON_FIELDS = (
+    "comparison_actions",
+    "comparison_people",
+    "comparison_employee_years",
+    "expected_actions",
+    "ratio",
+    "p_value",
+    "q_value",
+    "q_value_people",
+    "excess_actions",
+    "estimated_excess_cost",
+)
+COMPARISON_WITHHELD = (
+    "The figures for {where} are not shown here: together with figures already shown, they "
+    "would let a group of fewer than {min_people} people be worked out."
+)
 
 
 @dataclass(frozen=True)
@@ -334,16 +358,39 @@ class HotspotReport:
         shown: list[dict] = []
         withheld = 0
         for finding in self.flagged:
-            groups = [
-                finding.cohort,
-                finding.comparison_cohort,
-                finding.cohort | finding.comparison_cohort,
-            ]
-            if release_together(ledger, groups, self.min_people):
+            unit = [finding.cohort]
+            comparison = [finding.comparison_cohort, finding.cohort | finding.comparison_cohort]
+            if release_together(ledger, unit + comparison, self.min_people):
                 shown.append(finding.as_dict())
+            elif release_together(ledger, unit, self.min_people):
+                # The unit may be shown; what it is compared with may not. Show what can be
+                # shown and say what is left out, rather than nothing.
+                shown.append(self._unit_only(finding))
             else:
                 withheld += 1
         return {**self._heading(), "detail": "flagged_only", "withheld": withheld, "flagged": shown}
+
+    def _unit_only(self, finding: UnitFinding) -> dict:
+        """A flagged unit with its own figures and none of its comparison's."""
+        what = f"{finding.topic_label} actions" if finding.topic_label else "actions"
+        explanation = (
+            f"{finding.actions} {what} among {finding.people} people over "
+            f"{finding.employee_years:,.1f} employee-years. That is higher than the same "
+            f"job's rate at its other locations: at least {self.min_rate_ratio:g} times it, by "
+            f"more than chance would explain after allowing for the {self.comparisons} "
+            f"comparisons made, and among enough different people that it is not the record "
+            f"of a few. "
+            + COMPARISON_WITHHELD.format(
+                where="the same job at its other locations", min_people=self.min_people
+            )
+        )
+        return {
+            **finding.as_dict(),
+            **dict.fromkeys(COMPARISON_FIELDS),
+            "formula": "",
+            "explanation": explanation,
+            "comparison_withheld": True,
+        }
 
 
 def _money(value: Decimal) -> str:
