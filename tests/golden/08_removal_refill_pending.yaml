@@ -94,14 +94,14 @@ separations:
 #   advertising    $600 x 1.136364 = $681.82
 #   recruiter      12 hrs x $61.0125 = $732.15 x 1.136364 = $831.99
 #   panel          2 x 1 hr x $52.064 = $104.128 x 1.136364 = $118.33
-#   background     $250 -> $284.09      drug screen $65 -> $73.86
+#   background     $75 -> $85.23        drug screen $45 -> $51.14
 #   Replacement:   G12 step 1 = $42,000 / 2,080 = $20.192308 x 1.627 = $32.852885/hr
 #   orientation    12 hrs x $32.852885 = $394.235 x 1.136364 = $447.99
 #   equipment      $300 x 1.136364 = $340.91
 #   ramp           6 wks x 40 hrs = 240 hrs x $32.852885 = $7,884.69 x 0.30 = $2,365.41
 #   No testing, no medical exam, no academy and no field training for this profile.
 #
-# C1 $3,939.34 + C5 $11,014.62 = Gross = Net = $14,953.96, cost_incomplete = true
+# C1 $3,939.34 + C5 $10,793.04 = Gross = Net = $14,732.38, cost_incomplete = true
 
 expected:
   line_items:
@@ -110,15 +110,15 @@ expected:
     - {component: C1, subcomponent: investigation_supervisory, amount: '312.38'}
     - {component: C1, subcomponent: supervisor_hours, amount: '1561.92'}
     - {component: C5, subcomponent: advertising, amount: '681.82'}
-    - {component: C5, subcomponent: background_investigation, amount: '284.09'}
-    - {component: C5, subcomponent: drug_screen, amount: '73.86'}
+    - {component: C5, subcomponent: background_investigation, amount: '85.23'}
+    - {component: C5, subcomponent: drug_screen, amount: '51.14'}
     - {component: C5, subcomponent: equipment_and_uniform, amount: '340.91'}
     - {component: C5, subcomponent: hr_recruiter_hours, amount: '831.99'}
     - {component: C5, subcomponent: interview_panel, amount: '118.33'}
     - {component: C5, subcomponent: orientation, amount: '447.99'}
     - {component: C5, subcomponent: productivity_ramp, amount: '2365.41'}
     - {component: C5, subcomponent: vacancy_productivity_loss, amount: '5870.22'}
-  gross: '14953.96'
+  gross: '14732.38'
   offset: '0'
-  net: '14953.96'
+  net: '14732.38'
   cost_incomplete: true

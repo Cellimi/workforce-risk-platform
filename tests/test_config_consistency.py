@@ -204,10 +204,23 @@ def test_researched_assumptions_were_not_downgraded(assumptions):
 #: on AWAITING_OWNER_REVIEW. This is the list to read and then delete from: once the owner
 #: has reviewed one, remove its id here.
 #:
-#: Empty, because the owner has reviewed every researched value: the five broad groups on
-#: 2026-11-13 and the two halves of sales and office on 2026-11-14. Add to it, do not
-#: delete it.
-RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = set()
+#: The owner reviewed every earlier researched value (the five broad groups on 2026-11-13,
+#: the two halves of sales and office on 2026-11-14). On the list now: the screening costs
+#: researched on 2026-11-18 from published commercial prices -- the two civilian background
+#: checks and the six drug screens. Add to it, do not delete it.
+SCREENING_PROFILES = (
+    "sworn_deputy",
+    "corrections",
+    "dispatch",
+    "fire_ems",
+    "civilian_skilled",
+    "civilian_standard",
+)
+RESEARCHED_AWAITING_OWNER_REVIEW: set[str] = {
+    "c5_background_investigation_cost_civilian_skilled",
+    "c5_background_investigation_cost_civilian_standard",
+    *(f"c5_drug_screen_cost_{p}" for p in SCREENING_PROFILES),
+}
 
 #: The five broad occupational groups. Their multipliers were reviewed by the owner on
 #: 2026-11-13, and their lowest and highest figures bound the all-occupations fallback.
@@ -241,7 +254,8 @@ def test_every_group_on_offer_is_either_reviewed_or_listed_for_review(assumption
     """A selection the screen offers must never rest on a figure nobody has been asked to
     look at: each group's multiplier is one the owner reviewed, or it is on the list."""
     offered = {f"private_benefits_multiplier_{g}" for g in OccupationGroup}
-    assert offered == REVIEWED_GROUP_MULTIPLIERS | RESEARCHED_AWAITING_OWNER_REVIEW
+    awaiting = {a for a in RESEARCHED_AWAITING_OWNER_REVIEW if a in offered}
+    assert offered == REVIEWED_GROUP_MULTIPLIERS | awaiting
     assert not REVIEWED_GROUP_MULTIPLIERS & RESEARCHED_AWAITING_OWNER_REVIEW
 
 

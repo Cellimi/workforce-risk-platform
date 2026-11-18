@@ -140,11 +140,11 @@ def test_the_report_gives_management_the_cost_benefit(county, kept):
     assert f"Shift-swap scheme and transit passes: {HOT_NAME}" in text
     assert "Found on site: Commuting burden, Other." in text
     assert "The finding of Walkthrough user (admin), entered" in text
-    # 15,000 + 50 x 300 x 3 = 60,000, against 79,940 a year.
-    assert "$79,940 $60,000 -$36,018 -$45 $35,928" in text
+    # 15,000 + 50 x 300 x 3 = 60,000, against 79,930 a year.
+    assert "$79,930 $60,000 -$36,021 -$52 $35,916" in text
     assert (
         "It pays for itself if it prevents 25.02% of these actions: $60,000.00 / "
-        "($79,940.18 a year x 3 years)." in text
+        "($79,930.36 a year x 3 years)." in text
     )
     assert "Based on: Interviews on site in October, and the pilot at the annex." in text
     # Whose finding, and what a saving is, said to the reader.
@@ -160,7 +160,7 @@ def test_the_report_says_what_the_interventions_page_says(county, kept):
     on_screen = kept["by_type"]["appraisal"]
     header, *rows = sheet_rows(book, "Interventions")
     row = next(dict(zip(header, r, strict=True)) for r in rows if r[0] == HOT_NAME)
-    assert str(row["The discipline costs, a year"]) == on_screen["unit"]["annual_net"] == "79940.18"
+    assert str(row["The discipline costs, a year"]) == on_screen["unit"]["annual_net"] == "79930.36"
     assert str(row["The intervention costs"]) + ".00" == on_screen["intervention"]["total_cost"]
     for label, scenario in zip(("low", "expected", "high"), on_screen["scenarios"], strict=True):
         assert Decimal(str(row[f"Net saving: {label}"])) == Decimal(scenario["net_saving"])

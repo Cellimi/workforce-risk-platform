@@ -422,7 +422,7 @@ What holds:
 
 On the synthetic county, by type of misconduct, it makes 196 comparisons and flags one:
 attendance among corrections officers at the main detention center, 70 actions where the
-same job elsewhere would give 20.6, costing $232,626 in the baseline. That is the pattern
+same job elsewhere would give 20.6, costing $232,597 in the baseline. That is the pattern
 the generator plants. With every type together it makes 29 comparisons and flags the same
 unit. The statistics are exact, written out in `src/wri_engine/detection/stats.py`, and
 checked by hand in the tests. `GET /detection/hotspots` is the endpoint.

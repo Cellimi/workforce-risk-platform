@@ -116,7 +116,7 @@ separations:
 #   advertising       $900 x 1.111111 = $1,000.00
 #   recruiter hours   18 hrs x $61.0125 = $1,098.225 x 1.111111 = $1,220.25
 #   interview panel   3 x 1.5 hrs x $65.08 = $292.86 x 1.111111 = $325.40
-#   background        $300 -> $333.33     medical $150 -> $166.67     drug $65 -> $72.22
+#   background        $150 -> $166.67     medical $150 -> $166.67     drug $45 -> $50.00
 #   Replacement rate: G18 step 1 = $58,000 / 2,080 = $27.884615 x 1.627 = $45.368269/hr
 #   orientation       16 hrs x $45.368269 = $725.892 x 1.111111 = $806.55
 #   equipment         $400 x 1.111111 = $444.44
@@ -124,7 +124,7 @@ separations:
 #                     NOT washout-adjusted: only the person who stays ramps up.
 #   No academy, no field training, no polygraph, no psychological evaluation for this profile.
 #
-# C1 $4,993.64 + C5 $23,900.37 = Gross = Net = $28,894.01
+# C1 $4,993.64 + C5 $23,711.49 = Gross = Net = $28,705.13
 
 expected:
   line_items:
@@ -133,8 +133,8 @@ expected:
     - {component: C1, subcomponent: investigation_hr, amount: '976.20'}
     - {component: C1, subcomponent: supervisor_hours, amount: '1952.40'}
     - {component: C5, subcomponent: advertising, amount: '1000.00'}
-    - {component: C5, subcomponent: background_investigation, amount: '333.33'}
-    - {component: C5, subcomponent: drug_screen, amount: '72.22'}
+    - {component: C5, subcomponent: background_investigation, amount: '166.67'}
+    - {component: C5, subcomponent: drug_screen, amount: '50.00'}
     - {component: C5, subcomponent: equipment_and_uniform, amount: '444.44'}
     - {component: C5, subcomponent: hr_recruiter_hours, amount: '1220.25'}
     - {component: C5, subcomponent: interview_panel, amount: '325.40'}
@@ -142,7 +142,7 @@ expected:
     - {component: C5, subcomponent: orientation, amount: '806.55'}
     - {component: C5, subcomponent: productivity_ramp, amount: '7621.87'}
     - {component: C5, subcomponent: vacancy_productivity_loss, amount: '11909.64'}
-  gross: '28894.01'
+  gross: '28705.13'
   offset: '0'
-  net: '28894.01'
+  net: '28705.13'
   cost_incomplete: false

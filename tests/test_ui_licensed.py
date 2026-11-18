@@ -869,8 +869,8 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         assert "It does not say why, and it says nothing about any one person." in shown
         assert "have not been reviewed yet" not in shown, "the owner reviewed them"
         assert "196 comparisons made" in shown
-        assert metric(at, "Cost of these actions") == "$232,626"
-        assert metric(at, "Estimated excess cost") == "$164,168"
+        assert metric(at, "Cost of these actions") == "$232,597"
+        assert metric(at, "Estimated excess cost") == "$164,147"
         assert metric(at, "Times the rate elsewhere") == "3.40"
         assert "70 Attendance / AWOL actions among 64 people" in shown
         assert "an estimate, not part of the cost baseline" in shown
@@ -891,7 +891,7 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         assert not at.exception, at.exception
         shown = texts(at)
         assert "29 comparisons made" in shown
-        assert metric(at, "Estimated excess cost") == "$554,786"
+        assert metric(at, "Estimated excess cost") == "$554,728"
         assert metric(at, "Times the rate elsewhere") == "2.07"
         assert "160 actions among 126 people" in shown
 
@@ -902,7 +902,7 @@ def test_the_patterns_page_shows_the_unit_that_stands_out(tmp_path):
         assert not at.exception, at.exception
         shown = texts(at)
         assert hot in shown
-        assert metric(at, "Cost of these actions") == "$232,626"
+        assert metric(at, "Cost of these actions") == "$232,597"
         assert not any("not flagged" in label for label in expanders(at))
         assert "decided on the server" in shown
         assert "Rising over the period" in shown
