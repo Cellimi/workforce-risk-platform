@@ -1013,10 +1013,22 @@ of its own on what any intervention achieves.
 **The library.** `config/intervention_library.yaml` offers starting figures for four common
 interventions (a transit subsidy, a childcare subsidy, targeted training, flexible start
 and end times): a one-time cost per person, a yearly cost per person, and the three shares.
-A consultant may fill the form from one and change any figure. As of 2026-11-16 **every
-figure in the library is a placeholder**, proposed by the build at the owner's request and
-awaiting his research: none has a source. An appraisal that still carries a library figure
-the owner has not reviewed says which, wherever it is shown, the client's report included.
+A consultant may fill the form from one and change any figure. After the owner's research
+of 2026-11-17, seven figures are *confirmed* (sourced, and confirmed by him the same day)
+and five are *placeholders* (costs with no published benchmark). An appraisal that still
+carries a placeholder says which, wherever it is shown, the client's report included.
+
+**Aimed at some types of misconduct.** An intervention may be aimed at chosen types only.
+Then X is the net cost of the unit's actions of those types alone:
+
+    X = net cost of the unit's actions of the aimed-at types / years
+
+and every saving and the break-even share are worked out on that X. The library's transit,
+childcare and flexible-hours entries are aimed at attendance and tardiness actions, because
+the studies behind their shares measured absences and lateness, not discipline. Kept but
+aimed wider, the share is said to reach beyond its evidence. In a client's copy the cost of
+the aimed-at actions is a figure about a group of people, so it must pass the small-group
+rules as well as the unit's whole cost; if it does not, the money is withheld.
 
 With a one-time cost per person, Y becomes
 

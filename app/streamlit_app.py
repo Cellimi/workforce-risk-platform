@@ -927,7 +927,9 @@ def interventions_page(api: EngineClient) -> None:
     unit = dict(choices)[picked]
     allowed = api.intervention_causes()
     cause_ids = {c["label"]: c["id"] for c in allowed["causes"]}
-    _library_starter(api)
+    library = api.intervention_library()
+    _library_starter(library["entries"])
+    type_ids = {t["label"]: t["id"] for t in library["misconduct_types"]}
 
     with st.form("intervention"):
         name = st.text_input("What is proposed", key="iv_name")
@@ -951,6 +953,12 @@ def interventions_page(api: EngineClient) -> None:
             "**How much of this discipline would it prevent?** Your judgement, three ways. "
             "The product has no evidence of its own for this: a library entry's figures are "
             "placeholders."
+        )
+        aims = st.multiselect(
+            "Aimed at these types of misconduct (none chosen: every type)",
+            list(type_ids),
+            key="iv_aims",
+            help="Only the unit's actions of these types count toward what it could prevent.",
         )
         low, expected, high = st.columns(3)
         r_low = low.number_input("Low (%)", min_value=0.0, max_value=100.0, key="iv_low")
@@ -996,6 +1004,7 @@ def interventions_page(api: EngineClient) -> None:
         "reduction_expected": share(r_exp),
         "reduction_high": share(r_high),
         "basis": basis,
+        "targets": [type_ids[label] for label in aims],
     }
     try:
         if keep:
@@ -1037,6 +1046,8 @@ def _kept_section(api: EngineClient) -> None:
             st.markdown(f"**{proposal['name']}: {where}**")
             causes = ", ".join(c["label"] for c in finding["causes"])
             st.markdown(f"Found on site: {causes}.")
+            if kept.get("aimed_at_label"):
+                st.markdown(f"Aimed at: {kept['aimed_at_label']}.")
             if finding["other_cause"]:
                 # Words a person typed about a client's workplace: shown as plain text.
                 st.text(f"Other: {finding['other_cause']}")
@@ -1123,12 +1134,12 @@ def _fill_from_library(entry: dict) -> None:
     st.session_state["iv_low"] = float(Decimal(entry["reduction_low"]) * 100)
     st.session_state["iv_exp"] = float(Decimal(entry["reduction_expected"]) * 100)
     st.session_state["iv_high"] = float(Decimal(entry["reduction_high"]) * 100)
+    st.session_state["iv_aims"] = list(entry.get("aims_at_labels", []))
 
 
-def _library_starter(api: EngineClient) -> None:
+def _library_starter(library: list[dict]) -> None:
     """Offer the library's starting figures. A convenience, and never a suggestion of what
     is wrong in the unit or what to do about it."""
-    library = api.intervention_library()["entries"]
     with st.expander("Start from the library (optional)"):
         st.caption(
             "Starting figures for common interventions. Choosing one fills in the form "
@@ -1146,12 +1157,19 @@ def _library_starter(api: EngineClient) -> None:
             f"{Decimal(entry['reduction_expected']) * 100:g}% or "
             f"{Decimal(entry['reduction_high']) * 100:g}% (low, expected, high)."
         )
-        if entry["unreviewed"]:
-            st.warning(
-                "Every one of these figures is a placeholder: not yet researched, sourced or "
-                "reviewed. An appraisal that keeps any of them says so wherever it is shown, "
-                "the client's report included."
+        if entry["aims_at"]:
+            st.caption(
+                f"Aimed at attendance and tardiness actions only: the evidence for its share "
+                f"prevented measured {entry['evidence']}, not discipline."
             )
+        if entry["note"]:
+            st.warning(
+                entry["note"] + " An appraisal that keeps any of these says so wherever it is "
+                "shown, the client's report included."
+            )
+        with st.expander("Sources"):
+            for source in entry["sources"]:
+                st.markdown(f"- {source}")
         st.button("Fill in its starting figures", on_click=_fill_from_library, args=(entry,))
 
 
@@ -1161,10 +1179,17 @@ def _show_appraisal(result: dict) -> None:
     st.subheader(f"{proposal['name']}: {unit['name']}")
     if result.get("placeholder_note"):
         st.warning(result["placeholder_note"])
+    aimed = result.get("aimed_at")
+    if aimed:
+        st.caption(
+            f"Aimed at {aimed['label']}: of the {money(unit['annual_net'])} a year this unit's "
+            f"discipline costs, {money(aimed['annual_net'])} is for those actions, and only "
+            f"they count toward what it could prevent."
+        )
     one, two, three = st.columns(3)
     one.metric(
-        "The discipline costs, a year",
-        money(unit["annual_net"]),
+        "The discipline it is aimed at costs, a year" if aimed else "The discipline costs, a year",
+        money(aimed["annual_net"] if aimed else unit["annual_net"]),
         help="From the cost baseline: " + unit["formula"] + ".",
     )
     two.metric(

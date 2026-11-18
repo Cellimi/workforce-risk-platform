@@ -4,12 +4,20 @@
 # may start an appraisal from one of these on the Interventions page, then change any
 # figure to the client's own. Nothing here is used unless a person chooses it.
 #
-# EVERY VALUE BELOW IS A PLACEHOLDER. On 2026-11-16 the owner asked the build to "go with
-# your placeholder assumptions" and said he will research them himself. None is researched
-# and none is sourced: each is a round figure chosen only so the arithmetic can be tried.
-# Each is TBD-MIKE until he has researched, cited and reviewed it (CLAUDE.md rule 7), and
-# while any figure an appraisal started from is TBD-MIKE, the screen and the client report
-# say so beside it.
+# History. On 2026-11-16 the owner asked the build for placeholders and said he would
+# research the values himself. On 2026-11-17 he did, and the same day he confirmed the
+# seven figures his research sourced ("it's all reviewed"): status confirmed. The other
+# five are costs with no published benchmark; his research said to keep their placeholder
+# warning (TBD-MIKE), because a client's real figures should come from payroll or the
+# benefits administrator. While an appraisal carries a placeholder, it says so, on screen
+# and in the client report. Only the owner confirms a figure, by saying so to a session in
+# his own words.
+#
+# What the evidence measured. For the transit subsidy, the childcare subsidy and flexible
+# hours, the studies behind the share of actions prevented measured absences and lateness,
+# not discipline. Those entries are aimed at attendance and tardiness actions only
+# (aims_at), so an appraisal started from them counts only those. Targeted training is aimed
+# at misconduct itself and covers every type.
 #
 # The shape of an entry is the cost registry's, and the rules are the same: fetched by id,
 # a missing id is a hard error, and low <= value <= high. For the share of actions
@@ -20,20 +28,26 @@ library:
     label: "Transit subsidy"
     description: "A subsidy toward each covered employee's public transit to work."
     answers: [commuting]
+    aims_at: [attendance_awol, tardiness]
+    evidence: "absences and lateness"
     one_time_cost_per_person: intervention_transit_subsidy_one_time_cost_per_person
     annual_cost_per_person: intervention_transit_subsidy_annual_cost_per_person
     reduction: intervention_transit_subsidy_reduction
   - id: childcare_subsidy
     label: "Childcare subsidy"
-    description: "A subsidy toward childcare for each covered employee with children."
+    description: "A subsidy toward childcare for each covered employee with children. Count only parents as people covered."
     answers: [childcare]
+    aims_at: [attendance_awol, tardiness]
+    evidence: "absences among parents"
     one_time_cost_per_person: intervention_childcare_subsidy_one_time_cost_per_person
     annual_cost_per_person: intervention_childcare_subsidy_annual_cost_per_person
     reduction: intervention_childcare_subsidy_reduction
   - id: targeted_training
     label: "Targeted training"
-    description: "Training on what people in the unit are being disciplined for, with a yearly refresher."
+    description: "In-person training on what people in the unit are being disciplined for, with a yearly refresher. The evidence holds for in-person training only."
     answers: [training]
+    aims_at: []
+    evidence: "misconduct and compliance after in-person training"
     one_time_cost_per_person: intervention_targeted_training_one_time_cost_per_person
     annual_cost_per_person: intervention_targeted_training_annual_cost_per_person
     reduction: intervention_targeted_training_reduction
@@ -41,6 +55,8 @@ library:
     label: "Flexible start and end times"
     description: "Letting covered employees vary their start and end times within set limits."
     answers: [scheduling]
+    aims_at: [attendance_awol, tardiness]
+    evidence: "absences"
     one_time_cost_per_person: intervention_flexible_hours_one_time_cost_per_person
     annual_cost_per_person: intervention_flexible_hours_annual_cost_per_person
     reduction: intervention_flexible_hours_reduction
@@ -53,36 +69,36 @@ assumptions:
   high: 50
   unit: USD per person covered
   applies_to: {intervention: transit_subsidy}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'Placeholder proposed by the build on 2026-11-16. No published benchmark; the client''s own figure should come from payroll or the benefits administrator.'
   confidence: low
   owner: Michael V. Celli
   status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Setting up the subsidy for one person, if there is a cost to it.
+  last_reviewed: '2026-11-17'
+  notes: 'Setting up the subsidy for one person, if there is a cost to it.'
 - id: intervention_transit_subsidy_annual_cost_per_person
   value: 1200
   low: 600
-  high: 2400
+  high: 4080
   unit: USD per person covered per year
   applies_to: {intervention: transit_subsidy}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'Middle value and low bound: placeholder proposed by the build on 2026-11-16, with no published benchmark. High bound: the 2026 limit on tax-free transit reimbursement, $340 a month, $4,080 a year (IRS Rev. Proc. 2025-32; IRS Publication 15-B (2026); SHRM, "IRS Boosts Commuter Benefit Limits for 2026"). The high bound was researched by the owner 2026-11-17; the middle value stays a placeholder.'
   confidence: low
   owner: Michael V. Celli
   status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: What the employer pays toward one person's transit in a year.
+  last_reviewed: '2026-11-17'
+  notes: 'What the employer pays toward one person''s transit in a year. The client''s own figure should come from the benefits administrator.'
 - id: intervention_transit_subsidy_reduction
-  value: 0.15
-  low: 0.05
-  high: 0.30
+  value: 0.08
+  low: 0.02
+  high: 0.15
   unit: share of the unit's actions prevented
   applies_to: {intervention: transit_subsidy}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'Voy, "The ROI of Investing in Commute" (2018): a transportation-as-a-benefit pilot in South Bend reduced absences and tardiness by 8%. A vendor publication, not peer-reviewed, so the expected value is 8% and the range is kept wide. A controlled study at Vancouver hotels found subsidies changed commuting mode but did not measure attendance. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: low
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Low, expected and high share of the unit's actions of that type the subsidy prevents. No evidence stands behind these figures yet.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'Low, expected and high share of the unit''s attendance and tardiness actions prevented. The evidence measured absences and lateness, not discipline.'
 # ---------------------------------------------------------------- childcare subsidy
 - id: intervention_childcare_subsidy_one_time_cost_per_person
   value: 0
@@ -90,73 +106,73 @@ assumptions:
   high: 200
   unit: USD per person covered
   applies_to: {intervention: childcare_subsidy}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'Placeholder proposed by the build on 2026-11-16. No published benchmark; the client''s own figure should come from payroll or the benefits administrator.'
   confidence: low
   owner: Michael V. Celli
   status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Setting up the subsidy for one person, if there is a cost to it.
+  last_reviewed: '2026-11-17'
+  notes: 'Setting up the subsidy for one person, if there is a cost to it.'
 - id: intervention_childcare_subsidy_annual_cost_per_person
   value: 3000
-  low: 1500
+  low: 2400
   high: 6000
   unit: USD per person covered per year
   applies_to: {intervention: childcare_subsidy}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
-  confidence: low
+  source: 'Range from a federal child care subsidy schedule: USDA APHIS pays 50% of costs up to $500 a month for families earning under $39,000, and 20% up to $200 a month at $51,000 to $59,999, which is $2,400 to $6,000 a year (APHIS Directive 4080.2; 5 CFR Part 792). For context, the national average annual price of child care in 2025 was $13,184 (Child Care Aware of America, Child Care in America: 2025 Price & Supply). Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
+  confidence: medium
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: What the employer pays toward one person's childcare in a year.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'What the employer pays toward one parent''s childcare in a year.'
 - id: intervention_childcare_subsidy_reduction
   value: 0.15
   low: 0.05
   high: 0.30
   unit: share of the unit's actions prevented
   applies_to: {intervention: childcare_subsidy}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
-  confidence: low
+  source: 'BCG and Moms First, The Employee Benefit That Pays for Itself (March 2024): at UPS, employee absences fell 16% by the end of a three-month trial; across five case studies, workers with child care options avoided 11 to 16 absences a year. Industry-commissioned and the trial was short, so the wide range is kept. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
+  confidence: medium
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Low, expected and high share of the unit's actions of that type the subsidy prevents. No evidence stands behind these figures yet.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'Low, expected and high share of the unit''s attendance and tardiness actions prevented, among parents only. The evidence measured absences, not discipline.'
 # ---------------------------------------------------------------- targeted training
 - id: intervention_targeted_training_one_time_cost_per_person
   value: 400
-  low: 200
-  high: 800
+  low: 330
+  high: 660
   unit: USD per person covered
   applies_to: {intervention: targeted_training}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
-  confidence: low
+  source: 'Range derived from the average cost per learning hour, $165 in 2024 (ATD, 2025 State of the Industry): a 2- to 4-hour course is $330 to $660. Average direct learning spend was $846 per employee in 2025 (ATD, 2026 State of the Industry), a ceiling. The middle value of $400 lies within that range. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
+  confidence: medium
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Training one person once, including the time they spend in it.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'Training one person once, including the time they spend in it.'
 - id: intervention_targeted_training_annual_cost_per_person
-  value: 100
+  value: 165
   low: 0
-  high: 300
+  high: 330
   unit: USD per person covered per year
   applies_to: {intervention: targeted_training}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
-  confidence: low
+  source: 'A one-hour refresher at the average cost per learning hour, $165 in 2024 (ATD, 2025 State of the Industry). Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
+  confidence: medium
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: A yearly refresher for one person.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'A yearly refresher for one person.'
 - id: intervention_targeted_training_reduction
-  value: 0.20
-  low: 0.10
-  high: 0.35
+  value: 0.15
+  low: 0
+  high: 0.25
   unit: share of the unit's actions prevented
   applies_to: {intervention: targeted_training}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'High end: finance professionals who passed an ethics-focused exam were about one-fourth less likely to commit misconduct (Kowaleski et al., University of Notre Dame Mendoza College of Business); Park (2020, Harvard Business School dissertation) found in-person compliance training changed behavior and found no evidence for video training. Low end: a meta-analysis found no beneficial effect of ethics instruction on ethical behavior, though only two studies measured behavior (Waples et al., 2009, Journal of Business Ethics). Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
   confidence: low
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Low, expected and high share of the unit's actions of that type the training prevents. No evidence stands behind these figures yet.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'Low, expected and high share of the unit''s actions prevented. Holds for in-person training only.'
 # ---------------------------------------------------------------- flexible start and end times
 - id: intervention_flexible_hours_one_time_cost_per_person
   value: 50
@@ -164,33 +180,33 @@ assumptions:
   high: 150
   unit: USD per person covered
   applies_to: {intervention: flexible_hours}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'Placeholder proposed by the build on 2026-11-16. No published benchmark; the client''s own figure should come from payroll or the benefits administrator.'
   confidence: low
   owner: Michael V. Celli
   status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Setting up one person's schedule and the rules around it.
+  last_reviewed: '2026-11-17'
+  notes: 'Setting up one person''s schedule and the rules around it.'
 - id: intervention_flexible_hours_annual_cost_per_person
   value: 0
   low: 0
   high: 100
   unit: USD per person covered per year
   applies_to: {intervention: flexible_hours}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
+  source: 'Placeholder proposed by the build on 2026-11-16. No published benchmark; the client''s own figure should come from payroll or the benefits administrator.'
   confidence: low
   owner: Michael V. Celli
   status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Any yearly cost of running flexible hours for one person, such as extra cover.
+  last_reviewed: '2026-11-17'
+  notes: 'Any yearly cost of running flexible hours for one person, such as extra cover.'
 - id: intervention_flexible_hours_reduction
-  value: 0.15
-  low: 0.05
-  high: 0.30
+  value: 0.20
+  low: 0
+  high: 0.25
   unit: share of the unit's actions prevented
   applies_to: {intervention: flexible_hours}
-  source: Placeholder proposed by the build on 2026-11-16. Not researched; the owner will research and cite it.
-  confidence: low
+  source: 'Expected and high: in a field experiment at a public utility, the flexible-schedule unit cut absences by more than 20%, and the gap disappeared when standard schedules returned (Dalton and Mesch, 1990, Administrative Science Quarterly 35:370-387; White House Council of Economic Advisers, Work-Life Balance and the Economics of Workplace Flexibility, 2010). Low: Baltes et al. (1999), Journal of Applied Psychology 84:496-513, found highly flexible programs less effective than less flexible ones, with benefits fading over time, and other studies found no relationship. Researched by the owner 2026-11-17 and confirmed by him the same day ("it''s all reviewed").'
+  confidence: medium
   owner: Michael V. Celli
-  status: TBD-MIKE
-  last_reviewed: '2026-11-16'
-  notes: Low, expected and high share of the unit's actions of that type flexible hours prevent. No evidence stands behind these figures yet.
+  status: confirmed
+  last_reviewed: '2026-11-17'
+  notes: 'Low, expected and high share of the unit''s attendance and tardiness actions prevented. The evidence measured absences, not discipline.'

@@ -499,16 +499,26 @@ flexible start and end times. Each has a one-time cost per person, a yearly cost
 person, and a low, expected and high share of actions prevented. On the Interventions page
 a consultant may fill the form from one and then change any figure to the client's own.
 
-**Every figure in it is a placeholder.** The owner asked for placeholders on 2026-11-16 and
-will research the values himself. None is researched or sourced; each is marked unreviewed
-in the file. Until he has reviewed them:
+**What stands behind each figure.** The owner's research of 2026-11-17 sourced seven of the
+twelve, and he confirmed them the same day; their citations are in the file. The other five
+are costs with no published benchmark and stay *placeholders*: a client's real figures
+should come from payroll or the benefits administrator. While an appraisal carries a
+placeholder:
 
-- the page says so when an entry is chosen;
-- an appraisal that still carries any library figure says which ones, on screen, in the kept
-  list, and **in the client's report and workbook**: "Placeholder figures: ... not yet
-  researched, sourced or reviewed, and not this client's own";
+- the page says, for the chosen entry, which figures are placeholders, and lists the
+  sources;
+- an appraisal that still carries any library figure says which, on screen, in the kept
+  list, and **in the client's report and workbook**;
 - changing a figure to the client's own takes it out of that sentence, and nothing else
   does. Which figures still stand is worked out on the server from the figures themselves.
+
+**What it is aimed at.** For the transit subsidy, the childcare subsidy and flexible hours,
+the studies behind the share prevented measured absences and lateness, not discipline. So
+those entries fill in "aimed at Attendance / AWOL and Tardiness", and the appraisal counts
+only those actions: the yearly cost of discipline it sets the intervention against is the
+cost of those actions alone. A consultant can aim any intervention at chosen types of
+misconduct, or at every type. If the library's share is kept and aimed wider than its
+evidence, the appraisal says so. Targeted training is aimed at misconduct itself.
 
 Choosing an entry is a convenience. It suggests nothing about what is causing a pattern.
 `GET /interventions/library` is the endpoint.
@@ -583,7 +593,7 @@ ever kept, what "Other" was said to be, and what was withdrawn and by whom.
 **No individual risk scoring.** **No finding of causes**: a person does that on site, and
 nothing in the product suggests one. **No evidence on how well an intervention works**: that
 is the consultant's judgement, entered with its basis, and the library's starting figures
-are placeholders marked as such. **Nothing in the cost baseline is
+say what stands behind them. **Nothing in the cost baseline is
 probability-weighted**: a cost is counted only when the record shows the event happened,
 and a projected saving is never added to it.
 

@@ -21,6 +21,11 @@ own on how well anything works: the only figures it offers are the library's (`l
 which a person must choose, and which are placeholders until the owner has researched them
 and are marked as such wherever an appraisal that keeps one is shown.
 
+**What it is aimed at.** An intervention may be aimed at some types of misconduct only: a
+transit subsidy at absences and lateness, not at insubordination. Then X is the cost of the
+unit's actions of those types alone, and only those can be prevented. Aimed at nothing in
+particular, it is aimed at every type the unit was disciplined for.
+
 **Z is then arithmetic**, done three times:
 
     prevented cost a year  = X x share of actions prevented
@@ -109,6 +114,28 @@ class UnitBaseline:
     #: Who the people are. Used only to decide whether the unit's cost may go into a
     #: client's copy of a report; it never leaves the server.
     cohort: frozenset[str] = field(default=frozenset(), repr=False, compare=False)
+    #: The same, by type of misconduct: (actions, net cost, who). What an intervention
+    #: aimed at some types only can prevent is worked out from these.
+    by_type: dict[str, tuple[int, Decimal, frozenset[str]]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+    type_labels: dict[str, str] = field(default_factory=dict, repr=False, compare=False)
+
+    def aimed(self, targets: tuple[str, ...]) -> tuple[Decimal, Decimal, frozenset[str]]:
+        """Actions a year, net cost a year, and who, for the types an intervention is
+        aimed at. Aimed at nothing in particular: the whole unit."""
+        if not targets:
+            return self.annual_actions, self.annual_net, self.cohort
+        hit = [self.by_type[t] for t in targets if t in self.by_type]
+        actions = sum((a for a, _, _ in hit), 0)
+        net = sum((n for _, n, _ in hit), ZERO)
+        who = frozenset().union(*(c for _, _, c in hit)) if hit else frozenset()
+        return Decimal(actions) / self.window_years, net / self.window_years, who
+
+    def label_of(self, targets: tuple[str, ...]) -> str:
+        """The types an intervention is aimed at, as a reader would say them."""
+        names = [self.type_labels.get(t, t) for t in targets]
+        return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
     @property
     def annual_net(self) -> Decimal:
@@ -164,6 +191,17 @@ def unit_baseline(
     if not theirs:
         return None
     first = theirs[0].dimensions
+    by_type: dict[str, tuple[int, Decimal, frozenset[str]]] = {}
+    for action in theirs:
+        kind = str(action.dimensions[TOPIC])
+        actions, net, who = by_type.get(kind, (0, ZERO, frozenset()))
+        by_type[kind] = (actions + 1, net + action.net, who | {action.employee_id})
+    # Labels from the whole run, so that a type this unit was never disciplined for is
+    # still named as a reader would name it.
+    type_labels: dict[str, str] = {}
+    for action in run.action_costs:
+        kind = str(action.dimensions[TOPIC])
+        type_labels.setdefault(kind, str(action.dimensions.get(f"{TOPIC}_label", kind)))
     return UnitBaseline(
         row=row,
         col=col,
@@ -176,6 +214,8 @@ def unit_baseline(
         net=sum((action.net for action in theirs), ZERO),
         window_years=window_years,
         cohort=frozenset(action.employee_id for action in theirs),
+        by_type=by_type,
+        type_labels=type_labels,
     )
 
 
@@ -202,6 +242,8 @@ class Intervention:
     #: `library.py`. They change no arithmetic; they decide what is said beside the result.
     library_id: str = ""
     library_fields: tuple[str, ...] = ()
+    #: The types of misconduct it is aimed at, by id. Empty: every type the unit has.
+    targets: tuple[str, ...] = ()
 
     def problems(self) -> list[str]:
         found = []
@@ -274,6 +316,7 @@ class Intervention:
             "basis": self.basis.strip(),
             "library_id": self.library_id,
             "library_fields": list(self.library_fields),
+            "targets": list(self.targets),
         }
 
 
@@ -319,8 +362,28 @@ class Appraisal:
         return self.scenarios[1]
 
     @property
+    def targets(self) -> tuple[str, ...]:
+        return self.intervention.targets
+
+    @property
+    def aimed_annual_net(self) -> Decimal:
+        return self.baseline.aimed(self.targets)[1]
+
+    @property
+    def aimed_label(self) -> str:
+        return self.baseline.label_of(self.targets) if self.targets else ""
+
+    @property
     def break_even_note(self) -> str:
+        yearly = self.aimed_annual_net
+        these = f"the {self.aimed_label} actions" if self.targets else "these actions"
         if self.break_even is None:
+            if self.targets and not self.baseline.aimed(self.targets)[0]:
+                return (
+                    f"None of this unit's discipline is of the types this intervention is "
+                    f"aimed at ({self.aimed_label}), so there is nothing here for it to "
+                    f"prevent."
+                )
             return (
                 "The cost baseline shows no net cost for these actions, so there is no cost "
                 "of discipline for an intervention to save here."
@@ -330,17 +393,28 @@ class Appraisal:
         if self.break_even > ONE:
             return (
                 f"It cannot pay for itself on the cost of discipline alone: it costs {cost} "
-                f"over {years} years and these actions cost "
-                f"{_money(self.baseline.annual_net * years)} in that time."
+                f"over {years} years and {these} cost {_money(yearly * years)} in that time."
             )
         return (
             f"It pays for itself if it prevents {_percent(self.break_even.quantize(SHARE))} "
-            f"of these actions: {cost} / ({_money(self.baseline.annual_net)} a year x "
-            f"{years} years)."
+            f"of {these}: {cost} / ({_money(yearly)} a year x {years} years)."
         )
+
+    def aimed_dict(self) -> dict | None:
+        """What it is aimed at, and what that costs. None when aimed at the whole unit."""
+        if not self.targets:
+            return None
+        actions, net, _ = self.baseline.aimed(self.targets)
+        return {
+            "types": list(self.targets),
+            "label": self.aimed_label,
+            "annual_actions": str(actions.quantize(Decimal("0.1"))),
+            "annual_net": str(net.quantize(CENT)),
+        }
 
     def as_dict(self) -> dict:
         return {
+            "aimed_at": self.aimed_dict(),
             "unit": self.baseline.as_dict(),
             "intervention": self.intervention.as_dict(),
             "scenarios": [scenario.as_dict() for scenario in self.scenarios],
@@ -360,7 +434,8 @@ def appraise(baseline: UnitBaseline, intervention: Intervention) -> Appraisal:
         raise InvalidIntervention(problems)
     years = intervention.years
     total_cost = intervention.total_cost
-    yearly = baseline.annual_net
+    yearly_actions, yearly, _ = baseline.aimed(intervention.targets)
+    what = f" of {baseline.label_of(intervention.targets)} actions" if intervention.targets else ""
     scenarios = []
     for label, share in (
         ("Low", intervention.reduction_low),
@@ -372,12 +447,12 @@ def appraise(baseline: UnitBaseline, intervention: Intervention) -> Appraisal:
             Scenario(
                 label=label,
                 reduction=share,
-                actions_prevented_per_year=baseline.annual_actions * share,
+                actions_prevented_per_year=yearly_actions * share,
                 prevented_per_year=prevented,
                 prevented_total=prevented * years,
                 net_saving=prevented * years - total_cost,
                 formula=(
-                    f"{_money(yearly)} a year x {_percent(share)} prevented x {years} years "
+                    f"{_money(yearly)} a year{what} x {_percent(share)} prevented x {years} years "
                     f"- {_money(total_cost)} cost of the intervention"
                 ),
             )
