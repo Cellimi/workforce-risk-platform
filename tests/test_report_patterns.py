@@ -74,7 +74,7 @@ def test_the_report_calls_out_the_pattern_with_what_it_costs(client_pdf):
     assert HOT in client_pdf
     assert "196 comparisons were made. 1 stood out." in client_pdf
     # The cost of those actions from the baseline, and the estimate beside it.
-    assert "70 20.6 3.40 $232,626 $164,168" in client_pdf
+    assert "70 20.6 3.40 $232,597 $164,147" in client_pdf
     # What a flag is and is not, said to the reader of the report.
     assert "It does not say why the rate is higher" in client_pdf
     assert "it says nothing about any one person" in client_pdf
@@ -128,7 +128,7 @@ def test_the_report_says_what_the_patterns_page_says(county, client_book):
         shown["col_label"],
     )
     assert (row["Actions"], row["People"]) == (shown["actions"], shown["people"]) == (70, 64)
-    assert str(row["Cost of these actions"]) == shown["net"] == "232625.91"
+    assert str(row["Cost of these actions"]) == shown["net"] == "232597.34"
     assert str(row["Estimated excess (not in any total)"]) == shown["estimated_excess_cost"]
     assert row["How it was worked out"].startswith(shown["explanation"])
 
@@ -154,7 +154,7 @@ def test_a_withheld_pattern_is_counted_and_its_figures_are_not_given(client_pdf,
     book = all_text(client_book)
     assert "1 more stood out and not shown here" in book
     for text in (client_pdf, book):
-        for figure in ("1,072,052", "1072051.96", "554,786", "554786.50"):
+        for figure in ("1,071,938", "1071937.68", "554,728", "554727.71"):
             assert figure not in text
 
 

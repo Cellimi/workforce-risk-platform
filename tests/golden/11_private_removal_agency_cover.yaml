@@ -181,10 +181,10 @@ separations:
 #
 # C5, civilian_standard profile, washout 0.12 -> recruiting and training items x 1/0.88
 #   Replacement rate: entry salary $37,440 / 2,080 = $18.00 x 1.4287 = $25.7166/hr
-#   advertising     $600 -> $681.82        background $250 -> $284.09
+#   advertising     $600 -> $681.82        background $75 -> $85.23
 #   recruiter       12 hrs x $53.57625 = $642.915 -> $730.59
 #   panel           2 x 1 hr x $42.861 = $85.722 -> $97.41
-#   drug screen     $65 -> $73.86          equipment  $300 -> $340.91
+#   drug screen     $45 -> $51.14          equipment  $300 -> $340.91
 #   orientation     12 hrs x $25.7166 = $308.60 -> $350.68
 #   ramp            6 wks x 40 hrs = 240 hrs x $25.7166 = $6,171.98 x 0.30 = $1,851.60
 #                   (not washout-adjusted: only the person who stays ramps up)
@@ -198,10 +198,10 @@ separations:
 #   unemployment    $6,500.00 charged to the employer's account x 1.0, which counts the
 #                   actual charge and claims no experience-rating amplification
 #
-# C1 $3,956.40 + C2 $3,657.47 + C3 $3,840.00 + C5 $14,490.96 + C6 $20,228.61
-# Gross   $46,173.44
+# C1 $3,956.40 + C2 $3,657.47 + C3 $3,840.00 + C5 $14,269.38 + C6 $20,228.61
+# Gross   $45,951.86
 # Offset  -$7,234.08
-# Net     $38,939.36
+# Net     $38,717.78
 
 expected:
   line_items:
@@ -212,8 +212,8 @@ expected:
     - {component: C2, subcomponent: paid_admin_leave, amount: '3657.47'}
     - {component: C3, subcomponent: backfill_admin_leave, amount: '3840.00'}
     - {component: C5, subcomponent: advertising, amount: '681.82'}
-    - {component: C5, subcomponent: background_investigation, amount: '284.09'}
-    - {component: C5, subcomponent: drug_screen, amount: '73.86'}
+    - {component: C5, subcomponent: background_investigation, amount: '85.23'}
+    - {component: C5, subcomponent: drug_screen, amount: '51.14'}
     - {component: C5, subcomponent: equipment_and_uniform, amount: '340.91'}
     - {component: C5, subcomponent: hr_recruiter_hours, amount: '730.59'}
     - {component: C5, subcomponent: interview_panel, amount: '97.41'}
@@ -225,7 +225,7 @@ expected:
     - {component: C6, subcomponent: agreement_hr_hours, amount: '428.61'}
     - {component: C6, subcomponent: severance_paid, amount: '12000.00'}
     - {component: C6, subcomponent: unemployment_benefits_charged, amount: '6500.00'}
-  gross: '46173.44'
+  gross: '45951.86'
   offset: '-7234.08'
-  net: '38939.36'
+  net: '38717.78'
   cost_incomplete: false

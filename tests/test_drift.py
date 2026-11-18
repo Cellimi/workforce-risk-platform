@@ -421,7 +421,7 @@ def test_a_rise_planted_in_the_county_is_found_and_nothing_else_is(county):
         and date.fromisoformat(str(a.dimensions["decision_date"])) >= report.later_start
     ]
     assert len(theirs) == 33 and hot.later_net == sum(a.net for a in theirs)
-    assert hot.estimated_excess_cost == Decimal("117409.28")
+    assert hot.estimated_excess_cost == Decimal("117387.01")
     # Every type together, the same thinning is a smaller share of the unit, and is not
     # enough: 9 fewer earlier actions out of some eighty.
     assert assess(data, rising, OVERALL).flagged == []

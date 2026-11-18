@@ -453,7 +453,7 @@ def test_the_planted_pattern_is_found_and_nothing_else_is(county):
     assert 1.8 <= hot.ratio <= 2.3
     assert hot.q_value == pytest.approx(0.0001, abs=0.00001)
     assert hot.q_value_people == pytest.approx(0.0005, abs=0.00002)
-    assert hot.estimated_excess_cost == Decimal("554786.50")
+    assert hot.estimated_excess_cost == Decimal("554727.71")
     assert hot.estimated_excess_cost == (
         Decimal(str(round(hot.excess_actions, 1))) * hot.cost_per_action
     ).quantize(Decimal("0.01"))
@@ -484,9 +484,9 @@ def test_the_planted_pattern_is_found_by_type_of_misconduct(county):
         and a.dimensions["misconduct_category"] == HOT_TYPE
     ]
     assert len(theirs) == 70 and hot.net == sum(a.net for a in theirs)
-    assert hot.net == Decimal("232625.91")
+    assert hot.net == Decimal("232597.34")
     assert hot.cohort == {a.employee_id for a in theirs}
-    assert hot.estimated_excess_cost == Decimal("164167.56")
+    assert hot.estimated_excess_cost == Decimal("164147.31")
     assert "70 Attendance / AWOL actions among 64 people" in hot.explanation
 
 
@@ -605,7 +605,7 @@ def test_roles_that_see_records_see_the_units_and_the_working(client):
         assert body["settings"]["unreviewed"] == sorted(DETECTION_AWAITING_OWNER_REVIEW)
         assert "does not say why" in body["note"]
         hot = body["flagged"][0]
-        assert (hot["net"], hot["estimated_excess_cost"]) == ("232625.91", "164167.56")
+        assert (hot["net"], hot["estimated_excess_cost"]) == ("232597.34", "164147.31")
         assert hot["setting_ids"] == list(SETTING_IDS)
         assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", response.text)
 
@@ -614,7 +614,7 @@ def test_roles_that_see_records_see_the_units_and_the_working(client):
         ).json()
         assert overall["by"] == "overall" and overall["comparisons"] == 29
         assert [(f["row"], f["col"], f["topic"]) for f in overall["flagged"]] == [(*HOT, "")]
-        assert overall["flagged"][0]["estimated_excess_cost"] == "554786.50"
+        assert overall["flagged"][0]["estimated_excess_cost"] == "554727.71"
     assert (
         client.get(
             "/detection/hotspots", params={"by": "person"}, headers=role("admin")
@@ -634,7 +634,7 @@ def test_leadership_sees_the_flagged_unit_with_what_it_costs(client):
     assert not {"not_flagged", "concentrated", "not_assessed"} & set(body)
     assert not re.search(r"\bE\d{5}\b|EMP-[0-9A-F]{8}", response.text)
     hot = body["flagged"][0]
-    assert (hot["actions"], hot["people"], hot["net"]) == (70, 64, "232625.91")
+    assert (hot["actions"], hot["people"], hot["net"]) == (70, 64, "232597.34")
 
     # The cost beside the flag is the cost baseline's own figure for that job, place and
     # type: the same reader, asking the cost matrix for it, is given the same number.

@@ -371,7 +371,7 @@ Advertising, HR recruiter hours, written and physical testing, interview panel t
 itemized one line at a time: background investigation, polygraph, psychological evaluation,
 medical exam, drug screen. Screening costs differ by an order of magnitude between a sworn
 background investigation (a full personal-history investigation, ~$3,500) and a civilian
-records check (~$300). Any element priced at zero for a profile produces no line item.
+commercial background check ($75-$150, from published vendor prices). Any element priced at zero for a profile produces no line item.
 
 ### Onboarding and training
 
@@ -892,10 +892,10 @@ county, 28 of its 32 job-and-location cells.
 
 On the synthetic county, by type of misconduct: 196 comparisons, one flagged, attendance
 among corrections officers at the main detention center, at 3.40 times the rate of the same
-job at the annex (70 actions against 20.6 expected). Those 70 actions cost $232,626 in the
-baseline; the estimated excess is $164,168. With every type together: 29 comparisons, the
-same unit flagged at 2.07 times (160 actions against 77.2 expected, costing $1,072,052 in
-the baseline, an estimated excess of $554,786). That is the pattern the generator plants,
+job at the annex (70 actions against 20.6 expected). Those 70 actions cost $232,597 in the
+baseline; the estimated excess is $164,147. With every type together: 29 comparisons, the
+same unit flagged at 2.07 times (160 actions against 77.2 expected, costing $1,071,938 in
+the baseline, an estimated excess of $554,728). That is the pattern the generator plants,
 at 1.8 times the action rate and shifted toward attendance; nothing else is flagged in
 either view.
 
@@ -1090,7 +1090,7 @@ matrix cell; where it may not be, the finding and the proposal are printed and t
 is not.
 
 On the synthetic county, attendance among corrections officers at the main detention center
-costs $232,626 over 2.91 years, $79,940 a year. An intervention costing $246,000 over three
+costs $232,597 over 2.91 years, $79,930 a year. An intervention costing $246,000 over three
 years could not pay for itself on that alone; one costing $60,000 would need to prevent a
 quarter of those actions.
 
@@ -1106,12 +1106,12 @@ From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:
 | Actions excluded for data quality | 13 |
 | Actions still accruing cost | 13 |
 | Window | 2.91 years |
-| Gross cost | $5,596,426 |
+| Gross cost | $5,594,444 |
 | Unpaid suspension offset (C3-offset) | -$486,772 |
 | Vacancy salary offset (C5-offset) | -$466,671 |
 | **Total offsets** | **-$953,442** |
-| **Net cost** | **$4,642,984** |
-| **Net cost per year** | **$1,595,527** |
+| **Net cost** | **$4,641,002** |
+| **Net cost per year** | **$1,594,846** |
 | Active headcount | 2,515 |
 | **Net cost per employee per year** | **$634** |
 | Share of gross from turnover (C5) | 44% |
@@ -1122,7 +1122,7 @@ From `data/synthetic/` at seed 20260917, base mode, as of 2026-09-17:
 | C2 Paid administrative leave | $499,631 | 9% |
 | C3 Backfill overtime | $1,082,132 | 19% |
 | C4 Appeals and grievances | $704,532 | 13% |
-| C5 Removal turnover | $2,484,822 | 44% |
+| C5 Removal turnover | $2,482,840 | 44% |
 | C3-offset Unpaid suspension savings | -$486,772 | |
 | C5-offset Vacancy salary savings | -$466,671 | |
 

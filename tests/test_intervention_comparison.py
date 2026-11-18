@@ -225,18 +225,18 @@ def kept(county) -> dict:
 
 def test_the_kept_list_sets_proposals_for_one_unit_side_by_side(county, kept):
     """Transit passes: $240 x 300 = $72,000 a year. The shift-swap scheme: $15,000 over 5
-    years, $3,000 a year. The discipline costs $79,940.18 a year. A quarter of that, less
-    $72,000, is -$52,014.96; 15% of it, less $3,000, is $8,991.03."""
+    years, $3,000 a year. The discipline costs $79,930.36 a year. A quarter of that, less
+    $72,000, is -$52,017.41; 15% of it, less $3,000, is $8,989.55."""
     listed = county.get("/interventions", headers=ADMIN).json()
     by_type, all_types = listed["side_by_side"]
-    assert by_type["unit"]["name"] == HOT_NAME and by_type["unit"]["annual_net"] == "79940.18"
+    assert by_type["unit"]["name"] == HOT_NAME and by_type["unit"]["annual_net"] == "79930.36"
     swap, passes = by_type["rows"]
     assert (swap["name"], swap["key"]) == ("Shift-swap scheme", kept["swap"]["id"])
     assert (swap["yearly_cost"], swap["break_even"]) == ("3000.00", "0.0375")
-    assert swap["yearly_net_saving_expected"] == "8991.03"
+    assert swap["yearly_net_saving_expected"] == "8989.55"
     assert (passes["name"], passes["key"]) == ("Transit passes", kept["passes"]["id"])
-    assert (passes["yearly_cost"], passes["break_even"]) == ("72000.00", "0.9007")
-    assert passes["yearly_net_saving_expected"] == "-52014.96"
+    assert (passes["yearly_cost"], passes["break_even"]) == ("72000.00", "0.9008")
+    assert passes["yearly_net_saving_expected"] == "-52017.41"
     assert all_types["unit"]["topic"] == "" and len(all_types["rows"]) == 2
     # The figures are the kept appraisals' own, over their years.
     for row, key in ((swap, "swap"), (passes, "passes")):
@@ -258,10 +258,10 @@ def test_the_clients_copy_compares_only_what_it_shows_with_its_money(county, kep
     who = {"X-WRI-Role": "executive", "X-WRI-Session": "compare-reader"}
     text = pdf_text(county.get("/exports/report.pdf", headers=who).content)
     assert f"Side by side: {HOT_NAME}" in text
-    assert "The discipline costs $79,940 a year." in text
+    assert "The discipline costs $79,930 a year." in text
     assert "Shift-swap scheme Inflexible scheduling, Other $3,000 3.75% prevented" in text
-    assert "$997 $8,991 $20,982" in text
-    assert "Transit passes Commuting burden $72,000 90.07% prevented" in text
+    assert "$997 $8,990 $20,979" in text
+    assert "Transit passes Commuting burden $72,000 90.08% prevented" in text
     assert "Their savings cannot be added" in text
     assert "Side by side: Corrections Officer at Main Detention Center" not in text
     assert text.count("Side by side:") == 1
@@ -273,7 +273,7 @@ def test_the_clients_copy_compares_only_what_it_shows_with_its_money(county, kep
     assert headings == [f"Side by side: {HOT_NAME}"]
     swap = next(row for row in rows if row[0] == "Shift-swap scheme" and row[2] == 5)
     assert swap[1] == "Inflexible scheduling, Other"
-    assert (swap[3], swap[4], swap[6]) == (3000, 0.0375, 8991.03)
+    assert (swap[3], swap[4], swap[6]) == (3000, 0.0375, 8989.55)
     assert "first bus" not in " ".join(str(v) for row in rows for v in row if v)
 
 

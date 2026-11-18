@@ -1051,7 +1051,7 @@ assumptions:
   owner: Michael V. Celli
   status: confirmed
   last_reviewed: '2026-11-12'
-  notes: Investigator time plus records and travel, per completed hire. (sworn deputy)
+  notes: "Investigator time plus records and travel, per completed hire. (sworn deputy) Federal cross-check, not the basis of this figure: DCSA's FY2026 billing rates are $455 for a Tier 2 moderate-risk Public Trust investigation, $4,460 for Tier 4 high-risk Public Trust and $5,890 for Tier 5 Top Secret (DCSA, Billing Rates and Resources; DCSA FIN 25-03, FY2027 Billing Rates, unchanged for agencies outside DoD). An employer that runs its own investigation does not pay these fees, so they show scale only."
 - id: c5_background_investigation_cost_corrections
   value: 2200
   low: 1100
@@ -1065,7 +1065,7 @@ assumptions:
   owner: Michael V. Celli
   status: confirmed
   last_reviewed: '2026-11-12'
-  notes: Investigator time plus records and travel, per completed hire. (corrections officer)
+  notes: "Investigator time plus records and travel, per completed hire. (corrections officer) Federal cross-check, not the basis of this figure: DCSA's FY2026 billing rates are $455 for a Tier 2 moderate-risk Public Trust investigation, $4,460 for Tier 4 high-risk Public Trust and $5,890 for Tier 5 Top Secret (DCSA, Billing Rates and Resources; DCSA FIN 25-03, FY2027 Billing Rates, unchanged for agencies outside DoD). An employer that runs its own investigation does not pay these fees, so they show scale only."
 - id: c5_background_investigation_cost_dispatch
   value: 1200
   low: 600
@@ -1079,7 +1079,7 @@ assumptions:
   owner: Michael V. Celli
   status: confirmed
   last_reviewed: '2026-11-12'
-  notes: Investigator time plus records and travel, per completed hire. (telecommunicator)
+  notes: "Investigator time plus records and travel, per completed hire. (telecommunicator) Federal cross-check, not the basis of this figure: DCSA's FY2026 billing rates are $455 for a Tier 2 moderate-risk Public Trust investigation, $4,460 for Tier 4 high-risk Public Trust and $5,890 for Tier 5 Top Secret (DCSA, Billing Rates and Resources; DCSA FIN 25-03, FY2027 Billing Rates, unchanged for agencies outside DoD). An employer that runs its own investigation does not pay these fees, so they show scale only."
 - id: c5_background_investigation_cost_fire_ems
   value: 1800
   low: 900
@@ -1093,35 +1093,33 @@ assumptions:
   owner: Michael V. Celli
   status: confirmed
   last_reviewed: '2026-11-12'
-  notes: Investigator time plus records and travel, per completed hire. (firefighter/EMT)
+  notes: "Investigator time plus records and travel, per completed hire. (firefighter/EMT) Federal cross-check, not the basis of this figure: DCSA's FY2026 billing rates are $455 for a Tier 2 moderate-risk Public Trust investigation, $4,460 for Tier 4 high-risk Public Trust and $5,890 for Tier 5 Top Secret (DCSA, Billing Rates and Resources; DCSA FIN 25-03, FY2027 Billing Rates, unchanged for agencies outside DoD). An employer that runs its own investigation does not pay these fees, so they show scale only."
 - id: c5_background_investigation_cost_civilian_skilled
-  value: 300
-  low: 120
-  high: 600
-  unit: usd_per_hire
-  applies_to:
-    turnover_profile: civilian_skilled
-  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
-    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
-  confidence: low
-  owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Investigator time plus records and travel, per completed hire. (skilled civilian)
-- id: c5_background_investigation_cost_civilian_standard
-  value: 250
-  low: 100
+  value: 150
+  low: 50
   high: 500
   unit: usd_per_hire
   applies_to:
-    turnover_profile: civilian_standard
-  source: Owner professional estimate. Sworn and corrections backgrounds are full personal-history investigations
-    (interviews, records checks, travel) and cost an order of magnitude more than a civilian records check.
-  confidence: low
+    turnover_profile: civilian_skilled
+  source: "Published commercial screening prices, 2026: $30-$150 per candidate for a standard domestic check; each past-employer verification adds $10-$25 and an education check about the same; checks for executive or high-risk roles can cost more than $500 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the top of the standard range, because a skilled hire usually adds employment and education verifications; the low bound is a mid-range package; the high bound is the executive-role figure."
+  confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Investigator time plus records and travel, per completed hire. (standard civilian)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Vendor fee for a commercial pre-hire background check, per completed hire. HR time is counted separately, as recruiter hours. Not covered by the research: state and FBI fingerprint fees, where the employer requires them. Replaces the owner's estimate of $300 ($120-$600). Researched 2026-11-18, awaiting the owner's review. (skilled civilian)"
+- id: c5_background_investigation_cost_civilian_standard
+  value: 75
+  low: 30
+  high: 150
+  unit: usd_per_hire
+  applies_to:
+    turnover_profile: civilian_standard
+  source: "Published commercial screening prices, 2026: most employers pay $30-$150 per candidate for a standard domestic background check, and bundled packages average $50-$100 per hire before court fees or rush charges (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'; Mitratech AssureHire published pricing, $28.99 / $49.99 / $59.99 per candidate plus pass-through fees). Value is the middle of the $50-$100 package range; the bounds are the $30-$150 typical range."
+  confidence: medium
+  owner: Michael V. Celli
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Vendor fee for a commercial pre-hire background check, per completed hire. HR time is counted separately, as recruiter hours. Not covered by the research: state and FBI fingerprint fees, where the employer requires them. Replaces the owner's estimate of $250 ($100-$500). Researched 2026-11-18, awaiting the owner's review. (standard civilian)"
 - id: c5_polygraph_cost_sworn_deputy
   value: 375
   low: 300
@@ -1369,83 +1367,83 @@ assumptions:
   notes: Pre-placement medical examination. Fire/EMS is higher because of respirator-protection and occupational
     medical standards. (standard civilian)
 - id: c5_drug_screen_cost_sworn_deputy
-  value: 65
-  low: 35
+  value: 45
+  low: 30
   high: 120
   unit: usd_per_hire
   applies_to:
     turnover_profile: sworn_deputy
-  source: Owner professional estimate.
+  source: "Published commercial screening prices, 2026: a standard urine drug test costs $30-$60 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the middle of that range."
   confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Pre-employment drug screen. (sworn deputy)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Pre-employment drug screen, per completed hire. The high bound stays at the owner's $120, because the research priced a standard urine test only and public-safety hiring may use a wider panel. Replaces the owner's estimate of $65 ($35-$120). Researched 2026-11-18, awaiting the owner's review. (sworn deputy)"
 - id: c5_drug_screen_cost_corrections
-  value: 65
-  low: 35
+  value: 45
+  low: 30
   high: 120
   unit: usd_per_hire
   applies_to:
     turnover_profile: corrections
-  source: Owner professional estimate.
+  source: "Published commercial screening prices, 2026: a standard urine drug test costs $30-$60 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the middle of that range."
   confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Pre-employment drug screen. (corrections officer)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Pre-employment drug screen, per completed hire. The high bound stays at the owner's $120, because the research priced a standard urine test only and public-safety hiring may use a wider panel. Replaces the owner's estimate of $65 ($35-$120). Researched 2026-11-18, awaiting the owner's review. (corrections officer)"
 - id: c5_drug_screen_cost_dispatch
-  value: 65
-  low: 35
+  value: 45
+  low: 30
   high: 120
   unit: usd_per_hire
   applies_to:
     turnover_profile: dispatch
-  source: Owner professional estimate.
+  source: "Published commercial screening prices, 2026: a standard urine drug test costs $30-$60 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the middle of that range."
   confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Pre-employment drug screen. (telecommunicator)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Pre-employment drug screen, per completed hire. The high bound stays at the owner's $120, because the research priced a standard urine test only and public-safety hiring may use a wider panel. Replaces the owner's estimate of $65 ($35-$120). Researched 2026-11-18, awaiting the owner's review. (telecommunicator)"
 - id: c5_drug_screen_cost_fire_ems
-  value: 65
-  low: 35
+  value: 45
+  low: 30
   high: 120
   unit: usd_per_hire
   applies_to:
     turnover_profile: fire_ems
-  source: Owner professional estimate.
+  source: "Published commercial screening prices, 2026: a standard urine drug test costs $30-$60 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the middle of that range."
   confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Pre-employment drug screen. (firefighter/EMT)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Pre-employment drug screen, per completed hire. The high bound stays at the owner's $120, because the research priced a standard urine test only and public-safety hiring may use a wider panel. Replaces the owner's estimate of $65 ($35-$120). Researched 2026-11-18, awaiting the owner's review. (firefighter/EMT)"
 - id: c5_drug_screen_cost_civilian_skilled
-  value: 65
-  low: 35
-  high: 120
+  value: 45
+  low: 30
+  high: 60
   unit: usd_per_hire
   applies_to:
     turnover_profile: civilian_skilled
-  source: Owner professional estimate.
+  source: "Published commercial screening prices, 2026: a standard urine drug test costs $30-$60 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the middle of that range."
   confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Pre-employment drug screen. (skilled civilian)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Pre-employment drug screen, per completed hire. Replaces the owner's estimate of $65 ($35-$120). Researched 2026-11-18, awaiting the owner's review. (skilled civilian)"
 - id: c5_drug_screen_cost_civilian_standard
-  value: 65
-  low: 35
-  high: 120
+  value: 45
+  low: 30
+  high: 60
   unit: usd_per_hire
   applies_to:
     turnover_profile: civilian_standard
-  source: Owner professional estimate.
+  source: "Published commercial screening prices, 2026: a standard urine drug test costs $30-$60 (BIB, 'What Does a Background Check Actually Cost?' (Aug 2026); Alex, 'Background Screening Cost'). Value is the middle of that range."
   confidence: medium
   owner: Michael V. Celli
-  status: confirmed
-  last_reviewed: '2026-11-12'
-  notes: Pre-employment drug screen. (standard civilian)
+  status: researched
+  last_reviewed: '2026-11-18'
+  notes: "Pre-employment drug screen, per completed hire. Replaces the owner's estimate of $65 ($35-$120). Researched 2026-11-18, awaiting the owner's review. (standard civilian)"
 - id: c5_orientation_hours_sworn_deputy
   value: 40
   low: 16

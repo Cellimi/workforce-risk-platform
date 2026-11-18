@@ -109,7 +109,7 @@ def test_the_clients_copy_shows_the_rise_and_withholds_only_the_comparison(count
     assert "Rising over the period" in text
     assert "Earlier half: 2023-11-12 to 2025-04-14. Later half: 2025-04-15 to 2026-09-17." in text
     assert "By type of misconduct 21 comparisons were made. 1 rose." in text
-    assert f"{HOT_NAME} 9 then 33 3.91 withheld $29,523 then $151,348 withheld" in text
+    assert f"{HOT_NAME} 9 then 33 3.91 withheld $29,523 then $151,319 withheld" in text
     assert "It rose by at least 1.5 times as much as the same type did in the rest of the" in text
     assert "The figures for the rest of the organization are not shown here" in text
     assert "1 more rose" not in text
@@ -118,7 +118,7 @@ def test_the_clients_copy_shows_the_rise_and_withholds_only_the_comparison(count
     header, *rows = sheet_rows(book, "Rising")
     (hot,) = [dict(zip(header, r, strict=True)) for r in rows if r[4] == "Rising"]
     assert (hot["Actions, earlier half"], hot["Actions, later half"]) == (9, 33)
-    assert Decimal(str(hot["Cost, later half"])) == Decimal("151347.88")
+    assert Decimal(str(hot["Cost, later half"])) == Decimal("151319.31")
     for column in (
         "Actions elsewhere, earlier half",
         "Actions elsewhere, later half",
@@ -172,8 +172,8 @@ def test_the_working_papers_carry_everything(county):
         if unit_of(a) == HOT
         and date.fromisoformat(str(a.dimensions["decision_date"])) >= later_starts
     )
-    assert Decimal(str(hot["Cost, later half"])) == later == Decimal("151347.88")
-    assert Decimal(str(hot["Estimated excess (not in any total)"])) == Decimal("117409.28")
+    assert Decimal(str(hot["Cost, later half"])) == later == Decimal("151319.31")
+    assert Decimal(str(hot["Estimated excess (not in any total)"])) == Decimal("117387.01")
     header, *rows = sheet_rows(papers, "Rising working")
     results = [r[4] for r in rows if r[0] and r[5] is not None]
     assert results.count("Rising") == 1 and results.count("Not flagged") == len(results) - 1
@@ -187,9 +187,9 @@ def test_a_rising_unit_when_shown_is_laid_out_with_its_cost_in_each_half(county)
     )
     text = pdf_text(render_pdf(dataclasses.replace(content, records=None)))
     assert "By type of misconduct 21 comparisons were made. 1 rose." in text
-    assert f"{HOT_NAME} 9 then 33 3.91 4.46 $29,523 then $151,348 $117,409" in text
+    assert f"{HOT_NAME} 9 then 33 3.91 4.46 $29,523 then $151,319 $117,387" in text
     assert "So this unit's rate rose 4.46 times as much as the rest's." in text
-    assert "Estimated excess: 25.6 later actions more than expected x $4,586.30" in text
+    assert "Estimated excess: 25.6 later actions more than expected x $4,585.43" in text
     assert "The cost in each half is what the records show those actions cost" in text
 
 

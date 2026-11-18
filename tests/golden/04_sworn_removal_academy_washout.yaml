@@ -119,7 +119,7 @@ separations:
 #   testing           $350 -> $466.67
 #   interview panel   3 x 2 hrs x $70.00 = $420.00 x 1.333333 = $560.00
 #   background        $3,500 -> $4,666.67   polygraph $375 -> $500.00
-#   psychological     $550 -> $733.33       medical   $350 -> $466.67   drug $65 -> $86.67
+#   psychological     $550 -> $733.33       medical   $350 -> $466.67   drug $45 -> $60.00
 #   Replacement rate: G19 step 1 = $62,000 / 2,080 = $29.807692 x 1.75 = $52.163462/hr
 #   orientation       40 hrs x $52.163462 = $2,086.54 x 1.333333 = $2,782.05
 #   academy tuition   $6,500 x 1.333333 = $8,666.67
@@ -129,10 +129,10 @@ separations:
 #   trainer diff.     560 hrs x $56.00 x 0.07 = $2,195.20 x 1.333333 = $2,926.93
 #   equipment         $6,500 x 1.333333 = $8,666.67
 #
-# C1 $4,415.35 + C5 $193,069.27
-# Gross   $197,484.62
+# C1 $4,415.35 + C5 $193,042.60
+# Gross   $197,457.95
 # Offset  -$40,691.70   (vacancy salary)
-# Net     $156,792.92
+# Net     $156,766.25
 
 expected:
   line_items:
@@ -143,7 +143,7 @@ expected:
     - {component: C5, subcomponent: academy_tuition, amount: '8666.67'}
     - {component: C5, subcomponent: advertising, amount: '3333.33'}
     - {component: C5, subcomponent: background_investigation, amount: '4666.67'}
-    - {component: C5, subcomponent: drug_screen, amount: '86.67'}
+    - {component: C5, subcomponent: drug_screen, amount: '60.00'}
     - {component: C5, subcomponent: equipment_and_uniform, amount: '8666.67'}
     - {component: C5, subcomponent: field_training_trainee_salary, amount: '38948.72'}
     - {component: C5, subcomponent: field_training_trainer_differential, amount: '2926.93'}
@@ -156,7 +156,7 @@ expected:
     - {component: C5, subcomponent: selection_testing, amount: '466.67'}
     - {component: C5, subcomponent: vacancy_coverage_overtime, amount: '55805.76'}
     - {component: C5-offset, subcomponent: vacancy_salary_saved, amount: '-40691.70'}
-  gross: '197484.62'
+  gross: '197457.95'
   offset: '-40691.70'
-  net: '156792.92'
+  net: '156766.25'
   cost_incomplete: false

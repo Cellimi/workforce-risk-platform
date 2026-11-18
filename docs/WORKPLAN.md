@@ -8,7 +8,7 @@ starting, and update it in the same pull request as the work it describes.
 Business decisions (pricing, ownership, legal structure) are kept outside the repository. Do
 not add them here: the repository is public.
 
-Last updated 2026-11-15.
+Last updated 2026-11-18.
 
 ## Working arrangement
 
@@ -980,3 +980,42 @@ methodology; this is what was done and what was deliberately left.
   existing five tables rather than new tables, because every one of them attaches to a record
   the template already has. Legal spend and unemployment data arriving as their own exports
   is a mapping problem, which the mapping layer already solves.
+
+## Screening costs from published prices (2026-11-18)
+
+**The owner's instruction, 2026-11-18**: "add the cost research data in my google drive for
+WRI into the platform for the cost of discipline". The research was compiled by the chat
+session (rule 6) as "Background Investigation & Clearance Cost Research" in the owner's
+Drive. The registry cites the published sources it names, never the Drive document.
+
+**What changed, awaiting the owner's review.** Eight C5 per-hire figures move from the
+owner's estimates to published commercial prices, each marked `researched` and listed in
+`RESEARCHED_AWAITING_OWNER_REVIEW` in `tests/test_config_consistency.py`:
+
+| Figure | Was (low-high) | Now (low-high) | Basis |
+|---|---|---|---|
+| Background check, standard civilian | $250 ($100-$500) | $75 ($30-$150) | Middle of the $50-$100 package range; $30-$150 typical |
+| Background check, skilled civilian | $300 ($120-$600) | $150 ($50-$500) | Top of the standard range, as a skilled hire adds employment and education checks; over $500 for executive roles |
+| Drug screen, civilian (two profiles) | $65 ($35-$120) | $45 ($30-$60) | A standard urine test, $30-$60 |
+| Drug screen, public safety (four profiles) | $65 ($35-$120) | $45 ($30-$120) | The same test; the high bound stays at the owner's $120 because the research priced a standard urine test only |
+
+On the synthetic county the net cost moves from $4,642,984 to $4,641,002 (-$1,982): only
+24 removals carry a replacement hire. Golden cases 02, 03, 04, 08, 10 and 11 are recomputed
+by hand in their comments.
+
+**What did not change.** The four public-safety background investigations ($3,500 sworn,
+$2,200 corrections, $1,200 dispatch, $1,800 fire/EMS) stay the owner's confirmed estimates.
+The research's federal DCSA rates ($455 Tier 2, $4,460 Tier 4, $5,890 Tier 5) are recorded
+in their notes as a cross-check on scale only: a county runs its own investigation and does
+not pay those fees. Continuous vetting and clearance waiting time have no counterpart in the
+model; the vacancy period already costs the wait for a replacement.
+
+**For the owner to settle when he reviews them:**
+
+1. **The values.** Rule 5: a changed value waits for his word.
+2. **Their status afterwards.** These are vendor and trade prices, not an official
+   statistic. Under the precedent for `c3_temp_agency_markup` (Private-sector cost model,
+   open item 3), a reviewed vendor price becomes `confirmed` with its citation kept, not
+   `researched`. Until he has reviewed them they are `researched`, as rule 5 requires.
+3. **Fingerprint fees.** The research does not price state and FBI fingerprint checks,
+   which a public employer often requires of civilian hires. The civilian notes say so.
